@@ -11,3 +11,60 @@
 [Contentful][1] is a content management platform for web applications, mobile apps and connected devices. It allows you to create, edit & manage content in the cloud and publish it anywhere via powerful API. Contentful offers tools for managing editorial teams and enabling cooperation between organizations.
 
 This node module uses the data provided by contentful-export to import it to contentful space
+
+# Changelog
+
+Check out the [releases](https://github.com/contentful/contentful-import/releases) page.
+
+# Install
+
+`npm install -g contentful-export`
+
+# Usage
+
+```shell
+Usage: bin/contentful-import [options]
+
+Options:
+  --version           Show version number                              [boolean]
+  --space-id          ID of the destination space            [string] [required]
+  --management-token  Management API token for the destination space
+                                                             [string] [required]
+  --content-file      json file that contains data to be import to your space
+                                                             [string] [required]
+  --config            Configuration file with required values
+```
+
+# Example usage
+
+```shell
+contentful-import \
+  --space-id spaceID \
+  --management-token managementToken
+```
+
+or
+
+```shell
+contentful-import --config example-config.json
+```
+
+You can create your own config file based on the [`example-config.json`](example-config.json) file.
+
+# Usage as a library
+
+While this tool is mostly intended to be used as a command line tool, it can also be used as a Node library:
+
+```javascript
+var spaceImport = require('contentful-import')
+
+spaceImport(options)
+.then((output) => {
+  console.log('Data Imported successfully')
+})
+.catch((err) => {
+  console.log('oh no! errors occurred!', err)
+})
+```
+
+[1]: https://www.contentful.com
