@@ -10,7 +10,7 @@
 
 [Contentful][1] is a content management platform for web applications, mobile apps and connected devices. It allows you to create, edit & manage content in the cloud and publish it anywhere via powerful API. Contentful offers tools for managing editorial teams and enabling cooperation between organizations.
 
-This node module uses the data provided by contentful-export to import it to contentful space
+This node module uses the data provided by [contentful-export](https://github.com/contentful/contentful-export) to import it to contentful space
 
 # Changelog
 
@@ -18,7 +18,7 @@ Check out the [releases](https://github.com/contentful/contentful-import/release
 
 # Install
 
-`npm install -g contentful-export`
+`npm install -g contentful-import`
 
 # Usage
 
@@ -26,13 +26,13 @@ Check out the [releases](https://github.com/contentful/contentful-import/release
 Usage: bin/contentful-import [options]
 
 Options:
-  --version           Show version number                              [boolean]
-  --space-id          ID of the destination space            [string] [required]
-  --management-token  Management API token for the destination space
-                                                             [string] [required]
-  --content-file      json file that contains data to be import to your space
-                                                             [string] [required]
-  --config            Configuration file with required values
+  --version                 Show version number [number]
+  --space-id                ID of the destination space [string] [required]
+  --management-token        Management API token for the destination space [string] [required]
+  --content-file            json file that contains data to be import to your space [string] [required]
+	--skip-content-model      Skips content types and locales. Copies only entries and assets [boolean]
+	--skip-locales            Skips locales. Must be used with content-model-only. Copies only content-types [boolean]
+  --config                  Configuration file with required values
 ```
 
 # Example usage
@@ -40,7 +40,8 @@ Options:
 ```shell
 contentful-import \
   --space-id spaceID \
-  --management-token managementToken
+  --management-token managementToken \
+	--content-file exported-file.json \
 ```
 
 or
@@ -56,8 +57,12 @@ You can create your own config file based on the [`example-config.json`](example
 While this tool is mostly intended to be used as a command line tool, it can also be used as a Node library:
 
 ```javascript
-var spaceImport = require('contentful-import')
-
+let spaceImport = require('contentful-import')
+let options = {
+	content: {entries:..., contentTypes:..., locales:...},
+	spaceId: 'SPACE_ID',
+	managementToken: 'MANAGEMENT_TOKEN'
+}
 spaceImport(options)
 .then((output) => {
   console.log('Data Imported successfully')
