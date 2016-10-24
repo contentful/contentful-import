@@ -44,3 +44,5 @@ jspm_packages
 *.swp
 # build 
 dist
+#local testing config
+config.json
