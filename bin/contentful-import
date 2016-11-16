@@ -19,7 +19,9 @@ log.info('Contentful Import Tool: \n' +
 
 // Give the user sometime to read the welcome message
 setTimeout(function(){
-		runContentfulImport(usageParams)
+  runContentfulImport(usageParams).then((result) => {
+    process.exit(0)
+  })
 		.catch(function(err){
 					log.error('Failed within\n', err)
 					process.exit(1)
