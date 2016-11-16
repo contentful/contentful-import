@@ -15,7 +15,7 @@ const pushToSpaceStub = sinon.stub().returns(Promise.resolve({}))
 runContentfulImport.__Rewire__('pushToSpace', pushToSpaceStub)
 test('Runs Contentful Import', (t) => {
   runContentfulImport({
-    opts: {},
+    opts: {content: {}},
     errorLogFile: 'errorlogfile'
   })
   .then(() => {
