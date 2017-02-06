@@ -27,6 +27,7 @@ Options:
   --management-token        Management API token for the destination space [string] [required]
   --content-file            json file that contains data to be import to your space [string] [required]
   --skip-content-model      Skips content types and locales. Copies only entries and assets [boolean]
+  --skip-content-publishing Skips content publishing. Creates content but does not publish it [boolean]
   --skip-locales            Skips locales. Must be used with content-model-only. Copies only content-types [boolean]
   --config                  Configuration file with required values
 ```
