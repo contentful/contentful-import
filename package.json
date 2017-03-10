@@ -1,11 +1,16 @@
 {
   "name": "contentful-import",
+  "version": "0.0.0-placeholder",
   "description": "this tool allows you to import JSON dump exported by contentful-export",
-  "bin": "bin/contentful-import",
-  "main": "index.js",
-  "version": "0.0.1",
+  "bin": {
+    "contentful-import": "./bin/contentful-import"
+  },
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=4.7"
+  },
   "scripts": {
-    "build": "npm run clean && mkdirp dist && babel lib --out-dir dist",
+    "build": "npm run clean && babel lib --out-dir dist",
     "clean": "rimraf dist",
     "prepublish": "in-publish && npm run build || not-in-publish",
     "postpublish": "npm run clean",
@@ -50,6 +55,7 @@
     "babel-cli": "^6.24.0",
     "babel-core": "^6.24.0",
     "babel-eslint": "^7.1.1",
+    "babel-plugin-add-module-exports": "^0.2.1",
     "babel-plugin-rewire": "^1.0.0-beta-3",
     "babel-preset-env": "^1.2.2",
     "coveralls": "^2.11.6",
@@ -57,7 +63,6 @@
     "ghooks": "^1.3.2",
     "in-publish": "^2.0.0",
     "istanbul": "^1.0.0-alpha.2",
-    "mkdirp": "^0.5.1",
     "opener": "^1.4.1",
     "require-all": "^2.0.0",
     "rimraf": "^2.5.0",
@@ -69,8 +74,7 @@
   "files": [
     "bin",
     "dist",
-    "example-config.json",
-    "index.js"
+    "example-config.json"
   ],
   "standard": {
     "parser": "babel-eslint"
