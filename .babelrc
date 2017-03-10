@@ -1,5 +1,15 @@
 {
-  "presets": ["es2015"],
+  "presets": [
+    ["env", {
+      "debug": true,
+      "targets": {
+        "node": 4.7
+      }
+    }]
+  ],
+  "plugins": [
+    "add-module-exports"
+  ],
   "env": {
     "test": {
       "sourceMaps": "inline",
