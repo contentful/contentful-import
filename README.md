@@ -18,19 +18,28 @@ npm install -g contentful-import
 
 ## Usage and examples
 
-```shell
-Usage: bin/contentful-import [options]
+```
+Usage: contentful-import [options]
 
 Options:
-  --version                 Show version number [number]
-  --space-id                ID of the destination space [string] [required]
-  --management-token        Management API token for the destination space [string] [required]
-  --content-file            json file that contains data to be import to your space [string] [required]
-  --skip-content-model      Skips content types and locales. Copies only entries and assets [boolean]
-  --skip-content-publishing Skips content publishing. Creates content but does not publish it [boolean]
-  --skip-locales            Skips locales. Must be used with content-model-only. Copies only content-types [boolean]
-  --content-model-only      Copies only the locales and content types
-  --config                  Configuration file with required values
+  --version                  Show version number                       [boolean]
+
+  --space-id                 ID of the destination space     [string] [required]
+
+  --management-token         Contentful management API token for the destination
+                             space                           [string] [required]
+
+  --content-file             JSON file that contains data to be import to your
+                             space                           [string] [required]
+
+  --skip-content-model       Skip importing content types and locales  [boolean]
+
+  --skip-locales             Skip importing locales                    [boolean]
+
+  --skip-content-publishing  Skips content publishing. Creates content but does
+                             not publish it                            [boolean]
+
+  --config                   Configuration file with required values
 ```
 
 ### Example
@@ -72,9 +81,9 @@ spaceImport(options)
 
 ## Limitations
 
-- This tool imports only your published Content Model, Content and Assets. It will support Editor Interfaces, Webhooks and Roles & Permissions in a future version. Draft entries are not supported.
-- You can only import content to an empty space. It does not support merging content into pre-existent spaces.
-- If you have custom widgets, you need to reinstall them manually in the new space.
+- This tool currently does **not** support the import of space memberships.
+- Imported webhooks with credentials will be imported as normal webhooks. Credentials should be added manually afterwards.
+- If you have custom UI extensions, you need to reinstall them manually in the new space.
 
 ## Changelog
 
