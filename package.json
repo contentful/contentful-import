@@ -1,6 +1,6 @@
 {
   "name": "contentful-import",
-  "version": "0.0.0-placeholder",
+  "version": "3.1.0",
   "description": "this tool allows you to import JSON dump exported by contentful-export",
   "bin": {
     "contentful-import": "./bin/contentful-import"
