@@ -32,14 +32,18 @@ Options:
   --content-file             JSON file that contains data to be import to your
                              space                           [string] [required]
 
-  --skip-content-model       Skip importing content types and locales  [boolean]
+  --skip-content-model       Skip importing content types and locales
+                                                      [boolean] [default: false]
 
-  --skip-locales             Skip importing locales                    [boolean]
+  --skip-locales             Skip importing locales   [boolean] [default: false]
 
   --skip-content-publishing  Skips content publishing. Creates content but does
-                             not publish it                            [boolean]
+                             not publish it           [boolean] [default: false]
 
-  --config                   Configuration file with required values
+  --error-log-file           Full path to the error log file            [string]
+
+  --config                   An optional configuration JSON file containing all
+                             the options for a single run
 ```
 
 ### Example
@@ -78,6 +82,8 @@ spaceImport(options)
   console.log('oh no! errors occurred!', err)
 })
 ```
+
+The `options` object can contain any of the CLI options, but written with a camelCase pattern instead and no dashes. For example `--space-id` would become `spaceId`.
 
 ## Limitations
 
