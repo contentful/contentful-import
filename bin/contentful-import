@@ -3,14 +3,14 @@ var log = require('npmlog')
 var runContentfulImport = require('../dist/index')
 var usageParams = require('../dist/usageParams')
 
-log.info('Contentful Import Tool')
-log.info('Importing data ...')
+log.info('import', 'Contentful Import Tool')
+log.info('import', 'Importing data ...')
 
 runContentfulImport(usageParams)
 .then((result) => {
   process.exit(0)
 })
 .catch(function (err) {
-  log.error('', 'Failed within\n', err)
+  log.error('import', 'Failed within\n', err)
   process.exit(1)
 })
