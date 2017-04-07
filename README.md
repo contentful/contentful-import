@@ -32,6 +32,8 @@ Options:
   --content-file             JSON file that contains data to be import to your
                              space                           [string] [required]
 
+  --content-model-only       Import only content types[boolean] [default: false]
+
   --skip-content-model       Skip importing content types and locales
                                                       [boolean] [default: false]
 
