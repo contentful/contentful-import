@@ -44,6 +44,9 @@ Options:
 
   --error-log-file           Full path to the error log file            [string]
 
+  --proxy                    Proxy configuration in HTTP auth format: host:port
+                             or user:password@host:port                 [string]
+
   --config                   An optional configuration JSON file containing all
                              the options for a single run
 ```
