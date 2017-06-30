@@ -1,4 +1,4 @@
-import test from 'tape'
+import test from 'blue-tape'
 import sinon from 'sinon'
 import contentfulImport from '../../lib/index'
 import Promise from 'bluebird'
@@ -31,7 +31,7 @@ function teardown () {
 
 test('Runs Contentful Import', (t) => {
   setup()
-  contentfulImport({
+  return contentfulImport({
     content: {},
     spaceId: 'someSpaceId',
     managementToken: 'someManagementToken',
@@ -42,21 +42,19 @@ test('Runs Contentful Import', (t) => {
     t.ok(transformSpaceStub.called, 'transform space')
     t.ok(pushToSpaceStub.called, 'push to space')
     teardown()
-    t.end()
   }).catch((error) => {
     t.fail('Should not throw ', error)
     teardown()
-    t.end()
   })
 })
 
 test('Creates a valid and correct opts object', (t) => {
   setup()
 
-  const errorLogFile = 'errorlogfile'
+  const errorLogFile = 'errorlogfile.json'
   const exampleConfig = require('../../example-config.json')
 
-  contentfulImport({
+  return contentfulImport({
     errorLogFile,
     config: resolve(__dirname, '..', '..', 'example-config.json'),
     content: {}
@@ -64,13 +62,11 @@ test('Creates a valid and correct opts object', (t) => {
   .then(() => {
     const opts = createClientsStub.args[0][0]
     t.false(opts.skipContentModel, 'defaults are applied')
-    t.equal(opts.errorLogFile, errorLogFile, 'defaults can be overwritten')
+    t.equal(opts.errorLogFile, resolve(process.cwd(), errorLogFile), 'defaults can be overwritten')
     t.equal(opts.spaceId, exampleConfig.spaceId, 'config file values are taken')
     teardown()
-    t.end()
   }).catch((error) => {
     t.fail('Should not throw ', error)
     teardown()
-    t.end()
   })
 })
