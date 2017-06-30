@@ -1,16 +1,14 @@
 #!/usr/bin/env node
-var log = require('npmlog')
 var runContentfulImport = require('../dist/index')
 var usageParams = require('../dist/usageParams')
-
-log.info('import', 'Contentful Import Tool')
-log.info('import', 'Importing data ...')
 
 runContentfulImport(usageParams)
 .then((result) => {
   process.exit(0)
 })
 .catch(function (err) {
-  log.error('import', 'Failed within\n', err)
+  if (err.name !== 'ContentfulMultiError') {
+    console.error(err)
+  }
   process.exit(1)
 })
