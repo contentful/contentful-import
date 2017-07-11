@@ -1,4 +1,4 @@
-import test from 'tape'
+import test from 'blue-tape'
 import runContentfulImport from '../../dist/index'
 import { createClient } from 'contentful-management'
 import { join } from 'path'
@@ -10,10 +10,19 @@ test('It should import a space properly when used as a lib', (t) => {
   const client = createClient({ accessToken: managementToken })
   return client.createSpace({name: 'temp contentful-import space'}, orgId)
     .then((space) => {
-      runContentfulImport({ spaceId: space.sys.id, managementToken: managementToken, contentFile: sampleSpaceFile })
+      runContentfulImport({
+        spaceId: space.sys.id,
+        managementToken,
+        contentFile: sampleSpaceFile,
+        useVerboseRenderer: true
+      })
+        .catch((multierror) => {
+          const errors = multierror.errors.filter((error) => error.hasOwnProperty('error'))
+          t.equals(errors.length, 0, 'should not log any real errors, only warnings')
+        })
         .then(() => {
+          t.pass('Finished import as a lib')
           return space.delete()
-            .then(t.end)
         })
     })
 })
