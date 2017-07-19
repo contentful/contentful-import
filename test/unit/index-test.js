@@ -37,15 +37,15 @@ test('Runs Contentful Import', (t) => {
     managementToken: 'someManagementToken',
     errorLogFile: 'errorlogfile'
   })
-  .then(() => {
-    t.ok(createClientsStub.called, 'create clients')
-    t.ok(transformSpaceStub.called, 'transform space')
-    t.ok(pushToSpaceStub.called, 'push to space')
-    teardown()
-  }).catch((error) => {
-    t.fail('Should not throw ', error)
-    teardown()
-  })
+    .then(() => {
+      t.ok(createClientsStub.called, 'create clients')
+      t.ok(transformSpaceStub.called, 'transform space')
+      t.ok(pushToSpaceStub.called, 'push to space')
+      teardown()
+    }).catch((error) => {
+      t.fail('Should not throw ', error)
+      teardown()
+    })
 })
 
 test('Creates a valid and correct opts object', (t) => {
@@ -59,14 +59,14 @@ test('Creates a valid and correct opts object', (t) => {
     config: resolve(__dirname, '..', '..', 'example-config.json'),
     content: {}
   })
-  .then(() => {
-    const opts = createClientsStub.args[0][0]
-    t.false(opts.skipContentModel, 'defaults are applied')
-    t.equal(opts.errorLogFile, resolve(process.cwd(), errorLogFile), 'defaults can be overwritten')
-    t.equal(opts.spaceId, exampleConfig.spaceId, 'config file values are taken')
-    teardown()
-  }).catch((error) => {
-    t.fail('Should not throw ', error)
-    teardown()
-  })
+    .then(() => {
+      const opts = createClientsStub.args[0][0]
+      t.false(opts.skipContentModel, 'defaults are applied')
+      t.equal(opts.errorLogFile, resolve(process.cwd(), errorLogFile), 'defaults can be overwritten')
+      t.equal(opts.spaceId, exampleConfig.spaceId, 'config file values are taken')
+      teardown()
+    }).catch((error) => {
+      t.fail('Should not throw ', error)
+      teardown()
+    })
 })
