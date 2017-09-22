@@ -50,7 +50,7 @@
   "dependencies": {
     "bluebird": "^3.3.3",
     "cli-table2": "^0.2.0",
-    "contentful-batch-libs": "^6.0.4",
+    "contentful-batch-libs": "^8.0.0-beta0",
     "http-proxy-agent": "2.0.0",
     "https-proxy-agent": "^2.0.0",
     "json-stringify-safe": "^5.0.1",
