@@ -50,7 +50,7 @@
   "dependencies": {
     "bluebird": "^3.3.3",
     "cli-table2": "^0.2.0",
-    "contentful-batch-libs": "^8.0.0-beta0",
+    "contentful-batch-libs": "8.0.0-beta1",
     "http-proxy-agent": "^2.0.0",
     "https-proxy-agent": "^2.0.0",
     "json-stringify-safe": "^5.0.1",
@@ -69,7 +69,7 @@
     "babel-template": "^6.23.0",
     "babel-types": "^6.23.0",
     "blue-tape": "^1.0.0",
-    "contentful-management": "^3.9.2",
+    "contentful-management": "^4.0.2",
     "coveralls": "^2.11.6",
     "cz-conventional-changelog": "^2.0.0",
     "eslint": "^4.2.0",
