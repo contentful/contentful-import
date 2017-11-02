@@ -51,9 +51,10 @@
     "bluebird": "^3.3.3",
     "cli-table2": "^0.2.0",
     "contentful-batch-libs": "8.0.0-beta1",
-    "http-proxy-agent": "^2.0.0",
     "https-proxy-agent": "^2.0.0",
-    "json-stringify-safe": "^5.0.1",
+    "listr": "^0.13.0",
+    "listr-update-renderer": "^0.4.0",
+    "listr-verbose-renderer": "^0.4.1",
     "lodash": "^4.0.0",
     "moment": "^2.18.1",
     "yargs": "^8.0.2"
