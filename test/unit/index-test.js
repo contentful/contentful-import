@@ -5,7 +5,7 @@ import Promise from 'bluebird'
 import { resolve } from 'path'
 
 const createClientsStub = sinon.stub().returns({ source: {delivery: {}}, destination: {management: {}} })
-const getTransformedDestinationResponse = sinon.stub().returns(
+const getDestinationResponse = sinon.stub().returns(
   Promise.resolve({contentTypes: [], entries: [], assets: [], locales: []})
 )
 const transformSpaceStub = sinon.stub().returns(Promise.resolve({contentTypes: [], entries: [], assets: [], locales: []}))
@@ -13,18 +13,18 @@ const pushToSpaceStub = sinon.stub().returns(Promise.resolve({}))
 
 function setup () {
   contentfulImport.__Rewire__('createClients', createClientsStub)
-  contentfulImport.__Rewire__('getTransformedDestinationResponse', getTransformedDestinationResponse)
+  contentfulImport.__Rewire__('getDestinationResponse', getDestinationResponse)
   contentfulImport.__Rewire__('transformSpace', transformSpaceStub)
   contentfulImport.__Rewire__('pushToSpace', pushToSpaceStub)
 }
 
 function teardown () {
   contentfulImport.__ResetDependency__('createClients')
-  contentfulImport.__ResetDependency__('getTransformedDestinationResponse')
+  contentfulImport.__ResetDependency__('getDestinationResponse')
   contentfulImport.__ResetDependency__('transformSpace')
   contentfulImport.__ResetDependency__('pushToSpace')
   createClientsStub.resetHistory()
-  getTransformedDestinationResponse.resetHistory()
+  getDestinationResponse.resetHistory()
   transformSpaceStub.resetHistory()
   pushToSpaceStub.resetHistory()
 }
@@ -39,6 +39,7 @@ test('Runs Contentful Import', (t) => {
   })
     .then(() => {
       t.ok(createClientsStub.called, 'create clients')
+      t.ok(getDestinationResponse.called, 'loads destination content')
       t.ok(transformSpaceStub.called, 'transform space')
       t.ok(pushToSpaceStub.called, 'push to space')
       teardown()
