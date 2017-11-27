@@ -90,6 +90,14 @@ spaceImport(options)
 
 The `options` object can contain any of the CLI options, but written with a camelCase pattern instead and no dashes. For example `--space-id` would become `spaceId`.
 
+## Importing to a space with existing content
+
+- If an entity does not exist, the import tool will create it with the same id.
+- If an entity already exists, the import tool will update its content.
+- Fields deletion and content transformation is not possible using this tool, check the [migration-cli](https://www.npmjs.com/package/contentful-migration-cli)
+- If an entry or asset is in draft, it will be imported as draft to the destination space
+- If an entry is published and have some pending changes in the source space it will be published with the latest changes
+
 ## Limitations
 
 - This tool currently does **not** support the import of space memberships.
