@@ -95,7 +95,7 @@ The `options` object can contain any of the CLI options, but written with a came
 - Field deletions and content transformations are not supported, please use the [migration-cli](https://www.npmjs.com/package/contentful-migration-cli).
 - If an entity does not exist in the destination space, it will be created.
 - If an entity already exists in the destination space, it will be updated.
-- If an entity is in draft, it will created as draft in the destination space.
+- If an entity is in draft, it will be created as draft in the destination space.
 - If an entity is published and has pending changes (updated) in the source space, it will be published with the latest changes in the destination space.
 
 ## Limitations
