@@ -92,11 +92,14 @@ The `options` object can contain any of the CLI options, but written with a came
 
 ## Importing to a space with existing content
 
-- Field deletions and content transformations are not supported, please use the [migration-cli](https://www.npmjs.com/package/contentful-migration-cli).
-- If an entity does not exist in the destination space, it will be created.
-- If an entity already exists in the destination space, it will be updated.
-- If an entity is in draft, it will be created as draft in the destination space.
-- If an entity is published and has pending changes (updated) in the source space, it will be published with the latest changes in the destination space.
+- Both source space and destination space must share the same content model structure. In order to achieve that, please use the [migration-cli](https://www.npmjs.com/package/contentful-migration-cli).
+- Content transformations are also not supported, please use the [migration-cli](https://www.npmjs.com/package/contentful-migration-cli).
+- Entities existence are determined based on their ID:
+  * If an entity does not exist in the destination space, it will be created.
+  * If an entity already exists in the destination space, it will be updated.
+- Publishing strategy:
+  * If an entity is in draft, it will be created as draft in the destination space.
+  * If an entity is published and has pending changes (updated) in the source space, it will be published with the latest changes in the destination space.
 
 ## Limitations
 
