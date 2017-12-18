@@ -29,7 +29,6 @@ test('It should import space properly when running as a cli', (t) => {
         .stdout(/Assets {20}| 6/)
         .stdout(/Locales {19}| 1/)
         .stdout(/Webhooks {18}| 0/)
-        .stdout(/Roles {21}| 7/)
         .end((error) => {
           if (error) {
             console.error(error)
