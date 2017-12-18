@@ -19,6 +19,7 @@ test('It should import a space properly when used as a lib', (t) => {
         .catch((multierror) => {
           const failedPublishErrors = multierror.errors.filter((error) => error.hasOwnProperty('error') && error.error.message.indexOf('Could not publish the following entities') !== -1)
           t.equals(failedPublishErrors.length, 0, 'Is able to publish all entities and does NOT display the failed queue message')
+          return space.delete()
         })
         .then(() => {
           t.pass('Finished import as a lib')
