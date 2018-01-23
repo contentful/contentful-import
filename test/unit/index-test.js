@@ -5,10 +5,38 @@ import Promise from 'bluebird'
 import { resolve } from 'path'
 
 const createClientsStub = sinon.stub().returns({ source: {delivery: {}}, destination: {management: {}} })
+
 const getDestinationResponse = sinon.stub().returns(
-  Promise.resolve({contentTypes: [], entries: [], assets: [], locales: []})
+  Promise.resolve({
+    contentTypes: [],
+    entries: [],
+    assets: [],
+    locales: [{
+      name: 'German (Germany)',
+      internal_code: 'de-DE',
+      code: 'de-DE',
+      default: true
+    }]
+  })
 )
-const transformSpaceStub = sinon.stub().returns(Promise.resolve({contentTypes: [], entries: [], assets: [], locales: []}))
+
+const transformSpaceStub = sinon.stub().returns(Promise.resolve({
+  contentTypes: [],
+  entries: [],
+  assets: [],
+  locales: [
+    {
+      name: 'German (Germany)',
+      code: 'de-DE',
+      default: false
+    },
+    {
+      name: 'U.S. English',
+      code: 'en-US',
+      default: true
+    }
+  ]
+}))
 const pushToSpaceStub = sinon.stub().returns(Promise.resolve({}))
 
 function setup () {
@@ -68,6 +96,36 @@ test('Creates a valid and correct opts object', (t) => {
       teardown()
     }).catch((error) => {
       t.fail('Should not throw ', error)
+      teardown()
+    })
+})
+
+test('Stops import when default locales does not match', (t) => {
+  setup()
+  const errorLogFile = 'errorlogfile.json'
+  return contentfulImport({
+    errorLogFile,
+    config: resolve(__dirname, '..', '..', 'example-config.json'),
+    content: {
+      locales: [
+        {
+          name: 'German (Germany)',
+          code: 'de-DE',
+          default: false
+        },
+        {
+          name: 'U.S English',
+          code: 'en-US',
+          default: true
+        }
+      ]
+    }
+  })
+    .then(() => {
+      t.fail('It should not succeed')
+      teardown()
+    }).catch(() => {
+      t.ok(true, 'It should throw')
       teardown()
     })
 })
