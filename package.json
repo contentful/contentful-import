@@ -56,7 +56,7 @@
     "listr-update-renderer": "^0.4.0",
     "listr-verbose-renderer": "^0.4.1",
     "lodash": "^4.0.0",
-    "moment": "^2.18.1",
+    "moment": "^2.19.3",
     "yargs": "^8.0.2"
   },
   "devDependencies": {
