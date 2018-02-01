@@ -15,11 +15,14 @@
     "prepublish": "in-publish && npm run build || not-in-publish",
     "postpublish": "npm run clean",
     "lint": "eslint lib bin/contentful-import test",
-    "pretest": "npm run lint",
-    "test": "npm run test:cover && npm run test:integration",
-    "test:cover": "BABEL_ENV=test babel-node ./node_modules/istanbul/lib/cli.js cover test/runner-unit",
-    "test:integration": "npm run build && BABEL_ENV=test babel-node ./test/runner-integration",
-    "test:unit": "BABEL_ENV=test babel-node ./test/runner-unit",
+    "pretest": "npm run lint && npm run build",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "jest --testPathPattern=test/unit --coverage",
+    "test:unit:debug": "node --inspect-brk ./node_modules/.bin/jest --runInBand --watch --testPathPattern=test/unit",
+    "test:unit:watch": "npm run test:unit -- --watch",
+    "test:integration": "jest --testPathPattern=test/integration",
+    "test:integration:debug": "node --inspect-brk ./node_modules/.bin/jest --runInBand --watch --testPathPattern=test/integration",
+    "test:integration:watch": "npm run test:integration -- --watch",
     "test:simulate-ci": "trevor",
     "browser-coverage": "npm run test:cover && opener coverage/lcov-report/index.html",
     "semantic-release": "semantic-release pre && npm publish && semantic-release post",
@@ -48,9 +51,8 @@
     "url": "https://github.com/contentful/contentful-import/issues"
   },
   "dependencies": {
-    "bluebird": "^3.3.3",
     "cli-table2": "^0.2.0",
-    "contentful-batch-libs": "^8.0.0",
+    "contentful-batch-libs": "^8.1.0",
     "https-proxy-agent": "^2.0.0",
     "listr": "^0.13.0",
     "listr-update-renderer": "^0.4.0",
@@ -61,33 +63,31 @@
   },
   "devDependencies": {
     "babel-cli": "^6.24.0",
-    "babel-core": "^6.24.0",
+    "babel-core": "^6.26.0",
     "babel-eslint": "^7.2.0",
+    "babel-jest": "^22.2.0",
     "babel-plugin-add-module-exports": "^0.2.1",
-    "babel-plugin-rewire": "^1.0.0-beta-3",
     "babel-plugin-transform-object-rest-spread": "^6.23.0",
     "babel-preset-env": "^1.6.0",
     "babel-template": "^6.23.0",
     "babel-types": "^6.23.0",
-    "blue-tape": "^1.0.0",
+    "codecov": "^3.0.0",
     "contentful-management": "^4.0.2",
-    "coveralls": "^2.11.6",
     "cz-conventional-changelog": "^2.0.0",
     "eslint": "^4.2.0",
     "eslint-config-standard": "^10.2.1",
     "eslint-plugin-import": "^2.7.0",
+    "eslint-plugin-jest": "^21.7.0",
     "eslint-plugin-node": "^5.1.1",
     "eslint-plugin-promise": "^3.5.0",
     "eslint-plugin-standard": "^3.0.1",
     "husky": "^0.14.3",
     "in-publish": "^2.0.0",
-    "istanbul": "^1.0.0-alpha.2",
+    "jest": "^21.2.1",
     "nixt": "^0.5.0",
     "opener": "^1.4.1",
-    "require-all": "^2.0.0",
     "rimraf": "^2.5.0",
     "semantic-release": "^6.3.6",
-    "sinon": "^2.3.8",
     "trevor": "^2.3.0"
   },
   "files": [
@@ -102,5 +102,14 @@
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
     }
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "lib/**/*.js"
+    ],
+    "coveragePathIgnorePatterns": [
+      "usageParams.js"
+    ]
   }
 }
