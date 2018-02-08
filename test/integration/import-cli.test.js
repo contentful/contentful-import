@@ -42,7 +42,7 @@ test('It should import space properly when running as a cli', (done) => {
         .stdout(/Locales +│ 1/)
         .stdout(/Webhooks +│ 0/)
         .end((error) => {
-          expect(error).toBe(undefined)
+          expect(error).toBeUndefined()
           done()
         })
     })
