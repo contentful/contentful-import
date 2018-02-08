@@ -8,7 +8,7 @@ test('payload validation should succeed when given an empty payload', (t) => {
   } catch (e) {
     t.fail('it should not throw an error')
   }
-  t.pass('it should suceed')
+  t.pass('it should succeed')
   t.end()
 })
 
@@ -170,7 +170,7 @@ test('payload validation should succeed when given a valid payload', (t) => {
   } catch (e) {
     t.fail('it should not throw an error')
   }
-  t.pass('it should suceed')
+  t.pass('it should succeed')
   t.end()
 })
 
@@ -184,17 +184,16 @@ test('payload validation should fail when given an invalid data', (t) => {
       contentType: 'image/png'
     }
   }
-
   try {
     assertPayload({
       entries: [],
       locales: [],
       contentTypes: [],
-      assets: [brokenAsset]
+      assets: [brokenAsset, brokenAsset]
     })
   } catch (e) {
     t.ok(e, 'it should throw an error')
-    t.deepEquals(e.details.length, 1, 'it should have one error')
+    t.deepEquals(e.details.length, 2, 'it should have 2 error')
     t.equals(e.details[0].entity, 'a title (myAsset)')
     t.deepEquals(e.details[0].path,
       ['assets', 0, 'fields', 'file'],
