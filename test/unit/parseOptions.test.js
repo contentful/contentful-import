@@ -157,10 +157,11 @@ test('parseOption accepts proxy config as string', () => {
   expect(options.httpsAgent.options).not.toHaveProperty('auth')
 })
 
-test.skip('parseOption accepts proxy config as object', () => {
+test('parseOption accepts proxy config as object', () => {
   const options = parseOptions({
     spaceId,
     managementToken,
+    content: {},
     proxy: {
       host: 'localhost',
       port: 1234,
