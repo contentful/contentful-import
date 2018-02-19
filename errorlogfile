@@ -1,0 +1,106 @@
+[
+  {
+    "ts": "2018-02-19T10:35:47.498Z",
+    "level": "error",
+    "error": {
+      "isJoi": true,
+      "name": "ValidationError",
+      "details": [
+        {
+          "message": "\"fields\" is required",
+          "path": [
+            "contentTypes",
+            0,
+            "fields"
+          ],
+          "type": "any.required",
+          "context": {
+            "key": "fields",
+            "label": "fields"
+          },
+          "entity": "contentType1"
+        },
+        {
+          "message": "\"fields\" is required",
+          "path": [
+            "contentTypes",
+            1,
+            "fields"
+          ],
+          "type": "any.required",
+          "context": {
+            "key": "fields",
+            "label": "fields"
+          },
+          "entity": "contentType2"
+        },
+        {
+          "message": "\"fields\" is required",
+          "path": [
+            "assets",
+            0,
+            "fields"
+          ],
+          "type": "any.required",
+          "context": {
+            "key": "fields",
+            "label": "fields"
+          },
+          "entity": "asset1"
+        },
+        {
+          "message": "\"fields\" is required",
+          "path": [
+            "assets",
+            1,
+            "fields"
+          ],
+          "type": "any.required",
+          "context": {
+            "key": "fields",
+            "label": "fields"
+          },
+          "entity": "asset2"
+        },
+        {
+          "message": "\"internal_code\" is required",
+          "path": [
+            "locales",
+            0,
+            "internal_code"
+          ],
+          "type": "any.required",
+          "context": {
+            "key": "internal_code",
+            "label": "internal_code"
+          },
+          "entity": "German (Germany)"
+        },
+        {
+          "message": "\"internal_code\" is required",
+          "path": [
+            "locales",
+            1,
+            "internal_code"
+          ],
+          "type": "any.required",
+          "context": {
+            "key": "internal_code",
+            "label": "internal_code"
+          },
+          "entity": "U.S. English"
+        }
+      ],
+      "stacktrace": [
+        "ValidationError: contentTypes:2\nassets:2\nlocales:2 - Get further details in the error log file",
+        "Object.<anonymous>.exports.process (/Users/kgarbaya/Desktop/workspace/contentful-import/node_modules/joi/lib/errors.js:190:19)",
+        "Object.<anonymous>.internals.Object._validateWithOptions (/Users/kgarbaya/Desktop/workspace/contentful-import/node_modules/joi/lib/types/any/index.js:669:31)",
+        "Object.<anonymous>.module.exports.internals.Any.root.validate (/Users/kgarbaya/Desktop/workspace/contentful-import/node_modules/joi/lib/index.js:139:23)",
+        "assertPayload (/Users/kgarbaya/Desktop/workspace/contentful-import/lib/utils/validations.js:26:107)",
+        "Task.task (/Users/kgarbaya/Desktop/workspace/contentful-import/lib/index.js:67:64)",
+        "Promise.resolve.then.then.skipped (/Users/kgarbaya/Desktop/workspace/contentful-import/node_modules/listr/lib/task.js:168:30)",
+        "<anonymous>"
+      ]
+    }
+  }
+]
