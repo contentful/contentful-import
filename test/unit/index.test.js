@@ -5,10 +5,15 @@ import pushToSpaceStub from 'contentful-batch-libs/dist/push/push-to-space'
 import transformSpaceStub from 'contentful-batch-libs/dist/transform/transform-space'
 import createClientsStub from 'contentful-batch-libs/dist/utils/create-clients'
 import getDestinationResponseStub from '../../lib/get-destination-response'
-
 import contentfulImport from '../../lib/index'
 
 jest.mock('cli-table2')
+jest.mock('../../lib/utils/validations', () => {
+  return {
+    assertPayload: jest.fn(),
+    assertDefaultLocale: jest.fn().mockImplementationOnce(() => { throw new Error('ContentfulMultiError') })
+  }
+})
 
 jest.mock('../../lib/get-destination-response', () => {
   return jest.fn(() => Promise.resolve({
@@ -30,7 +35,6 @@ jest.mock('../../lib/get-destination-response', () => {
     ],
     locales: [{
       name: 'German (Germany)',
-      internal_code: 'de-DE',
       code: 'de-DE',
       default: true
     }]
@@ -66,6 +70,28 @@ afterEach(() => {
   TableStub.mockClear()
 })
 
+test('Stops import when default locales does not match', () => {
+  const errorLogFile = 'errorlogfile.json'
+  expect.assertions(1)
+  return contentfulImport({
+    errorLogFile,
+    config: resolve(__dirname, '..', '..', 'example-config.json'),
+    content: {
+      locales: [
+        {
+          name: 'German (Germany)',
+          code: 'de-DE',
+          default: false
+        },
+        {
+          name: 'U.S English',
+          code: 'en-US',
+          default: true
+        }
+      ]
+    }
+  }).catch((err) => expect(err.name).toBe('ContentfulMultiError'))
+})
 test('Runs Contentful Import', () => {
   return contentfulImport({
     content: {
@@ -147,29 +173,6 @@ test('Creates a valid and correct opts object', () => {
     })
 })
 
-test('Stops import when default locales does not match', () => {
-  const errorLogFile = 'errorlogfile.json'
-  expect.assertions(1)
-  return contentfulImport({
-    errorLogFile,
-    config: resolve(__dirname, '..', '..', 'example-config.json'),
-    content: {
-      locales: [
-        {
-          name: 'German (Germany)',
-          code: 'de-DE',
-          default: false
-        },
-        {
-          name: 'U.S English',
-          code: 'en-US',
-          default: true
-        }
-      ]
-    }
-  }).catch((err) => expect(err.name).toBe('ContentfulMultiError'))
-})
-
 test('Intro CLI table respects skipContentModel', () => {
   return contentfulImport({
     content: {
@@ -218,53 +221,6 @@ test('Intro CLI table respects skipContentModel', () => {
     })
 })
 
-test('Intro CLI table respects contentModelOnly', () => {
-  return contentfulImport({
-    content: {
-      entries: [
-        { sys: { id: 'entry1' } },
-        { sys: { id: 'entry2' } }
-      ],
-      assets: [
-        { sys: { id: 'asset1' } },
-        { sys: { id: 'asset2' } }
-      ],
-      contentTypes: [
-        { sys: { id: 'contentType1' } },
-        { sys: { id: 'contentType2' } }
-      ],
-      editorInterfaces: [
-        { sys: { id: 'editorInterface1' } },
-        { sys: { id: 'editorInterface2' } }
-      ],
-      locales: [
-        {
-          name: 'German (Germany)',
-          code: 'de-DE',
-          default: true
-        },
-        {
-          name: 'U.S. English',
-          code: 'en-US',
-          default: false
-        }
-      ]
-    },
-    spaceId: 'someSpaceId',
-    managementToken: 'someManagementToken',
-    errorLogFile: 'errorlogfile',
-    contentModelOnly: true
-  })
-    .then(() => {
-      const introTable = TableStub.mock.instances[0]
-      expect(introTable.push.mock.calls[0][0]).toEqual([{colSpan: 2, content: 'The following entities are going to be imported:'}])
-      expect(introTable.push.mock.calls[1][0]).toEqual(['Content Types', 2])
-      expect(introTable.push.mock.calls[2][0]).toEqual(['Editor Interfaces', 2])
-      expect(introTable.push.mock.calls[3][0]).toEqual(['Locales', 2])
-      expect(introTable.push.mock.calls).toHaveLength(4)
-    })
-})
-
 test('Intro CLI table respects contentModelOnly and skipLocales', () => {
   return contentfulImport({
     content: {
@@ -309,5 +265,51 @@ test('Intro CLI table respects contentModelOnly and skipLocales', () => {
       expect(introTable.push.mock.calls[1][0]).toEqual(['Content Types', 2])
       expect(introTable.push.mock.calls[2][0]).toEqual(['Editor Interfaces', 2])
       expect(introTable.push.mock.calls).toHaveLength(3)
+    })
+})
+test('Intro CLI table respects contentModelOnly', () => {
+  return contentfulImport({
+    content: {
+      entries: [
+        { sys: { id: 'entry1' } },
+        { sys: { id: 'entry2' } }
+      ],
+      assets: [
+        { sys: { id: 'asset1' } },
+        { sys: { id: 'asset2' } }
+      ],
+      contentTypes: [
+        { sys: { id: 'contentType1' } },
+        { sys: { id: 'contentType2' } }
+      ],
+      editorInterfaces: [
+        { sys: { id: 'editorInterface1' } },
+        { sys: { id: 'editorInterface2' } }
+      ],
+      locales: [
+        {
+          name: 'German (Germany)',
+          code: 'de-DE',
+          default: true
+        },
+        {
+          name: 'U.S. English',
+          code: 'en-US',
+          default: false
+        }
+      ]
+    },
+    spaceId: 'someSpaceId',
+    managementToken: 'someManagementToken',
+    errorLogFile: 'errorlogfile',
+    contentModelOnly: true
+  })
+    .then(() => {
+      const introTable = TableStub.mock.instances[0]
+      expect(introTable.push.mock.calls[0][0]).toEqual([{colSpan: 2, content: 'The following entities are going to be imported:'}])
+      expect(introTable.push.mock.calls[1][0]).toEqual(['Content Types', 2])
+      expect(introTable.push.mock.calls[2][0]).toEqual(['Editor Interfaces', 2])
+      expect(introTable.push.mock.calls[3][0]).toEqual(['Locales', 2])
+      expect(introTable.push.mock.calls).toHaveLength(4)
     })
 })
