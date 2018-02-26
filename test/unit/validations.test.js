@@ -55,6 +55,16 @@ test('payload validation should succeed when given a valid payload', () => {
       'description': '',
       'fields': [
         {
+          'id': 'location',
+          'name': 'Location',
+          'type': 'Location',
+          'localized': false,
+          'required': true,
+          'validations': [],
+          'disabled': false,
+          'omitted': false
+        },
+        {
           'id': 'name',
           'name': 'Name',
           'type': 'Symbol',
