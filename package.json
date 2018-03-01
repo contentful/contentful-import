@@ -111,6 +111,9 @@
     ],
     "coveragePathIgnorePatterns": [
       "usageParams.js"
+    ],
+    "transformIgnorePatterns": [
+      "node_modules/(?!(contentful-batch-libs)/)"
     ]
   }
 }
