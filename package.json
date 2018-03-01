@@ -44,8 +44,7 @@
   "dependencies": {
     "bluebird": "^3.5.1",
     "cli-table2": "^0.2.0",
-    "contentful-batch-libs": "^9.0.0-beta1",
-    "https-proxy-agent": "^2.0.0",
+    "contentful-batch-libs": "^9.0.0-beta2",
     "joi": "^13.1.2",
     "listr": "^0.13.0",
     "listr-update-renderer": "^0.4.0",
