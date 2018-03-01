@@ -85,11 +85,9 @@ test('parseOptions sets correct default options', () => {
   expect(options.contentFile).toMatch(contentFile)
   expect(options.errorLogFile).toMatch(new RegExp(`^${resolve(basePath, errorFileNamePattern)}$`))
 
-  expect(options.managementApplication).toBe(`contentful.import/${version}`)
-  expect(options.managementToken).toBe(managementToken)
+  expect(options.application).toBe(`contentful.import/${version}`)
+  expect(options.accessToken).toBe(managementToken)
   expect(options.spaceId).toBe(spaceId)
-  expect(options.destinationManagementToken).toBe(managementToken)
-  expect(options.destinationSpace).toBe(spaceId)
 
   expect(options.prePublishDelay).toBe(3000)
   expect(options.skipContentModel).toBe(false)
