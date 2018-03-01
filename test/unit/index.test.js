@@ -1,10 +1,11 @@
 import { resolve } from 'path'
 
 import TableStub from 'cli-table2'
-import pushToSpaceStub from 'contentful-batch-libs/dist/push/push-to-space'
-import transformSpaceStub from 'contentful-batch-libs/dist/transform/transform-space'
-import createClientsStub from 'contentful-batch-libs/dist/utils/create-clients'
-import getDestinationResponseStub from '../../lib/get-destination-response'
+
+import pushToSpaceStub from '../../lib/tasks/push-to-space/push-to-space'
+import transformSpaceStub from '../../lib/transform/transform-space'
+import initClientStub from '../../lib/tasks/init-client'
+import getDestinationResponseStub from '../../lib/tasks/get-destination-data'
 import contentfulImport from '../../lib/index'
 
 jest.mock('cli-table2')
@@ -15,7 +16,7 @@ jest.mock('../../lib/utils/validations', () => {
   }
 })
 
-jest.mock('../../lib/get-destination-response', () => {
+jest.mock('../../lib/tasks/get-destination-data', () => {
   return jest.fn(() => Promise.resolve({
     entries: [
       { sys: { id: 'entry1' } },
@@ -40,30 +41,30 @@ jest.mock('../../lib/get-destination-response', () => {
     }]
   }))
 })
-jest.mock('contentful-batch-libs/dist/push/push-to-space', () => {
+jest.mock('../../lib/tasks/push-to-space/push-to-space', () => {
   const Listr = require('listr')
   return jest.fn(() => {
     return new Listr([
       {
         title: 'Fake push to space',
         task: (ctx, task) => {
-          ctx.data = ctx.source
+          ctx.data = ctx.sourceData
         }
       }
     ])
   })
 })
-jest.mock('contentful-batch-libs/dist/transform/transform-space', () => {
+jest.mock('../../lib/transform/transform-space', () => {
   return jest.fn((data) => Promise.resolve(data))
 })
-jest.mock('contentful-batch-libs/dist/utils/create-clients', () => {
+jest.mock('../../lib/tasks/init-client', () => {
   return jest.fn(() => (
     { source: {delivery: {}}, destination: {management: {}} }
   ))
 })
 
 afterEach(() => {
-  createClientsStub.mockClear()
+  initClientStub.mockClear()
   getDestinationResponseStub.mockClear()
   transformSpaceStub.mockClear()
   pushToSpaceStub.mockClear()
@@ -129,7 +130,7 @@ test('Runs Contentful Import', () => {
     errorLogFile: 'errorlogfile'
   })
     .then(() => {
-      expect(createClientsStub.mock.calls).toHaveLength(1)
+      expect(initClientStub.mock.calls).toHaveLength(1)
       expect(getDestinationResponseStub.mock.calls).toHaveLength(1)
       expect(transformSpaceStub.mock.calls).toHaveLength(1)
       expect(pushToSpaceStub.mock.calls).toHaveLength(1)
@@ -166,7 +167,7 @@ test('Creates a valid and correct opts object', () => {
     content: {}
   })
     .then(() => {
-      const opts = createClientsStub.mock.calls[0][0]
+      const opts = initClientStub.mock.calls[0][0]
       expect(opts.skipContentModel).toBeFalsy()
       expect(opts.errorLogFile).toBe(resolve(process.cwd(), errorLogFile))
       expect(opts.spaceId).toBe(exampleConfig.spaceId)
