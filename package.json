@@ -1,13 +1,13 @@
 {
   "name": "contentful-import",
-  "version": "0.0.0-placeholder",
+  "version": "0.0.0-determined-by-semantic-release",
   "description": "this tool allows you to import JSON dump exported by contentful-export",
   "bin": {
     "contentful-import": "./bin/contentful-import"
   },
   "main": "dist/index.js",
   "engines": {
-    "node": ">=4.7"
+    "node": ">=6"
   },
   "scripts": {
     "build": "npm run clean && babel lib --out-dir dist",
