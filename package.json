@@ -23,7 +23,6 @@
     "test:integration": "jest --testPathPattern=test/integration",
     "test:integration:debug": "node --inspect-brk ./node_modules/.bin/jest --runInBand --watch --testPathPattern=test/integration",
     "test:integration:watch": "npm run test:integration -- --watch",
-    "test:simulate-ci": "trevor",
     "browser-coverage": "npm run test:cover && opener coverage/lcov-report/index.html",
     "semantic-release": "semantic-release pre && npm publish && semantic-release post",
     "devmanage:build": "pushd ../contentful-management.js && npm run build && popd",
@@ -88,8 +87,7 @@
     "nixt": "^0.5.0",
     "opener": "^1.4.1",
     "rimraf": "^2.5.0",
-    "semantic-release": "^6.3.6",
-    "trevor": "^2.3.0"
+    "semantic-release": "^6.3.6"
   },
   "files": [
     "bin",
