@@ -7,12 +7,13 @@ import transformSpaceStub from '../../lib/transform/transform-space'
 import initClientStub from '../../lib/tasks/init-client'
 import getDestinationResponseStub from '../../lib/tasks/get-destination-data'
 import contentfulImport from '../../lib/index'
+import validations from '../../lib/utils/validations'
 
 jest.mock('cli-table2')
 jest.mock('../../lib/utils/validations', () => {
   return {
     assertPayload: jest.fn(),
-    assertDefaultLocale: jest.fn().mockImplementationOnce(() => { throw new Error('ContentfulMultiError') })
+    assertDefaultLocale: jest.fn()
   }
 })
 
@@ -55,7 +56,7 @@ jest.mock('../../lib/tasks/push-to-space/push-to-space', () => {
   })
 })
 jest.mock('../../lib/transform/transform-space', () => {
-  return jest.fn((data) => Promise.resolve(data))
+  return jest.fn((data) => data)
 })
 jest.mock('../../lib/tasks/init-client', () => {
   return jest.fn(() => (
@@ -73,6 +74,7 @@ afterEach(() => {
 
 test('Stops import when default locales does not match', () => {
   const errorLogFile = 'errorlogfile.json'
+  validations.assertDefaultLocale.mockImplementationOnce(() => { throw new Error('Invalid locale error') })
   expect.assertions(1)
   return contentfulImport({
     errorLogFile,
