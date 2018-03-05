@@ -79,19 +79,21 @@ const editorInterfaceUpdateMock = jest.fn()
 
 const clientMock = {
   getSpace: jest.fn(() => Promise.resolve({
-    getEditorInterfaceForContentType: () => {
-      return Promise.resolve({
-        sys: {
-          type: 'EditorInterface',
-          contentType: {
-            sys: {
-              id: 'someId'
+    getEnvironment: jest.fn(() => Promise.resolve({
+      getEditorInterfaceForContentType: () => {
+        return Promise.resolve({
+          sys: {
+            type: 'EditorInterface',
+            contentType: {
+              sys: {
+                id: 'someId'
+              }
             }
-          }
-        },
-        update: editorInterfaceUpdateMock
-      })
-    }
+          },
+          update: editorInterfaceUpdateMock
+        })
+      }
+    }))
   }))
 }
 
@@ -108,6 +110,7 @@ test('Push content to destination space', () => {
     destinationData,
     client: clientMock,
     spaceId: 'spaceid',
+    environmentId: 'master',
     prePublishDelay: 0
   })
     .run({ data: {} })
@@ -127,6 +130,7 @@ test('Push only content types and locales to destination space', () => {
     destinationData,
     client: clientMock,
     spaceId: 'spaceid',
+    environmentId: 'master',
     prePublishDelay: 0,
     contentModelOnly: true
   })
@@ -146,6 +150,7 @@ test('Push only content types', () => {
     destinationData,
     client: clientMock,
     spaceId: 'spaceid',
+    environmentId: 'master',
     prePublishDelay: 0,
     contentModelOnly: true,
     skipLocales: true
@@ -166,6 +171,7 @@ test('Push only entries and assets to destination space', () => {
     destinationData,
     client: clientMock,
     spaceId: 'spaceid',
+    environmentId: 'master',
     prePublishDelay: 0,
     skipContentModel: true
   })
@@ -185,6 +191,7 @@ test('Push only entries and assets to destination space and skip publishing', ()
     destinationData,
     client: clientMock,
     spaceId: 'spaceid',
+    environmentId: 'master',
     prePublishDelay: 0,
     skipContentModel: true,
     skipContentPublishing: true

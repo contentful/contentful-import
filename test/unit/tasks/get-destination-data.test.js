@@ -20,11 +20,15 @@ function batchQueryResolver (query) {
   })
 }
 
-const mockSpace = {
+const mockEnvironment = {
   getContentTypes: jest.fn(batchQueryResolver),
   getEntries: jest.fn(batchQueryResolver),
   getAssets: jest.fn(batchQueryResolver),
   getLocales: jest.fn(batchQueryResolver)
+}
+
+const mockSpace = {
+  getEnvironment: jest.fn(() => Promise.resolve(mockEnvironment))
 }
 
 const mockClient = {
@@ -32,15 +36,16 @@ const mockClient = {
 }
 
 afterEach(() => {
-  mockSpace.getContentTypes.mockClear()
-  mockSpace.getEntries.mockClear()
-  mockSpace.getAssets.mockClear()
-  mockSpace.getLocales.mockClear()
+  mockEnvironment.getContentTypes.mockClear()
+  mockEnvironment.getEntries.mockClear()
+  mockEnvironment.getAssets.mockClear()
+  mockEnvironment.getLocales.mockClear()
+  mockSpace.getEnvironment.mockClear()
   mockClient.getSpace.mockClear()
 })
 
 function testQueryLength (method) {
-  const query = mockSpace[method].mock.calls[0][0]['sys.id[in]']
+  const query = mockEnvironment[method].mock.calls[0][0]['sys.id[in]']
   const queryLength = query.length
   expect(queryLength < 2100).toBeTruthy()
   expect(query[query.length - 1]).not.toBe(',')
@@ -51,16 +56,17 @@ test('Gets destination content', () => {
   return getDestinationData({
     client: mockClient,
     spaceId: 'spaceid',
+    environmentId: 'master',
     sourceData
   })
     .then((response) => {
-      expect(mockSpace.getContentTypes.mock.calls).toHaveLength(2)
+      expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(2)
       testQueryLength('getContentTypes')
-      expect(mockSpace.getLocales.mock.calls).toHaveLength(1)
+      expect(mockEnvironment.getLocales.mock.calls).toHaveLength(1)
       testQueryLength('getLocales')
-      expect(mockSpace.getEntries.mock.calls).toHaveLength(20)
+      expect(mockEnvironment.getEntries.mock.calls).toHaveLength(20)
       testQueryLength('getEntries')
-      expect(mockSpace.getAssets.mock.calls).toHaveLength(15)
+      expect(mockEnvironment.getAssets.mock.calls).toHaveLength(15)
       testQueryLength('getAssets')
       expect(response.contentTypes).toHaveLength(150)
       expect(response.locales).toHaveLength(5)
@@ -74,15 +80,16 @@ test('Gets destination content with content model skipped', () => {
   return getDestinationData({
     client: mockClient,
     spaceId: 'spaceid',
+    environmentId: 'master',
     sourceData,
     skipContentModel: true
   })
     .then((response) => {
-      expect(mockSpace.getContentTypes.mock.calls).toHaveLength(0)
-      expect(mockSpace.getLocales.mock.calls).toHaveLength(0)
-      expect(mockSpace.getEntries.mock.calls).toHaveLength(20)
+      expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(0)
+      expect(mockEnvironment.getLocales.mock.calls).toHaveLength(0)
+      expect(mockEnvironment.getEntries.mock.calls).toHaveLength(20)
       testQueryLength('getEntries')
-      expect(mockSpace.getAssets.mock.calls).toHaveLength(15)
+      expect(mockEnvironment.getAssets.mock.calls).toHaveLength(15)
       testQueryLength('getAssets')
       expect(response.contentTypes).toHaveLength(0)
       expect(response.locales).toHaveLength(0)
@@ -96,16 +103,17 @@ test('Gets destination content with locales skipped', () => {
   return getDestinationData({
     client: mockClient,
     spaceId: 'spaceid',
+    environmentId: 'master',
     sourceData,
     skipLocales: true
   })
     .then((response) => {
-      expect(mockSpace.getContentTypes.mock.calls).toHaveLength(2)
+      expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(2)
       testQueryLength('getContentTypes')
-      expect(mockSpace.getLocales.mock.calls).toHaveLength(0)
-      expect(mockSpace.getEntries.mock.calls).toHaveLength(20)
+      expect(mockEnvironment.getLocales.mock.calls).toHaveLength(0)
+      expect(mockEnvironment.getEntries.mock.calls).toHaveLength(20)
       testQueryLength('getEntries')
-      expect(mockSpace.getAssets.mock.calls).toHaveLength(15)
+      expect(mockEnvironment.getAssets.mock.calls).toHaveLength(15)
       testQueryLength('getAssets')
       expect(response.contentTypes).toHaveLength(150)
       expect(response.locales).toHaveLength(0)
@@ -119,16 +127,17 @@ test('Gets destination content with contentModelOnly', () => {
   return getDestinationData({
     client: mockClient,
     spaceId: 'spaceid',
+    environmentId: 'master',
     sourceData,
     contentModelOnly: true
   })
     .then((response) => {
-      expect(mockSpace.getContentTypes.mock.calls).toHaveLength(2)
+      expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(2)
       testQueryLength('getContentTypes')
-      expect(mockSpace.getLocales.mock.calls).toHaveLength(1)
+      expect(mockEnvironment.getLocales.mock.calls).toHaveLength(1)
       testQueryLength('getLocales')
-      expect(mockSpace.getEntries.mock.calls).toHaveLength(0)
-      expect(mockSpace.getAssets.mock.calls).toHaveLength(0)
+      expect(mockEnvironment.getEntries.mock.calls).toHaveLength(0)
+      expect(mockEnvironment.getAssets.mock.calls).toHaveLength(0)
       expect(response.contentTypes).toHaveLength(150)
       expect(response.locales).toHaveLength(5)
       expect(response.entries).toHaveLength(0)
@@ -141,13 +150,14 @@ test('Does not fail with incomplete source data', () => {
   return getDestinationData({
     client: mockClient,
     spaceId: 'spaceid',
+    environmentId: 'master',
     sourceData: {}
   })
     .then((response) => {
-      expect(mockSpace.getContentTypes.mock.calls).toHaveLength(0)
-      expect(mockSpace.getLocales.mock.calls).toHaveLength(0)
-      expect(mockSpace.getEntries.mock.calls).toHaveLength(0)
-      expect(mockSpace.getAssets.mock.calls).toHaveLength(0)
+      expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(0)
+      expect(mockEnvironment.getLocales.mock.calls).toHaveLength(0)
+      expect(mockEnvironment.getEntries.mock.calls).toHaveLength(0)
+      expect(mockEnvironment.getAssets.mock.calls).toHaveLength(0)
       expect(response.contentTypes).toHaveLength(0)
       expect(response.locales).toHaveLength(0)
       expect(response.entries).toHaveLength(0)
@@ -163,6 +173,7 @@ test('Fails to get destination space', () => {
   return getDestinationData({
     client: mockClient,
     spaceId: 'spaceid',
+    environmentId: 'master',
     sourceData,
     skipContentModel: true
   })
