@@ -14,17 +14,17 @@ afterEach(() => {
 
 test('Create entities', () => {
   const updateStub = jest.fn().mockReturnValue(Promise.resolve({sys: {type: 'Asset'}}))
-  const space = {
+  const target = {
     createAssetWithId: jest.fn().mockReturnValue(Promise.resolve({sys: {type: 'Asset'}}))
   }
-  return createEntities({space: space, type: 'Asset'}, [
+  return createEntities({target, type: 'Asset'}, [
     { original: { sys: {} }, transformed: { sys: {id: '123'} } },
     { original: { sys: {} }, transformed: { sys: {id: '456'} } }
   ], [
     {sys: {id: '123', version: 6}, update: updateStub}
   ])
     .then((response) => {
-      expect(space.createAssetWithId.mock.calls).toHaveLength(1)
+      expect(target.createAssetWithId.mock.calls).toHaveLength(1)
       expect(updateStub.mock.calls).toHaveLength(1)
       expect(logEmitter.emit.mock.calls).toHaveLength(2)
       const logLevels = logEmitter.emit.mock.calls.map((args) => args[0])
@@ -34,7 +34,7 @@ test('Create entities', () => {
 
 test('Create entities handle regular errors', () => {
   const updateStub = jest.fn()
-  const space = {
+  const target = {
     createEntryWithId: jest.fn().mockReturnValue(Promise.resolve({sys: {type: 'Entry'}}))
   }
   const creationError = new Error('could not create entity')
@@ -48,7 +48,7 @@ test('Create entities handle regular errors', () => {
     {sys: {id: '123', version: 6}, update: updateStub}
   ]
 
-  return createEntities({space: space, type: 'Asset'}, entries, destinationEntries)
+  return createEntities({target, type: 'Asset'}, entries, destinationEntries)
     .then((result) => {
       expect(updateStub.mock.calls).toHaveLength(1)
       expect(logEmitter.emit.mock.calls).toHaveLength(1)
@@ -65,7 +65,7 @@ test('Create entities handle regular errors', () => {
 
 test('Create entries', () => {
   const updateStub = jest.fn().mockReturnValue(Promise.resolve({sys: {type: 'Entry'}}))
-  const space = {
+  const target = {
     createEntryWithId: jest.fn().mockReturnValue(Promise.resolve({sys: {type: 'Entry'}})),
     createEntry: jest.fn().mockReturnValue(Promise.resolve({sys: {type: 'Entry'}}))
   }
@@ -77,10 +77,10 @@ test('Create entries', () => {
   const destinationEntries = [
     {sys: {id: '123', version: 6}, update: updateStub}
   ]
-  return createEntries({space: space, skipContentModel: false}, entries, destinationEntries)
+  return createEntries({target, skipContentModel: false}, entries, destinationEntries)
     .then((response) => {
-      expect(space.createEntryWithId.mock.calls).toHaveLength(1)
-      expect(space.createEntry.mock.calls).toHaveLength(1)
+      expect(target.createEntryWithId.mock.calls).toHaveLength(1)
+      expect(target.createEntry.mock.calls).toHaveLength(1)
       expect(updateStub.mock.calls).toHaveLength(1)
       expect(logEmitter.emit.mock.calls).toHaveLength(3)
       const logLevels = logEmitter.emit.mock.calls.map((args) => args[0])
@@ -114,7 +114,7 @@ test('Create entries and remove unknown fields', () => {
     {sys: {id: '123', version: 6}, update: updateStub}
   ]
 
-  return createEntries({space: {}, skipContentModel: true}, entries, destinationEntries)
+  return createEntries({target: {}, skipContentModel: true}, entries, destinationEntries)
     .then((response) => {
       expect(updateStub.mock.calls).toHaveLength(2)
       expect('existingfield' in entries[0].transformed.fields).toBeTruthy()
@@ -138,7 +138,7 @@ test('Create entries and handle regular errors', () => {
     {sys: {id: '123', version: 6}, update: updateStub}
   ]
 
-  return createEntries({space: {}}, entries, destinationEntries)
+  return createEntries({target: {}}, entries, destinationEntries)
     .then((result) => {
       expect(updateStub.mock.calls).toHaveLength(1)
       expect(logEmitter.emit.mock.calls).toHaveLength(1)
@@ -154,7 +154,7 @@ test('Create entries and handle regular errors', () => {
 })
 
 test('Fails to create locale if it already exists', () => {
-  const space = {
+  const target = {
     createLocale: jest.fn(() => Promise.reject(errorValidationFailed))
   }
   const errorValidationFailed = new Error()
@@ -166,7 +166,7 @@ test('Fails to create locale if it already exists', () => {
   }
   const entity = { original: { sys: {} }, transformed: { sys: {} } }
 
-  return createEntities({space: space, type: 'Locale'}, [entity], [{sys: {}}])
+  return createEntities({target, type: 'Locale'}, [entity], [{sys: {}}])
     .then((entities) => {
       expect(entities[0]).toBe(entity)
       const logLevels = logEmitter.emit.mock.calls.map((args) => args[0])
