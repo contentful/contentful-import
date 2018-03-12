@@ -177,8 +177,13 @@ test('payload validation should fail when given an invalid data', () => {
     sys: {id: 'myAsset'},
     fields: {
       title: {'en-US': 'a title'},
-      fileName: 'anAssets.png',
-      contentType: 'image/png'
+      file: {
+        'en-US': {
+          // url is missing
+          fileName: 'anAssets.png',
+          contentType: 'image/png'
+        }
+      }
     }
   }
   expect(() => assertPayload({
