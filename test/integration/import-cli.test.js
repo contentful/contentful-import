@@ -27,21 +27,14 @@ test('It should import space properly when running as a cli', (done) => {
       app()
         .run(` --space-id ${space.sys.id} --management-token ${managementToken} --content-file ${resolve(__dirname, 'sample-space.json')}`)
         .code(0)
-        .expect((result) => {
+        .expect(result => {
           if (result.stderr.length) {
             console.log(result.stdout)
             console.log(result.stderr)
             throw new Error('Should not have stderr output.')
           }
         })
-        .stdout(/The following entities are going to be imported:/)
-        .stdout(/Content Types +│ 2/)
-        .stdout(/Editor Interfaces +│ 2/)
-        .stdout(/Entries +│ 4/)
-        .stdout(/Assets +│ 4/)
-        .stdout(/Locales +│ 1/)
-        .stdout(/Webhooks +│ 0/)
-        .end((error) => {
+        .end(error => {
           expect(error).toBeUndefined()
           done()
         })
