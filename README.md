@@ -29,6 +29,8 @@ Options:
   --version                  Show version number                       [boolean]
 
   --space-id                 ID of the destination space     [string] [required]
+  
+  --environment-id           ID the environment in the destination space [default: 'master']
 
   --management-token         Contentful management API token for the destination
                              space                           [string] [required]
