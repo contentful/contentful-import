@@ -57,6 +57,8 @@ Options:
 
 ### Example
 
+#### Basic Usage
+
 ```shell
 contentful-import \
   --space-id spaceID \
@@ -71,6 +73,14 @@ contentful-import --config example-config.json
 ```
 
 You can create your own configuration file based on the [_example-config.json_](example-config.json) file.
+
+#### Import an environment
+
+```
+contentful-import --space-id <space-id>\
+ --management-token <token>\
+ --environment-id <environment-id>
+```
 
 ### Usage as a library
 
