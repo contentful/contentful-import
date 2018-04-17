@@ -171,7 +171,58 @@ test('payload validation should succeed when given a valid payload', () => {
   }
   expect(() => assertPayload(payload)).not.toThrow()
 })
-
+test('allow null and empty string for webhook httpBasicUsername', () => {
+  const webhook = {
+    'sys': {
+      'type': 'WebhookDefinition',
+      'id': '0KzM2HxYr5O1pZ4SaUzK8h',
+      'version': 1,
+      'space': {
+        'sys': {
+          'type': 'Link',
+          'linkType': 'Space',
+          'id': 'yadj1kx9rmg0'
+        }
+      },
+      'createdAt': '2015-05-18T11:29:46.809Z',
+      'createdBy': {
+        'sys': {
+          'type': 'Link',
+          'linkType': 'User',
+          'id': '7BslKh9TdKGOK41VmLDjFZ'
+        }
+      },
+      'updatedAt': '2015-05-18T11:29:46.809Z',
+      'updatedBy': {
+        'sys': {
+          'type': 'Link',
+          'linkType': 'User',
+          'id': '4FLrUHftHW3v2BLi9fzfjU'
+        }
+      }
+    },
+    'name': 'My webhook',
+    'url': 'https://www.example.com',
+    'topics': [
+      'Entry.create',
+      'ContentType.create',
+      '*.publish',
+      'Asset.*'
+    ],
+    'httpBasicUsername': 'yolo',
+    'headers': [
+      {
+        'key': 'header1',
+        'value': 'value1'
+      },
+      {
+        'key': 'header2',
+        'value': 'value2'
+      }
+    ]
+  }
+  expect(() => assertPayload({webhooks: [webhook]})).not.toThrow()
+})
 test('payload validation should fail when given an invalid data', () => {
   const brokenAsset = {
     sys: {id: 'myAsset'},
