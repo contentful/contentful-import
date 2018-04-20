@@ -22,59 +22,7 @@ npm install -g contentful-import
 
 ## Usage and examples
 
-```
-Usage: contentful-import [options]
-
-Options:
-  --version                  Show version number                       [boolean]
-
-  --space-id                 ID of the destination space     [string] [required]
-  
-  --environment-id           ID the environment in the destination space [default: 'master']
-
-  --management-token         Contentful management API token for the destination
-                             space                           [string] [required]
-
-  --content-file             JSON file that contains data to be import to your
-                             space                           [string] [required]
-
-  --content-model-only       Import only content types[boolean] [default: false]
-
-  --skip-content-model       Skip importing content types and locales
-                                                      [boolean] [default: false]
-
-  --skip-locales             Skip importing locales   [boolean] [default: false]
-
-  --skip-content-publishing  Skips content publishing. Creates content but does
-                             not publish it           [boolean] [default: false]
-
-  --error-log-file           Full path to the error log file            [string]
-
-  --proxy                    Proxy configuration in HTTP auth format: host:port
-                             or user:password@host:port                 [string]
-
-  --config                   An optional configuration JSON file containing all
-                             the options for a single run
-```
-
 ### Example
-
-#### Basic Usage
-
-```shell
-contentful-import \
-  --space-id spaceID \
-  --management-token managementToken \
-  --content-file exported-file.json \
-```
-
-or
-
-```shell
-contentful-import --config example-config.json
-```
-
-You can create your own configuration file based on the [_example-config.json_](example-config.json) file.
 
 #### Import an environment
 
@@ -86,7 +34,7 @@ contentful-import --space-id <space-id>\
 
 ### Usage as a library
 
-While this tool is intended for use as a command line tool, you can also use it as a Node library:
+You can also use it as a Node library
 
 ```javascript
 let spaceImport = require('contentful-import')
