@@ -85,10 +85,10 @@ contentfulImport(options)
 ### Basics
 
 #### `spaceId` [string] [required]
-ID of the Space to import into
+ID of the space to import into
 
 #### `environmentId` [string] [default: 'master']
-ID the environment in the destination space
+ID of the environment in the destination space
 
 #### `managementToken` [string] [required]
 Contentful management API token for the space to be imported to
@@ -102,13 +102,13 @@ Content to import. Needs to match the expected structure (See below)
 ### Filtering
 
 #### `contentModelOnly` [boolean] [default: false]
-Import only content types
+Import content types only
 
 #### `skipContentModel` [boolean] [default: false]
-Skip importing content types and locales
+Skip importing of content types and locales
 
 #### `skipLocales` [boolean] [default: false]
-Skip importing locales
+Skip importing of locales
 
 #### `skipContentPublishing` [boolean] [default: false]
 Skips content publishing. Creates content but does not publish it
