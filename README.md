@@ -68,6 +68,8 @@ contentfulImport(options)
 #### Import an environment
 
 ```javascript
+const contentfulImport = require('contentful-import')
+
 const options = {
   contentFile: '/path/to/result/of/contentful-export.json',
   spaceId: '<space_id>',
