@@ -117,7 +117,7 @@ Skips content publishing. Creates content but does not publish it
 
 ### Connection
 
-#### `managementHost` [string] [default: 'api.contentful.com']
+#### `host` [string] [default: 'api.contentful.com']
 The Management API host
 
 #### `proxy` [string]
