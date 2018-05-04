@@ -2,12 +2,12 @@
   "name": "contentful-import",
   "version": "7.0.0-beta0",
   "description": "this tool allows you to import JSON dump exported by contentful-export",
-  "bin": {
-    "contentful-import": "./bin/contentful-import"
-  },
   "main": "dist/index.js",
   "engines": {
     "node": ">=6"
+  },
+  "bin": { 
+    "contentful-import": "./bin/contentful-import"
   },
   "scripts": {
     "build": "npm run clean && babel lib --out-dir dist",
@@ -34,7 +34,8 @@
     "devdep:install": "npm run devdep:build && rm -rf node_modules/contentful-batch-libs && npm install ../contentful-batch-libs && npm run devdep:clean",
     "devdep:uninstall": "npm run devdep:clean && rimraf node_modules/contentful-batch-libs",
     "precommit": "npm run lint",
-    "prepush": "npm run test:unit"
+    "prepush": "npm run test:unit",
+    "postinstall": "echo We moved the CLI version of this tool into our Contentful CLI. This allows our users to use and install only one single CLI tool to get the full Contentful experience. for more info please visit https://github.com/contentful/contentful-cli/tree/master/docs/space/import"
   },
   "repository": {
     "type": "git",
