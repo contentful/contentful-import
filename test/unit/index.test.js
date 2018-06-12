@@ -1,6 +1,6 @@
 import { resolve } from 'path'
 
-import TableStub from 'cli-table2'
+import TableStub from 'cli-table3'
 
 import pushToSpaceStub from '../../lib/tasks/push-to-space/push-to-space'
 import transformSpaceStub from '../../lib/transform/transform-space'
@@ -9,7 +9,7 @@ import getDestinationResponseStub from '../../lib/tasks/get-destination-data'
 import contentfulImport from '../../lib/index'
 import validations from '../../lib/utils/validations'
 
-jest.mock('cli-table2')
+jest.mock('cli-table3')
 jest.mock('../../lib/utils/validations', () => {
   return {
     assertPayload: jest.fn(),
