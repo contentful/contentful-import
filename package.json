@@ -34,8 +34,7 @@
     "devdep:install": "npm run devdep:build && rm -rf node_modules/contentful-batch-libs && npm install ../contentful-batch-libs && npm run devdep:clean",
     "devdep:uninstall": "npm run devdep:clean && rimraf node_modules/contentful-batch-libs",
     "precommit": "npm run lint",
-    "prepush": "npm run test:unit",
-    "postinstall": "echo-cli '\\nWe moved the CLI version of this tool into our Contentful CLI.\\nThis allows our users to use and install only one single CLI tool to get the full Contentful experience.\\n\\nFor more info please visit https://github.com/contentful/contentful-cli/tree/master/docs/space/import'"
+    "prepush": "npm run test:unit"
   },
   "repository": {
     "type": "git",
