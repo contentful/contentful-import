@@ -48,8 +48,5 @@ test('It should import a space properly when used as a lib', () => {
           expect(failedPublishErrors).toHaveLength(0)
           return space.delete()
         })
-        .then(() => {
-          return space.delete()
-        })
     })
 })
