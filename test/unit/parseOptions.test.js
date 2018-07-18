@@ -86,6 +86,7 @@ test('parseOptions sets correct default options', () => {
   expect(options.errorLogFile).toMatch(new RegExp(`^${resolve(basePath, errorFileNamePattern)}$`))
 
   expect(options.application).toBe(`contentful.import/${version}`)
+  expect(options.feature).toBe(`library-import`)
   expect(options.accessToken).toBe(managementToken)
   expect(options.spaceId).toBe(spaceId)
 
@@ -193,4 +194,20 @@ test('parseOption cleans up content to only include supported entity types', () 
   const content = options.content
   expect(Object.keys(content)).toHaveLength(6)
   expect(content.invalid).toBeUndefined()
+})
+
+test('parseOptions accepts custom application & feature', () => {
+  const managementApplication = 'managementApplicationMock'
+  const managementFeature = 'managementFeatureMock'
+
+  const options = parseOptions({
+    spaceId,
+    managementToken,
+    content: {},
+    managementApplication,
+    managementFeature
+  })
+
+  expect(options.application).toBe(managementApplication)
+  expect(options.feature).toBe(managementFeature)
 })
