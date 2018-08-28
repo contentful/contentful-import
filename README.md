@@ -123,6 +123,9 @@ The Management API host
 #### `proxy` [string]
 Proxy configuration in HTTP auth format: `host:port` or `user:password@host:port`
 
+#### `rawProxy` [boolean]
+Pass proxy config to Axios instead of creating a custom httpsAgent
+
 ### Other
 
 #### `errorLogFile` [string]
@@ -130,6 +133,18 @@ Full path to the error log file
 
 #### `useVerboseRenderer` [boolean] [default: false]
 Display progress in new lines instead of displaying a busy spinner and the status in the same line. Useful for CI.
+
+## :rescue_worker_helmet: Troubleshooting
+
+*  Unable to connect to Contentful through your Proxy? Try to set the `rawProxy` option to `true`.
+
+```javascript
+contentfulImport({
+  proxy: 'https://cat:dog@example.com:1234',
+  rawProxy: true,
+  ...
+})
+```
 
 ## :card_file_box: Expected input data structure
 
