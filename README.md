@@ -179,6 +179,7 @@ The data to import should be structured like this:
 - This tool currently does **not** support the import of roles.
 - This tool is expecting the target space to have the same default locale as your previously exported space.
 - Imported webhooks with credentials will be imported as normal webhooks. Credentials should be added manually afterwards.
+- Imported webhooks with secret headers will be imported without these headers. Secret headers should be added manuall afterwards.
 - If you have custom UI extensions, you need to reinstall them manually in the new space.
 
 ## :memo: Changelog

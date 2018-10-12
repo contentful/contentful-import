@@ -69,6 +69,16 @@ test('It should transform webhook with credentials to normal webhook', () => {
   expect(transformedWebhook.httpBasicUsername).toBeFalsy()
 })
 
+test('It should transform webhook with secret headers', () => {
+  const webhookMock = cloneMock('webhook')
+  const secretHeader = {key: 'Authorization', secret: true}
+  const nonSecretHeader = {key: 'headerkey', value: 'headerval'}
+  const headers = [secretHeader, nonSecretHeader]
+  webhookMock.headers = headers
+  const transformedWebhook = transformers.webhooks(webhookMock)
+  expect(transformedWebhook.headers).toHaveLength(headers.length - 1)
+})
+
 test('It should transform a locale and return it', () => {
   const localeMock = cloneMock('locale')
   localeMock.code = 'de-DE'
