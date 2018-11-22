@@ -47,7 +47,7 @@ test('does create clients and passes custom logHandler', () => {
     integration: opts.integration
   })
   expect(contentfulManagement.createClient.mock.calls[0][0]).toHaveProperty('logHandler')
-  expect(contentfulManagement.createClient.mock.calls[0][0].timeout).toEqual(10000)
+  expect(contentfulManagement.createClient.mock.calls[0][0].timeout).toEqual(30000)
   expect(contentfulManagement.createClient.mock.calls).toHaveLength(1)
 
   // Call passed log handler
