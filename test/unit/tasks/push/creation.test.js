@@ -1,4 +1,4 @@
-import {createEntities, createEntries} from '../../../../lib/tasks/push-to-space/creation'
+import {createEntities, createLocales, createEntries} from '../../../../lib/tasks/push-to-space/creation'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 
@@ -166,7 +166,7 @@ test('Fails to create locale if it already exists', () => {
   }
   const entity = { original: { sys: {} }, transformed: { sys: {} } }
 
-  return createEntities({target, type: 'Locale'}, [entity], [{sys: {}}])
+  return createLocales({target, type: 'Locale'}, [entity], [{sys: {}}])
     .then((entities) => {
       expect(entities[0]).toBe(entity)
       const logLevels = logEmitter.emit.mock.calls.map((args) => args[0])
