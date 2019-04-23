@@ -22,7 +22,8 @@ jest.mock('../../../../lib/tasks/push-to-space/creation', () => ({
     }
     return Promise.resolve([])
   }),
-  createEntries: jest.fn(() => Promise.resolve([]))
+  createEntries: jest.fn(() => Promise.resolve([])),
+  createLocales: jest.fn(() => Promise.resolve([]))
 }))
 jest.mock('../../../../lib/tasks/push-to-space/publishing', () => ({
   publishEntities: jest.fn((entitiesToPublish) => {
@@ -115,8 +116,9 @@ test('Push content to destination space', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect(creation.createEntities.mock.calls).toHaveLength(4)
+      expect(creation.createEntities.mock.calls).toHaveLength(3)
       expect(creation.createEntries.mock.calls).toHaveLength(1)
+      expect(creation.createLocales.mock.calls).toHaveLength(1)
       expect(publishing.publishEntities.mock.calls).toHaveLength(3)
       expect(publishing.archiveEntities.mock.calls).toHaveLength(2)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(1)
@@ -136,8 +138,9 @@ test('Push only content types and locales to destination space', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect(creation.createEntities.mock.calls).toHaveLength(2)
+      expect(creation.createEntities.mock.calls).toHaveLength(1)
       expect(creation.createEntries.mock.calls).toHaveLength(0)
+      expect(creation.createLocales.mock.calls).toHaveLength(1)
       expect(publishing.publishEntities.mock.calls).toHaveLength(1)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(1)
       expect(assets.processAssets.mock.calls).toHaveLength(0)
