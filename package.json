@@ -53,7 +53,7 @@
     "bluebird": "^3.5.1",
     "cli-table3": "^0.5.1",
     "contentful-batch-libs": "^9.0.0",
-    "contentful-management": "^5.9.0",
+    "contentful-management": "^5.11.0",
     "echo-cli": "^1.0.8",
     "joi": "^13.4.0",
     "listr": "^0.14.1",
