@@ -136,7 +136,7 @@ Display progress in new lines instead of displaying a busy spinner and the statu
 
 ## :rescue_worker_helmet: Troubleshooting
 
-*  Unable to connect to Contentful through your Proxy? Try to set the `rawProxy` option to `true`.
+Unable to connect to Contentful through your Proxy? Try to set the `rawProxy` option to `true`.
 
 ```javascript
 contentfulImport({
