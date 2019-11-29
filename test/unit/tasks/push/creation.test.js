@@ -92,14 +92,14 @@ test('Create entries and remove unknown fields', () => {
   const updateStub = jest.fn()
   const errorUnkownField = new Error()
   errorUnkownField.name = 'UnknownField'
-  errorUnkownField.error = {
+  errorUnkownField.message = JSON.stringify({
     details: {
       errors: [{
         name: 'unknown',
         path: ['fields', 'gonefield']
       }]
     }
-  }
+  })
   updateStub.mockImplementationOnce(() => Promise.reject(errorUnkownField))
   updateStub.mockImplementationOnce(() => Promise.resolve({
     sys: {type: 'Entry', id: '123'},
