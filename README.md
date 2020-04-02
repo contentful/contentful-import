@@ -170,8 +170,8 @@ The data to import should be structured like this:
 
 ## :bulb: Importing to a space with existing content
 
-- Both source space and destination space must share the same content model structure. In order to achieve that, please use the [migration-cli](https://www.npmjs.com/package/contentful-migration-cli).
-- Content transformations are also not supported, please use the [migration-cli](https://www.npmjs.com/package/contentful-migration-cli).
+- Both source space and destination space must share the same content model structure. In order to achieve that, please use [contentful-migration](https://www.npmjs.com/package/contentful-migration). 
+- Content transformations are also not supported, please use [contentful-migration](https://www.npmjs.com/package/contentful-migration).
 - Entities existence are determined based on their ID:
   * If an entity does not exist in the destination space, it will be created.
   * If an entity already exists in the destination space, it will be updated.
