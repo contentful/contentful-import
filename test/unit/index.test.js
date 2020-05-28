@@ -166,13 +166,17 @@ test('Creates a valid and correct opts object', () => {
   return contentfulImport({
     errorLogFile,
     config: resolve(__dirname, '..', '..', 'example-config.json'),
-    content: {}
+    content: {},
+    timeout: 500,
+    retryLimit: 2
   })
     .then(() => {
       const opts = initClientStub.mock.calls[0][0]
       expect(opts.skipContentModel).toBeFalsy()
       expect(opts.errorLogFile).toBe(resolve(process.cwd(), errorLogFile))
       expect(opts.spaceId).toBe(exampleConfig.spaceId)
+      expect(opts.timeout).toBe(500)
+      expect(opts.retryLimit).toBe(2)
     })
 })
 
