@@ -112,7 +112,9 @@ test('Push content to destination space', () => {
     client: clientMock,
     spaceId: 'spaceid',
     environmentId: 'master',
-    prePublishDelay: 0
+    prePublishDelay: 0,
+    timeout: 40000,
+    retryLimit: 20
   })
     .run({ data: {} })
     .then(() => {
@@ -123,6 +125,8 @@ test('Push content to destination space', () => {
       expect(publishing.archiveEntities.mock.calls).toHaveLength(2)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(1)
       expect(assets.processAssets.mock.calls).toHaveLength(1)
+      expect(assets.processAssets.mock.calls).toHaveLength(1)
+      expect(assets.processAssets.mock.calls[0][1]).toEqual({retryLimit: 20, timeout: 40000})
     })
 })
 
