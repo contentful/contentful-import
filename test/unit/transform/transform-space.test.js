@@ -10,12 +10,20 @@ import {
 
 import transformSpace from '../../../lib/transform/transform-space'
 
+const tagMock = {
+  sys: {
+    id: 'myTagId'
+  },
+  name: 'mytagname'
+}
+
 const space = {
   contentTypes: [contentTypeMock],
   entries: [entryMock],
   assets: [assetMock],
   locales: [localeMock],
-  webhooks: [webhookMock]
+  webhooks: [webhookMock],
+  tags: [tagMock]
 }
 const destinationSpace = cloneDeep(space)
 
@@ -29,6 +37,8 @@ test('applies transformers to give space data', () => {
   expect(result.entries[0]).toHaveProperty('transformed')
   expect(result.assets[0]).toHaveProperty('original')
   expect(result.assets[0]).toHaveProperty('transformed')
+  expect(result.tags[0]).toHaveProperty('original')
+  expect(result.tags[0]).toHaveProperty('transformed')
   expect(result.locales[0]).toHaveProperty('original')
   expect(result.locales[0]).toHaveProperty('transformed')
   expect(result.webhooks[0]).toHaveProperty('original')
