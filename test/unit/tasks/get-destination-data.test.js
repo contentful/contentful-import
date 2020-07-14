@@ -26,7 +26,7 @@ const mockEnvironment = {
   getEntries: jest.fn(batchQueryResolver),
   getAssets: jest.fn(batchQueryResolver),
   getLocales: jest.fn(batchQueryResolver),
-  getTags: jest.fn().mockReturnValue(Promise.resolve(sourceData.tags)) //resolve 100 tags
+  getTags: jest.fn().mockReturnValue(Promise.resolve(sourceData.tags)) // resolve 100 tags
 }
 
 const mockSpace = {
@@ -180,7 +180,6 @@ test('Does not fail with incomplete source data', () => {
 })
 
 test('Removes Tags key from response if tags endpoint throws error (meaning tags not enabled)', () => {
-
   mockEnvironment.getTags.mockImplementation(() => {
     throw new Error()
   })
@@ -190,11 +189,10 @@ test('Removes Tags key from response if tags endpoint throws error (meaning tags
     environmentId: 'master',
     sourceData: {}
   })
-  .then((response) => {
-    expect(mockEnvironment.getTags.mock.calls).toHaveLength(1)
-    expect(response.tags).toBeUndefined()
-  })
-
+    .then((response) => {
+      expect(mockEnvironment.getTags.mock.calls).toHaveLength(1)
+      expect(response.tags).toBeUndefined()
+    })
 })
 
 test('Fails to get destination space', () => {

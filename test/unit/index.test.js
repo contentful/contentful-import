@@ -107,8 +107,8 @@ test('Runs Contentful Import', () => {
         { sys: { id: 'asset2' } }
       ],
       tags: [
-        { sys: { id: 'tag1'}, name: 'tag1'},
-        { sys: { id: 'tag2'}, name: 'tag2'}
+        { sys: { id: 'tag1' }, name: 'tag1' },
+        { sys: { id: 'tag2' }, name: 'tag2' }
       ],
       contentTypes: [
         { sys: { id: 'contentType1' } },
