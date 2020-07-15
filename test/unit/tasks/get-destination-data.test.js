@@ -180,8 +180,8 @@ test('Does not fail with incomplete source data', () => {
 })
 
 test('Removes Tags key from response if tags endpoint throws error (meaning tags not enabled)', () => {
-  mockEnvironment.getTags.mockImplementation(() => {
-    throw new Error()
+  mockEnvironment.getTags.mockImplementation(async () => {
+    throw new Error('fake error')
   })
   return getDestinationData({
     client: mockClient,
