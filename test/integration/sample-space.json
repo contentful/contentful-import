@@ -1097,6 +1097,46 @@
     }
   ],
   "webhooks": [],
+  "tags": [
+    {
+      "sys": {
+        "type": "Tag",
+        "id": "othertag",
+        "space": {
+          "sys": {
+            "type": "Link",
+            "linkType": "Space",
+            "id": "revlobovs4nn"
+          }
+        },
+        "environment": {
+          "sys": {
+            "id": "master",
+            "type": "Link",
+            "linkType": "Environment"
+          }
+        },
+        "createdBy": {
+          "sys": {
+            "type": "Link",
+            "linkType": "User",
+            "id": "2KAvT7gLBcrYJLFYXRsrPU"
+          }
+        },
+        "updatedBy": {
+          "sys": {
+            "type": "Link",
+            "linkType": "User",
+            "id": "2KAvT7gLBcrYJLFYXRsrPU"
+          }
+        },
+        "createdAt": "2020-07-08T14:01:08.320Z",
+        "updatedAt": "2020-07-08T14:01:08.320Z",
+        "version": 1
+      },
+      "name": "othertag"
+    }
+  ],
   "roles": [
     {
       "name": "Author",
