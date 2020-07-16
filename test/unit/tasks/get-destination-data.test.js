@@ -26,7 +26,7 @@ const mockEnvironment = {
   getEntries: jest.fn(batchQueryResolver),
   getAssets: jest.fn(batchQueryResolver),
   getLocales: jest.fn(batchQueryResolver),
-  getTags: jest.fn().mockReturnValue(Promise.resolve(sourceData.tags)) // resolve 100 tags
+  getTags: jest.fn().mockReturnValue(Promise.resolve({items: sourceData.tags})) // resolve 100 tags
 }
 
 const mockSpace = {
