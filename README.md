@@ -164,13 +164,17 @@ The data to import should be structured like this:
   "locales": [],
   "webhooks": [],
   "roles": [],
+  "tags": [],
   "editorInterfaces": []
 }
 ```
 
+Note: `tags` are not available for all users. If you do not have access to this feature, any tags included in your import data will be skipped.
+
+
 ## :bulb: Importing to a space with existing content
 
-- Both source space and destination space must share the same content model structure. In order to achieve that, please use [contentful-migration](https://www.npmjs.com/package/contentful-migration). 
+- Both source space and destination space must share the same content model structure. In order to achieve that, please use [contentful-migration](https://www.npmjs.com/package/contentful-migration).
 - Content transformations are also not supported, please use [contentful-migration](https://www.npmjs.com/package/contentful-migration).
 - Entities existence are determined based on their ID:
   * If an entity does not exist in the destination space, it will be created.

@@ -118,7 +118,7 @@ test('Push content to destination space', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect(creation.createEntities.mock.calls).toHaveLength(3)
+      expect(creation.createEntities.mock.calls).toHaveLength(4)
       expect(creation.createEntries.mock.calls).toHaveLength(1)
       expect(creation.createLocales.mock.calls).toHaveLength(1)
       expect(publishing.publishEntities.mock.calls).toHaveLength(3)
@@ -142,7 +142,7 @@ test('Push only content types and locales to destination space', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect(creation.createEntities.mock.calls).toHaveLength(1)
+      expect(creation.createEntities.mock.calls).toHaveLength(2)
       expect(creation.createEntries.mock.calls).toHaveLength(0)
       expect(creation.createLocales.mock.calls).toHaveLength(1)
       expect(publishing.publishEntities.mock.calls).toHaveLength(1)
@@ -164,7 +164,7 @@ test('Push only content types', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect(creation.createEntities.mock.calls).toHaveLength(1)
+      expect(creation.createEntities.mock.calls).toHaveLength(2)
       expect(creation.createEntries.mock.calls).toHaveLength(0)
       expect(publishing.publishEntities.mock.calls).toHaveLength(1)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(1)
@@ -184,7 +184,7 @@ test('Push only entries and assets to destination space', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect(creation.createEntities.mock.calls).toHaveLength(2)
+      expect(creation.createEntities.mock.calls).toHaveLength(3)
       expect(creation.createEntries.mock.calls).toHaveLength(1)
       expect(publishing.publishEntities.mock.calls).toHaveLength(2)
       expect(assets.processAssets.mock.calls).toHaveLength(1)
@@ -205,7 +205,7 @@ test('Push only entries and assets to destination space and skip publishing', ()
   })
     .run({ data: {} })
     .then(() => {
-      expect(creation.createEntities.mock.calls).toHaveLength(2)
+      expect(creation.createEntities.mock.calls).toHaveLength(3)
       expect(creation.createEntries.mock.calls).toHaveLength(1)
       expect(publishing.publishEntities.mock.calls).toHaveLength(0)
       expect(assets.processAssets.mock.calls).toHaveLength(1)

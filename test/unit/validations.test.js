@@ -2,7 +2,7 @@ import { assertPayload } from '../../lib/utils/validations'
 
 test('payload validation should succeed when given an empty payload', () => {
   expect(
-    () => assertPayload({entries: [], locales: [], contentTypes: [], assets: []})
+    () => assertPayload({entries: [], locales: [], contentTypes: [], assets: [], tags: []})
   ).not.toThrow()
 })
 
@@ -244,4 +244,25 @@ test('payload validation should fail when given an invalid data', () => {
     assets: [brokenAsset, brokenAsset]
   })
   ).toThrowErrorMatchingSnapshot()
+})
+
+test('payload validation fails if given invalid tag', () => {
+  const badTag = {
+    sys: {
+      id: '1'
+    }
+  }
+  expect(() => assertPayload({
+    entries: [],
+    locales: [],
+    contentTypes: [],
+    tags: [badTag]
+  })).toThrowErrorMatchingSnapshot()
+})
+
+test('payload validation passes if given no tags', () => {
+  expect(() => assertPayload({
+    entries: [],
+    contentTypes: []
+  })).not.toThrow()
 })

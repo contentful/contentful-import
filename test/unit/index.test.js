@@ -106,6 +106,10 @@ test('Runs Contentful Import', () => {
         { sys: { id: 'asset1' } },
         { sys: { id: 'asset2' } }
       ],
+      tags: [
+        { sys: { id: 'tag1' }, name: 'tag1' },
+        { sys: { id: 'tag2' }, name: 'tag2' }
+      ],
       contentTypes: [
         { sys: { id: 'contentType1' } },
         { sys: { id: 'contentType2' } }
@@ -141,21 +145,23 @@ test('Runs Contentful Import', () => {
       expect(introTable.push.mock.calls[0][0]).toEqual([{colSpan: 2, content: 'The following entities are going to be imported:'}])
       expect(introTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
       expect(introTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
-      expect(introTable.push.mock.calls[3][0]).toEqual(['Content Types', 2])
-      expect(introTable.push.mock.calls[4][0]).toEqual(['Editor Interfaces', 2])
-      expect(introTable.push.mock.calls[5][0]).toEqual(['Locales', 2])
-      expect(introTable.push.mock.calls[6][0]).toEqual(['Webhooks', 0])
-      expect(introTable.push.mock.calls).toHaveLength(7)
+      expect(introTable.push.mock.calls[3][0]).toEqual(['Tags', 2])
+      expect(introTable.push.mock.calls[4][0]).toEqual(['Content Types', 2])
+      expect(introTable.push.mock.calls[5][0]).toEqual(['Editor Interfaces', 2])
+      expect(introTable.push.mock.calls[6][0]).toEqual(['Locales', 2])
+      expect(introTable.push.mock.calls[7][0]).toEqual(['Webhooks', 0])
+      expect(introTable.push.mock.calls).toHaveLength(8)
 
       const resultTable = TableStub.mock.instances[1]
       expect(resultTable.push.mock.calls[0][0]).toEqual([{colSpan: 2, content: 'Imported entities'}])
       expect(resultTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
       expect(resultTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
-      expect(resultTable.push.mock.calls[3][0]).toEqual(['Content Types', 2])
-      expect(resultTable.push.mock.calls[4][0]).toEqual(['Editor Interfaces', 2])
-      expect(resultTable.push.mock.calls[5][0]).toEqual(['Locales', 2])
-      expect(resultTable.push.mock.calls[6][0]).toEqual(['Webhooks', 0])
-      expect(resultTable.push.mock.calls).toHaveLength(7)
+      expect(resultTable.push.mock.calls[3][0]).toEqual(['Tags', 2])
+      expect(resultTable.push.mock.calls[4][0]).toEqual(['Content Types', 2])
+      expect(resultTable.push.mock.calls[5][0]).toEqual(['Editor Interfaces', 2])
+      expect(resultTable.push.mock.calls[6][0]).toEqual(['Locales', 2])
+      expect(resultTable.push.mock.calls[7][0]).toEqual(['Webhooks', 0])
+      expect(resultTable.push.mock.calls).toHaveLength(8)
     })
 })
 
@@ -223,8 +229,9 @@ test('Intro CLI table respects skipContentModel', () => {
       expect(introTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
       expect(introTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
       expect(introTable.push.mock.calls[3][0]).toEqual(['Locales', 2])
-      expect(introTable.push.mock.calls[4][0]).toEqual(['Webhooks', 0])
-      expect(introTable.push.mock.calls).toHaveLength(5)
+      expect(introTable.push.mock.calls[4][0]).toEqual(['Tags', 0])
+      expect(introTable.push.mock.calls[5][0]).toEqual(['Webhooks', 0])
+      expect(introTable.push.mock.calls).toHaveLength(6)
     })
 })
 
@@ -285,6 +292,7 @@ test('Intro CLI table respects contentModelOnly', () => {
         { sys: { id: 'asset1' } },
         { sys: { id: 'asset2' } }
       ],
+      tags: [],
       contentTypes: [
         { sys: { id: 'contentType1' } },
         { sys: { id: 'contentType2' } }

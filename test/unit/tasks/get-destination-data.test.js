@@ -6,7 +6,8 @@ const sourceData = {
   contentTypes: times(150, (n) => ({sys: {id: `ct-${n}`}})),
   locales: times(5, (n) => ({sys: {id: `ct-${n}`}})),
   entries: times(2000, (n) => ({sys: {id: `e-${n}`}})),
-  assets: times(1500, (n) => ({sys: {id: `a-${n}`}}))
+  assets: times(1500, (n) => ({sys: {id: `a-${n}`}})),
+  tags: times(100, (n) => ({sys: {id: `t-${n}`}, name: `t-${n}`}))
 }
 
 function batchQueryResolver (query) {
@@ -24,7 +25,8 @@ const mockEnvironment = {
   getContentTypes: jest.fn(batchQueryResolver),
   getEntries: jest.fn(batchQueryResolver),
   getAssets: jest.fn(batchQueryResolver),
-  getLocales: jest.fn(batchQueryResolver)
+  getLocales: jest.fn(batchQueryResolver),
+  getTags: jest.fn().mockReturnValue(Promise.resolve({items: sourceData.tags})) // resolve 100 tags
 }
 
 const mockSpace = {
@@ -40,6 +42,7 @@ afterEach(() => {
   mockEnvironment.getEntries.mockClear()
   mockEnvironment.getAssets.mockClear()
   mockEnvironment.getLocales.mockClear()
+  mockEnvironment.getTags.mockClear()
   mockSpace.getEnvironment.mockClear()
   mockClient.getSpace.mockClear()
 })
@@ -68,10 +71,12 @@ test('Gets destination content', () => {
       testQueryLength('getEntries')
       expect(mockEnvironment.getAssets.mock.calls).toHaveLength(15)
       testQueryLength('getAssets')
+      expect(mockEnvironment.getTags.mock.calls).toHaveLength(1)
       expect(response.contentTypes).toHaveLength(150)
       expect(response.locales).toHaveLength(5)
       expect(response.entries).toHaveLength(2000)
       expect(response.assets).toHaveLength(1500)
+      expect(response.tags).toHaveLength(100)
     })
 })
 
@@ -88,10 +93,12 @@ test('Gets destination content with content model skipped', () => {
       expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(0)
       expect(mockEnvironment.getLocales.mock.calls).toHaveLength(0)
       expect(mockEnvironment.getEntries.mock.calls).toHaveLength(20)
+      expect(mockEnvironment.getTags.mock.calls).toHaveLength(1)
       testQueryLength('getEntries')
       expect(mockEnvironment.getAssets.mock.calls).toHaveLength(15)
       testQueryLength('getAssets')
       expect(response.contentTypes).toHaveLength(0)
+      expect(response.tags).toHaveLength(100)
       expect(response.locales).toHaveLength(0)
       expect(response.entries).toHaveLength(2000)
       expect(response.assets).toHaveLength(1500)
@@ -112,6 +119,7 @@ test('Gets destination content with locales skipped', () => {
       testQueryLength('getContentTypes')
       expect(mockEnvironment.getLocales.mock.calls).toHaveLength(0)
       expect(mockEnvironment.getEntries.mock.calls).toHaveLength(20)
+      expect(mockEnvironment.getTags.mock.calls).toHaveLength(1)
       testQueryLength('getEntries')
       expect(mockEnvironment.getAssets.mock.calls).toHaveLength(15)
       testQueryLength('getAssets')
@@ -119,6 +127,7 @@ test('Gets destination content with locales skipped', () => {
       expect(response.locales).toHaveLength(0)
       expect(response.entries).toHaveLength(2000)
       expect(response.assets).toHaveLength(1500)
+      expect(response.tags).toHaveLength(100)
     })
 })
 
@@ -138,10 +147,12 @@ test('Gets destination content with contentModelOnly', () => {
       testQueryLength('getLocales')
       expect(mockEnvironment.getEntries.mock.calls).toHaveLength(0)
       expect(mockEnvironment.getAssets.mock.calls).toHaveLength(0)
+      expect(mockEnvironment.getTags.mock.calls).toHaveLength(1)
       expect(response.contentTypes).toHaveLength(150)
       expect(response.locales).toHaveLength(5)
       expect(response.entries).toHaveLength(0)
       expect(response.assets).toHaveLength(0)
+      expect(response.tags).toHaveLength(100)
     })
 })
 
@@ -158,10 +169,29 @@ test('Does not fail with incomplete source data', () => {
       expect(mockEnvironment.getLocales.mock.calls).toHaveLength(0)
       expect(mockEnvironment.getEntries.mock.calls).toHaveLength(0)
       expect(mockEnvironment.getAssets.mock.calls).toHaveLength(0)
+      // we always fetch all tags, no matter what's included in source data
+      expect(mockEnvironment.getTags.mock.calls).toHaveLength(1)
       expect(response.contentTypes).toHaveLength(0)
       expect(response.locales).toHaveLength(0)
       expect(response.entries).toHaveLength(0)
       expect(response.assets).toHaveLength(0)
+      expect(response.tags).toHaveLength(100)
+    })
+})
+
+test('Removes Tags key from response if tags endpoint throws error (meaning tags not enabled)', () => {
+  mockEnvironment.getTags.mockImplementation(async () => {
+    throw new Error('fake error')
+  })
+  return getDestinationData({
+    client: mockClient,
+    spaceId: 'spaceid',
+    environmentId: 'master',
+    sourceData: {}
+  })
+    .then((response) => {
+      expect(mockEnvironment.getTags.mock.calls).toHaveLength(1)
+      expect(response.tags).toBeUndefined()
     })
 })
 

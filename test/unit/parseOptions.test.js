@@ -98,6 +98,7 @@ test('parseOptions sets correct default options', () => {
     assets: [],
     contentTypes: [],
     editorInterfaces: [],
+    tags: [],
     entries: [],
     locales: [],
     webhooks: [],
@@ -192,7 +193,7 @@ test('parseOption cleans up content to only include supported entity types', () 
     }
   })
   const content = options.content
-  expect(Object.keys(content)).toHaveLength(6)
+  expect(Object.keys(content)).toHaveLength(7)
   expect(content.invalid).toBeUndefined()
 })
 
