@@ -88,3 +88,17 @@ test('It should transform a locale and return it', () => {
   const transformedLocale = transformers.locales(localeMock, destinationLocalesMock)
   expect(transformedLocale.sys.id).toBe(destinationLocalesMock[0].sys.id)
 })
+
+test('It should transform an entry with tags enabled, and return it', () => {
+  const entryMock = cloneMock('entry')
+  entryMock.metadata = {tags: []}
+  const transformed = transformers.entries(entryMock, null, true);
+  expect(transformed.metadata).toEqual({tags: []})
+})
+
+test('It should transform an entry with tags disabled, and return it', () => {
+  const entryMock = cloneMock('entry')
+  entryMock.metadata = {tags: []}
+  const transformed = transformers.entries(entryMock, null, false);
+  expect(transformed.metadata).toBe(undefined)
+})
