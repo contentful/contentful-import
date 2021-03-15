@@ -4,7 +4,7 @@
   "description": "this tool allows you to import JSON dump exported by contentful-export",
   "main": "dist/index.js",
   "engines": {
-    "node": ">=6"
+    "node": ">=12"
   },
   "bin": {
     "contentful-import": "./bin/contentful-import"
