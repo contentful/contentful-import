@@ -94,6 +94,7 @@ test('parseOptions sets correct default options', () => {
   expect(options.skipContentModel).toBe(false)
   expect(options.skipLocales).toBe(false)
   expect(options.skipContentPublishing).toBe(false)
+  expect(options.uploadAssets).toBe(false)
   expect(options.content).toEqual({
     assets: [],
     contentTypes: [],
