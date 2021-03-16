@@ -1,4 +1,5 @@
 import { times } from 'lodash/util'
+import PQueue from 'p-queue'
 
 import getDestinationData from '../../../lib/tasks/get-destination-data'
 
@@ -37,6 +38,17 @@ const mockClient = {
   getSpace: jest.fn()
 }
 
+let requestQueue
+
+beforeEach(() => {
+  // We set a high interval cap here because with the amount of data to fetch
+  // We will otherwise run into timeouts of the tests due to being rate limited
+  requestQueue = new PQueue({
+    interval: 1000,
+    intervalCap: 1000
+  })
+})
+
 afterEach(() => {
   mockEnvironment.getContentTypes.mockClear()
   mockEnvironment.getEntries.mockClear()
@@ -60,7 +72,8 @@ test('Gets destination content', () => {
     client: mockClient,
     spaceId: 'spaceid',
     environmentId: 'master',
-    sourceData
+    sourceData,
+    requestQueue
   })
     .then((response) => {
       expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(2)
@@ -87,7 +100,8 @@ test('Gets destination content with content model skipped', () => {
     spaceId: 'spaceid',
     environmentId: 'master',
     sourceData,
-    skipContentModel: true
+    skipContentModel: true,
+    requestQueue
   })
     .then((response) => {
       expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(0)
@@ -112,7 +126,8 @@ test('Gets destination content with locales skipped', () => {
     spaceId: 'spaceid',
     environmentId: 'master',
     sourceData,
-    skipLocales: true
+    skipLocales: true,
+    requestQueue
   })
     .then((response) => {
       expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(2)
@@ -138,7 +153,8 @@ test('Gets destination content with contentModelOnly', () => {
     spaceId: 'spaceid',
     environmentId: 'master',
     sourceData,
-    contentModelOnly: true
+    contentModelOnly: true,
+    requestQueue
   })
     .then((response) => {
       expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(2)
@@ -162,7 +178,8 @@ test('Does not fail with incomplete source data', () => {
     client: mockClient,
     spaceId: 'spaceid',
     environmentId: 'master',
-    sourceData: {}
+    sourceData: {},
+    requestQueue
   })
     .then((response) => {
       expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(0)
@@ -187,7 +204,8 @@ test('Removes Tags key from response if tags endpoint throws error (meaning tags
     client: mockClient,
     spaceId: 'spaceid',
     environmentId: 'master',
-    sourceData: {}
+    sourceData: {},
+    requestQueue
   })
     .then((response) => {
       expect(mockEnvironment.getTags.mock.calls).toHaveLength(1)
@@ -205,7 +223,8 @@ test('Fails to get destination space', () => {
     spaceId: 'spaceid',
     environmentId: 'master',
     sourceData,
-    skipContentModel: true
+    skipContentModel: true,
+    requestQueue
   })
     .then(() => {
       throw new Error('should not succeed')

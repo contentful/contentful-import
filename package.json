@@ -61,6 +61,7 @@
     "listr-verbose-renderer": "^0.4.1",
     "lodash": "^4.17.10",
     "moment": "^2.22.2",
+    "p-queue": "^6.6.2",
     "yargs": "^16.0.3"
   },
   "devDependencies": {
