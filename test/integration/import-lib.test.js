@@ -8,6 +8,7 @@ const managementToken = process.env.MANAGEMENT_TOKEN
 const orgId = process.env.ORG_ID
 const simpleSampleSpaceFile = join(__dirname, 'exports/simple/sample-space.json')
 const withAssetsSpaceFile = join(__dirname, 'exports/with-assets/space-with-downloaded-assets.json')
+const assetsDirectory = join(__dirname, 'exports/with-assets')
 
 let space
 
@@ -60,6 +61,7 @@ test('It should import a space with assets properly when used as a lib', () => {
     managementToken,
     contentFile: withAssetsSpaceFile,
     uploadAssets: true,
+    assetsDirectory,
     useVerboseRenderer: true
   })
   .catch((multierror) => {
