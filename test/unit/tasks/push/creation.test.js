@@ -1,4 +1,4 @@
-import {createEntities, createLocales, createEntries} from '../../../../lib/tasks/push-to-space/creation'
+import { createEntities, createLocales, createEntries } from '../../../../lib/tasks/push-to-space/creation'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 
@@ -13,15 +13,15 @@ afterEach(() => {
 })
 
 test('Create entities', () => {
-  const updateStub = jest.fn().mockReturnValue(Promise.resolve({sys: {type: 'Asset'}}))
+  const updateStub = jest.fn().mockReturnValue(Promise.resolve({ sys: { type: 'Asset' } }))
   const target = {
-    createAssetWithId: jest.fn().mockReturnValue(Promise.resolve({sys: {type: 'Asset'}}))
+    createAssetWithId: jest.fn().mockReturnValue(Promise.resolve({ sys: { type: 'Asset' } }))
   }
-  return createEntities({target, type: 'Asset'}, [
-    { original: { sys: {} }, transformed: { sys: {id: '123'} } },
-    { original: { sys: {} }, transformed: { sys: {id: '456'} } }
+  return createEntities({ target, type: 'Asset' }, [
+    { original: { sys: {} }, transformed: { sys: { id: '123' } } },
+    { original: { sys: {} }, transformed: { sys: { id: '456' } } }
   ], [
-    {sys: {id: '123', version: 6}, update: updateStub}
+    { sys: { id: '123', version: 6 }, update: updateStub }
   ])
     .then((response) => {
       expect(target.createAssetWithId.mock.calls).toHaveLength(1)
@@ -35,20 +35,20 @@ test('Create entities', () => {
 test('Create entities handle regular errors', () => {
   const updateStub = jest.fn()
   const target = {
-    createEntryWithId: jest.fn().mockReturnValue(Promise.resolve({sys: {type: 'Entry'}}))
+    createEntryWithId: jest.fn().mockReturnValue(Promise.resolve({ sys: { type: 'Entry' } }))
   }
   const creationError = new Error('could not create entity')
   updateStub.mockImplementationOnce(() => Promise.reject(creationError))
 
   const entries = [{
-    original: { sys: {contentType: {sys: {id: 'ctid'}}} },
-    transformed: { sys: {id: '123'}, fields: {gonefield: '', existingfield: ''} }
+    original: { sys: { contentType: { sys: { id: 'ctid' } } } },
+    transformed: { sys: { id: '123' }, fields: { gonefield: '', existingfield: '' } }
   }]
   const destinationEntries = [
-    {sys: {id: '123', version: 6}, update: updateStub}
+    { sys: { id: '123', version: 6 }, update: updateStub }
   ]
 
-  return createEntities({target, type: 'Asset'}, entries, destinationEntries)
+  return createEntities({ target, type: 'Asset' }, entries, destinationEntries)
     .then((result) => {
       expect(updateStub.mock.calls).toHaveLength(1)
       expect(logEmitter.emit.mock.calls).toHaveLength(1)
@@ -64,20 +64,20 @@ test('Create entities handle regular errors', () => {
 })
 
 test('Create entries', () => {
-  const updateStub = jest.fn().mockReturnValue(Promise.resolve({sys: {type: 'Entry'}}))
+  const updateStub = jest.fn().mockReturnValue(Promise.resolve({ sys: { type: 'Entry' } }))
   const target = {
-    createEntryWithId: jest.fn().mockReturnValue(Promise.resolve({sys: {type: 'Entry'}})),
-    createEntry: jest.fn().mockReturnValue(Promise.resolve({sys: {type: 'Entry'}}))
+    createEntryWithId: jest.fn().mockReturnValue(Promise.resolve({ sys: { type: 'Entry' } })),
+    createEntry: jest.fn().mockReturnValue(Promise.resolve({ sys: { type: 'Entry' } }))
   }
   const entries = [
-    { original: { sys: {contentType: {sys: {id: 'ctid'}}} }, transformed: { sys: {id: '123'} } },
-    { original: { sys: {contentType: {sys: {id: 'ctid'}}} }, transformed: { sys: {id: '456'} } },
-    { original: { sys: {contentType: {sys: {id: 'ctid'}}} }, transformed: { sys: {} } }
+    { original: { sys: { contentType: { sys: { id: 'ctid' } } } }, transformed: { sys: { id: '123' } } },
+    { original: { sys: { contentType: { sys: { id: 'ctid' } } } }, transformed: { sys: { id: '456' } } },
+    { original: { sys: { contentType: { sys: { id: 'ctid' } } } }, transformed: { sys: {} } }
   ]
   const destinationEntries = [
-    {sys: {id: '123', version: 6}, update: updateStub}
+    { sys: { id: '123', version: 6 }, update: updateStub }
   ]
-  return createEntries({target, skipContentModel: false}, entries, destinationEntries)
+  return createEntries({ target, skipContentModel: false }, entries, destinationEntries)
     .then((response) => {
       expect(target.createEntryWithId.mock.calls).toHaveLength(1)
       expect(target.createEntry.mock.calls).toHaveLength(1)
@@ -102,19 +102,19 @@ test('Create entries and remove unknown fields', () => {
   })
   updateStub.mockImplementationOnce(() => Promise.reject(errorUnkownField))
   updateStub.mockImplementationOnce(() => Promise.resolve({
-    sys: {type: 'Entry', id: '123'},
+    sys: { type: 'Entry', id: '123' },
     fields: {}
   }))
 
   const entries = [{
-    original: { sys: {contentType: {sys: {id: 'ctid'}}} },
-    transformed: { sys: {id: '123'}, fields: {gonefield: '', existingfield: ''} }
+    original: { sys: { contentType: { sys: { id: 'ctid' } } } },
+    transformed: { sys: { id: '123' }, fields: { gonefield: '', existingfield: '' } }
   }]
   const destinationEntries = [
-    {sys: {id: '123', version: 6}, update: updateStub}
+    { sys: { id: '123', version: 6 }, update: updateStub }
   ]
 
-  return createEntries({target: {}, skipContentModel: true}, entries, destinationEntries)
+  return createEntries({ target: {}, skipContentModel: true }, entries, destinationEntries)
     .then((response) => {
       expect(updateStub.mock.calls).toHaveLength(2)
       expect('existingfield' in entries[0].transformed.fields).toBeTruthy()
@@ -131,14 +131,14 @@ test('Create entries and handle regular errors', () => {
   updateStub.mockImplementationOnce(() => Promise.reject(creationError))
 
   const entries = [{
-    original: { sys: {contentType: {sys: {id: 'ctid'}}} },
-    transformed: { sys: {id: '123'}, fields: {gonefield: '', existingfield: ''} }
+    original: { sys: { contentType: { sys: { id: 'ctid' } } } },
+    transformed: { sys: { id: '123' }, fields: { gonefield: '', existingfield: '' } }
   }]
   const destinationEntries = [
-    {sys: {id: '123', version: 6}, update: updateStub}
+    { sys: { id: '123', version: 6 }, update: updateStub }
   ]
 
-  return createEntries({target: {}}, entries, destinationEntries)
+  return createEntries({ target: {} }, entries, destinationEntries)
     .then((result) => {
       expect(updateStub.mock.calls).toHaveLength(1)
       expect(logEmitter.emit.mock.calls).toHaveLength(1)
@@ -159,14 +159,14 @@ test('Fails to create locale if it already exists', () => {
   }
   const errorValidationFailed = new Error()
   errorValidationFailed.error = {
-    sys: {id: 'ValidationFailed'},
+    sys: { id: 'ValidationFailed' },
     details: {
-      errors: [{name: 'taken'}]
+      errors: [{ name: 'taken' }]
     }
   }
   const entity = { original: { sys: {} }, transformed: { sys: {} } }
 
-  return createLocales({target, type: 'Locale'}, [entity], [{sys: {}}])
+  return createLocales({ target, type: 'Locale' }, [entity], [{ sys: {} }])
     .then((entities) => {
       expect(entities[0]).toBe(entity)
       const logLevels = logEmitter.emit.mock.calls.map((args) => args[0])

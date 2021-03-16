@@ -54,7 +54,7 @@ test('applies custom transformers to give space data', () => {
 })
 
 test('applies transformers to given entity types', () => {
-  space.customEntities = [{type: 'custom'}]
+  space.customEntities = [{ type: 'custom' }]
   const result = transformSpace(space, destinationSpace, {}, ['entries'])
   expect(result.contentTypes[0]).not.toHaveProperty('original')
   expect(result.contentTypes[0]).not.toHaveProperty('transformed')

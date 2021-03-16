@@ -1,4 +1,4 @@
-import {each} from 'lodash/collection'
+import { each } from 'lodash/collection'
 
 import pushToSpace from '../../../../lib/tasks/push-to-space/push-to-space'
 
@@ -126,7 +126,7 @@ test('Push content to destination space', () => {
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(1)
       expect(assets.processAssets.mock.calls).toHaveLength(1)
       expect(assets.processAssets.mock.calls).toHaveLength(1)
-      expect(assets.processAssets.mock.calls[0][1]).toEqual({retryLimit: 20, timeout: 40000})
+      expect(assets.processAssets.mock.calls[0][1]).toEqual({ retryLimit: 20, timeout: 40000 })
     })
 })
 
@@ -172,7 +172,7 @@ test('Push only content types', () => {
     })
 })
 
-test('Push only entries and assets to destination space', () => {
+test.only('Push only entries and assets to destination space', () => {
   return pushToSpace({
     sourceData,
     destinationData,

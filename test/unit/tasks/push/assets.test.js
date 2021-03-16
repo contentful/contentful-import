@@ -14,11 +14,11 @@ beforeEach(() => {
 
 test('Process assets', () => {
   const processStub = jest.fn()
-    .mockReturnValue(Promise.resolve({sys: {type: 'Asset'}}))
+    .mockReturnValue(Promise.resolve({ sys: { type: 'Asset' } }))
 
   return processAssets([
-    { sys: {id: '123'}, fields: {file: {'en-US': 'file object', 'en-GB': {}}}, processForAllLocales: processStub },
-    { sys: {id: '456'}, fields: {file: {'en-US': 'file object', 'en-GB': {}}}, processForAllLocales: processStub }
+    { sys: { id: '123' }, fields: { file: { 'en-US': 'file object', 'en-GB': {} } }, processForAllLocales: processStub },
+    { sys: { id: '456' }, fields: { file: { 'en-US': 'file object', 'en-GB': {} } }, processForAllLocales: processStub }
   ])
     .then((response) => {
       expect(processStub.mock.calls).toHaveLength(2)
@@ -30,12 +30,12 @@ test('Process assets fails', () => {
   const failedError = new Error('processing failed')
 
   const processStub = jest.fn()
-    .mockImplementationOnce(() => Promise.resolve({sys: {type: 'Asset'}}))
+    .mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset' } }))
     .mockImplementationOnce(() => Promise.reject(failedError))
 
   return processAssets([
-    { sys: {id: '123'}, fields: {file: {'en-US': 'file object', 'en-GB': {}}}, processForAllLocales: processStub },
-    { sys: {id: '456'}, fields: {file: {'en-US': 'file object', 'en-GB': {}}}, processForAllLocales: processStub }
+    { sys: { id: '123' }, fields: { file: { 'en-US': 'file object', 'en-GB': {} } }, processForAllLocales: processStub },
+    { sys: { id: '456' }, fields: { file: { 'en-US': 'file object', 'en-GB': {} } }, processForAllLocales: processStub }
   ])
     .then((response) => {
       expect(processStub.mock.calls).toHaveLength(2)

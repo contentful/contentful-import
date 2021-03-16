@@ -3,11 +3,11 @@ import { times } from 'lodash/util'
 import getDestinationData from '../../../lib/tasks/get-destination-data'
 
 const sourceData = {
-  contentTypes: times(150, (n) => ({sys: {id: `ct-${n}`}})),
-  locales: times(5, (n) => ({sys: {id: `ct-${n}`}})),
-  entries: times(2000, (n) => ({sys: {id: `e-${n}`}})),
-  assets: times(1500, (n) => ({sys: {id: `a-${n}`}})),
-  tags: times(100, (n) => ({sys: {id: `t-${n}`}, name: `t-${n}`}))
+  contentTypes: times(150, (n) => ({ sys: { id: `ct-${n}` } })),
+  locales: times(5, (n) => ({ sys: { id: `ct-${n}` } })),
+  entries: times(2000, (n) => ({ sys: { id: `e-${n}` } })),
+  assets: times(1500, (n) => ({ sys: { id: `a-${n}` } })),
+  tags: times(100, (n) => ({ sys: { id: `t-${n}` }, name: `t-${n}` }))
 }
 
 function batchQueryResolver (query) {
@@ -26,7 +26,7 @@ const mockEnvironment = {
   getEntries: jest.fn(batchQueryResolver),
   getAssets: jest.fn(batchQueryResolver),
   getLocales: jest.fn(batchQueryResolver),
-  getTags: jest.fn().mockReturnValue(Promise.resolve({items: sourceData.tags})) // resolve 100 tags
+  getTags: jest.fn().mockReturnValue(Promise.resolve({ items: sourceData.tags })) // resolve 100 tags
 }
 
 const mockSpace = {

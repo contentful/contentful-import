@@ -17,11 +17,11 @@ afterEach(() => {
 
 test('Publish entities', () => {
   const publishStub = jest.fn()
-  publishStub.mockImplementationOnce(() => Promise.resolve({sys: {type: 'Asset', id: '123', publishedVersion: 2}}))
-  publishStub.mockImplementationOnce(() => Promise.resolve({sys: {type: 'Asset', id: '456', publishedVersion: 3}}))
+  publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '123', publishedVersion: 2 } }))
+  publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '456', publishedVersion: 3 } }))
   return publishEntities([
-    { sys: {id: '123'}, publish: publishStub },
-    { sys: {id: '456'}, publish: publishStub }
+    { sys: { id: '123' }, publish: publishStub },
+    { sys: { id: '456' }, publish: publishStub }
   ])
     .then((response) => {
       expect(publishStub.mock.calls).toHaveLength(2)
@@ -37,14 +37,14 @@ test('Publish entities', () => {
 test('Only publishes valid entities and does not fail when api error occur', () => {
   const errorValidation = new Error('failed to publish')
   const publishStub = jest.fn()
-  publishStub.mockImplementationOnce(() => Promise.resolve({sys: {type: 'Asset', id: '123', publishedVersion: 2}}))
+  publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '123', publishedVersion: 2 } }))
   publishStub.mockImplementationOnce(() => Promise.reject(errorValidation))
-  publishStub.mockImplementationOnce(() => Promise.resolve({sys: {type: 'Asset', id: '456', publishedVersion: 3}}))
+  publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '456', publishedVersion: 3 } }))
 
   return publishEntities([
-    { sys: {id: '123', type: 'asset'}, publish: publishStub },
+    { sys: { id: '123', type: 'asset' }, publish: publishStub },
     undefined,
-    { sys: {id: '456', type: 'asset'}, publish: publishStub }
+    { sys: { id: '456', type: 'asset' }, publish: publishStub }
   ])
     .then((result) => {
       expect(publishStub.mock.calls).toHaveLength(3)
@@ -69,8 +69,8 @@ test('Aborts publishing queue when all publishes fail', () => {
   const publishStub = jest.fn(() => Promise.reject(errorValidation))
 
   return publishEntities([
-    { sys: {id: '123', type: 'asset'}, publish: publishStub },
-    { sys: {id: '456', type: 'asset'}, publish: publishStub }
+    { sys: { id: '123', type: 'asset' }, publish: publishStub },
+    { sys: { id: '456', type: 'asset' }, publish: publishStub }
   ])
     .then((result) => {
       expect(publishStub.mock.calls).toHaveLength(2)
@@ -91,13 +91,13 @@ test('Aborts publishing queue when all publishes fail', () => {
 test('Aborts publishing queue when some publishes fail', () => {
   const errorValidation = new Error('failed to publish')
   const publishStub = jest.fn()
-  publishStub.mockImplementationOnce(() => Promise.resolve({sys: {type: 'Asset', id: '123', publishedVersion: 2}}))
+  publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '123', publishedVersion: 2 } }))
   publishStub.mockImplementationOnce(() => Promise.reject(errorValidation))
   publishStub.mockImplementationOnce(() => Promise.reject(errorValidation))
 
   return publishEntities([
-    { sys: {id: '123', type: 'asset'}, publish: publishStub },
-    { sys: {id: '456', type: 'asset'}, publish: publishStub }
+    { sys: { id: '123', type: 'asset' }, publish: publishStub },
+    { sys: { id: '456', type: 'asset' }, publish: publishStub }
   ])
     .then((result) => {
       expect(publishStub.mock.calls).toHaveLength(3)
@@ -145,7 +145,7 @@ test('Archiving detects entities that can not be archived', () => {
 test('Skips archiving when no entities are given', () => {
   const archiveMock = jest.fn()
   const errorArchiving = new Error('failed to archive')
-  archiveMock.mockImplementationOnce(() => Promise.resolve({archived: true}))
+  archiveMock.mockImplementationOnce(() => Promise.resolve({ archived: true }))
   archiveMock.mockImplementationOnce(() => Promise.reject(errorArchiving))
   return archiveEntities([
     {
@@ -163,7 +163,7 @@ test('Skips archiving when no entities are given', () => {
   ])
     .then((result) => {
       expect(result).toHaveLength(2)
-      expect(result[0]).toMatchObject({archived: true})
+      expect(result[0]).toMatchObject({ archived: true })
       expect(result[1]).toBeNull()
       const warningCount = logEmitter.emit.mock.calls.filter((args) => args[0] === 'warning').length
       const errorCount = logEmitter.emit.mock.calls.filter((args) => args[0] === 'error').length
