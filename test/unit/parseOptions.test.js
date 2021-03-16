@@ -90,7 +90,6 @@ test('parseOptions sets correct default options', () => {
   expect(options.accessToken).toBe(managementToken)
   expect(options.spaceId).toBe(spaceId)
 
-  expect(options.prePublishDelay).toBe(3000)
   expect(options.skipContentModel).toBe(false)
   expect(options.skipLocales).toBe(false)
   expect(options.skipContentPublishing).toBe(false)

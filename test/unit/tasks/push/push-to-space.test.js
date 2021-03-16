@@ -112,7 +112,6 @@ test('Push content to destination space', () => {
     client: clientMock,
     spaceId: 'spaceid',
     environmentId: 'master',
-    prePublishDelay: 0,
     timeout: 40000,
     retryLimit: 20
   })
@@ -137,7 +136,6 @@ test('Push only content types and locales to destination space', () => {
     client: clientMock,
     spaceId: 'spaceid',
     environmentId: 'master',
-    prePublishDelay: 0,
     contentModelOnly: true
   })
     .run({ data: {} })
@@ -158,7 +156,6 @@ test('Push only content types', () => {
     client: clientMock,
     spaceId: 'spaceid',
     environmentId: 'master',
-    prePublishDelay: 0,
     contentModelOnly: true,
     skipLocales: true
   })
@@ -179,7 +176,6 @@ test.only('Push only entries and assets to destination space', () => {
     client: clientMock,
     spaceId: 'spaceid',
     environmentId: 'master',
-    prePublishDelay: 0,
     skipContentModel: true
   })
     .run({ data: {} })
@@ -199,7 +195,6 @@ test('Push only entries and assets to destination space and skip publishing', ()
     client: clientMock,
     spaceId: 'spaceid',
     environmentId: 'master',
-    prePublishDelay: 0,
     skipContentModel: true,
     skipContentPublishing: true
   })
