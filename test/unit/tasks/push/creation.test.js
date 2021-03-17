@@ -35,9 +35,9 @@ test('Create entities', () => {
       { original: { sys: {} }, transformed: { sys: { id: '123' } } },
       { original: { sys: {} }, transformed: { sys: { id: '456' } } }
     ],
-    destinationEntities: [
-      { sys: { id: '123', version: 6 }, update: updateStub }
-    ],
+    destinationEntitiesById: new Map([
+      ['123', { sys: { id: '123', version: 6 }, update: updateStub }]
+    ]),
     requestQueue
   })
     .then((response) => {
@@ -61,14 +61,14 @@ test('Create entities handle regular errors', () => {
     original: { sys: { contentType: { sys: { id: 'ctid' } } } },
     transformed: { sys: { id: '123' }, fields: { gonefield: '', existingfield: '' } }
   }]
-  const destinationEntries = [
-    { sys: { id: '123', version: 6 }, update: updateStub }
-  ]
+  const destinationEntries = new Map([
+    ['123', { sys: { id: '123', version: 6 }, update: updateStub }]
+  ])
 
   return createEntities({
     context: { target, type: 'Asset' },
     entities: entries,
-    destinationEntities: destinationEntries,
+    destinationEntitiesById: destinationEntries,
     requestQueue
   })
     .then((result) => {
@@ -95,13 +95,13 @@ test('Create entries', () => {
     { original: { sys: { contentType: { sys: { id: 'ctid' } } } }, transformed: { sys: { id: '456' } } },
     { original: { sys: { contentType: { sys: { id: 'ctid' } } } }, transformed: { sys: {} } }
   ]
-  const destinationEntries = [
-    { sys: { id: '123', version: 6 }, update: updateStub }
-  ]
+  const destinationEntries = new Map([
+    ['123', { sys: { id: '123', version: 6 }, update: updateStub }]
+  ])
   return createEntries({
     context: { target, skipContentModel: false },
     entities: entries,
-    destinationEntities: destinationEntries,
+    destinationEntitiesById: destinationEntries,
     requestQueue
   })
     .then((response) => {
@@ -136,14 +136,14 @@ test('Create entries and remove unknown fields', () => {
     original: { sys: { contentType: { sys: { id: 'ctid' } } } },
     transformed: { sys: { id: '123' }, fields: { gonefield: '', existingfield: '' } }
   }]
-  const destinationEntries = [
-    { sys: { id: '123', version: 6 }, update: updateStub }
-  ]
+  const destinationEntries = new Map([
+    ['123', { sys: { id: '123', version: 6 }, update: updateStub }]
+  ])
 
   return createEntries({
     context: { target: {}, skipContentModel: true },
     entities: entries,
-    destinationEntities: destinationEntries,
+    destinationEntitiesById: destinationEntries,
     requestQueue
   })
     .then((response) => {
@@ -165,14 +165,14 @@ test('Create entries and handle regular errors', () => {
     original: { sys: { contentType: { sys: { id: 'ctid' } } } },
     transformed: { sys: { id: '123' }, fields: { gonefield: '', existingfield: '' } }
   }]
-  const destinationEntries = [
-    { sys: { id: '123', version: 6 }, update: updateStub }
-  ]
+  const destinationEntries = new Map([
+    ['123', { sys: { id: '123', version: 6 }, update: updateStub }]
+  ])
 
   return createEntries({
     context: { target: {} },
     entities: entries,
-    destinationEntities: destinationEntries,
+    destinationEntitiesById: destinationEntries,
     requestQueue
   })
     .then((result) => {
@@ -199,12 +199,12 @@ test('Fails to create locale if it already exists', () => {
       errors: [{ name: 'taken' }]
     }
   }
-  const entity = { original: { sys: {} }, transformed: { sys: {} } }
+  const entity = { original: { sys: { } }, transformed: { sys: { } } }
 
   return createLocales({
     context: { target, type: 'Locale' },
     entities: [entity],
-    destinationEntities: [{ sys: {} }],
+    destinationEntitiesById: new Map(),
     requestQueue
   })
     .then((entities) => {
