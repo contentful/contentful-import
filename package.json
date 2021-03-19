@@ -58,7 +58,7 @@
     "joi": "^13.4.0",
     "listr": "^0.14.1",
     "listr-update-renderer": "^0.5.0",
-    "listr-verbose-renderer": "^0.4.1",
+    "listr-verbose-renderer": "^0.6.0",
     "lodash": "^4.17.10",
     "moment": "^2.22.2",
     "p-queue": "^6.6.2",
