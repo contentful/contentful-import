@@ -1,3 +1,4 @@
+import PQueue from 'p-queue'
 import { each } from 'lodash/collection'
 
 import pushToSpace from '../../../../lib/tasks/push-to-space/push-to-space'
@@ -7,7 +8,7 @@ import publishing from '../../../../lib/tasks/push-to-space/publishing'
 import assets from '../../../../lib/tasks/push-to-space/assets'
 
 jest.mock('../../../../lib/tasks/push-to-space/creation', () => ({
-  createEntities: jest.fn((context) => {
+  createEntities: jest.fn(({ context }) => {
     // Actually return one content type to get editor interfaces imported
     if (context.type === 'ContentType') {
       return Promise.resolve([
@@ -26,9 +27,9 @@ jest.mock('../../../../lib/tasks/push-to-space/creation', () => ({
   createLocales: jest.fn(() => Promise.resolve([]))
 }))
 jest.mock('../../../../lib/tasks/push-to-space/publishing', () => ({
-  publishEntities: jest.fn((entitiesToPublish) => {
+  publishEntities: jest.fn(({ entities }) => {
     // Actually return one content type to get editor interfaces imported
-    if (entitiesToPublish[0] && entitiesToPublish[0].sys.type === 'ContentType') {
+    if (entities[0] && entities[0].sys.type === 'ContentType') {
       return Promise.resolve([{
         sys: {
           id: 'someId',
@@ -98,6 +99,17 @@ const clientMock = {
   }))
 }
 
+let requestQueue
+
+beforeEach(() => {
+  // We set a high interval cap here because with the amount of data to fetch
+  // We will otherwise run into timeouts of the tests due to being rate limited
+  requestQueue = new PQueue({
+    interval: 1000,
+    intervalCap: 1000
+  })
+})
+
 afterEach(() => {
   each(creation, (fn) => fn.mockClear())
   each(publishing, (fn) => fn.mockClear())
@@ -113,7 +125,8 @@ test('Push content to destination space', () => {
     spaceId: 'spaceid',
     environmentId: 'master',
     timeout: 40000,
-    retryLimit: 20
+    retryLimit: 20,
+    requestQueue
   })
     .run({ data: {} })
     .then(() => {
@@ -124,8 +137,8 @@ test('Push content to destination space', () => {
       expect(publishing.archiveEntities.mock.calls).toHaveLength(2)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(1)
       expect(assets.processAssets.mock.calls).toHaveLength(1)
-      expect(assets.processAssets.mock.calls).toHaveLength(1)
-      expect(assets.processAssets.mock.calls[0][1]).toEqual({ retryLimit: 20, timeout: 40000 })
+      expect(assets.processAssets.mock.calls[0][0].retryLimit).toEqual(20)
+      expect(assets.processAssets.mock.calls[0][0].timeout).toEqual(40000)
     })
 })
 
@@ -136,7 +149,8 @@ test('Push only content types and locales to destination space', () => {
     client: clientMock,
     spaceId: 'spaceid',
     environmentId: 'master',
-    contentModelOnly: true
+    contentModelOnly: true,
+    requestQueue
   })
     .run({ data: {} })
     .then(() => {
@@ -157,7 +171,8 @@ test('Push only content types', () => {
     spaceId: 'spaceid',
     environmentId: 'master',
     contentModelOnly: true,
-    skipLocales: true
+    skipLocales: true,
+    requestQueue
   })
     .run({ data: {} })
     .then(() => {
@@ -169,14 +184,15 @@ test('Push only content types', () => {
     })
 })
 
-test.only('Push only entries and assets to destination space', () => {
+test('Push only entries and assets to destination space', () => {
   return pushToSpace({
     sourceData,
     destinationData,
     client: clientMock,
     spaceId: 'spaceid',
     environmentId: 'master',
-    skipContentModel: true
+    skipContentModel: true,
+    requestQueue
   })
     .run({ data: {} })
     .then(() => {
@@ -196,7 +212,8 @@ test('Push only entries and assets to destination space and skip publishing', ()
     spaceId: 'spaceid',
     environmentId: 'master',
     skipContentModel: true,
-    skipContentPublishing: true
+    skipContentPublishing: true,
+    requestQueue
   })
     .run({ data: {} })
     .then(() => {
