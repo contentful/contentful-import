@@ -60,7 +60,7 @@ jest.mock('../../lib/transform/transform-space', () => {
 })
 jest.mock('../../lib/tasks/init-client', () => {
   return jest.fn(() => (
-    { source: {delivery: {}}, destination: {management: {}} }
+    { source: { delivery: {} }, destination: { management: {} } }
   ))
 })
 
@@ -142,7 +142,7 @@ test('Runs Contentful Import', () => {
       expect(pushToSpaceStub.mock.calls).toHaveLength(1)
 
       const introTable = TableStub.mock.instances[0]
-      expect(introTable.push.mock.calls[0][0]).toEqual([{colSpan: 2, content: 'The following entities are going to be imported:'}])
+      expect(introTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'The following entities are going to be imported:' }])
       expect(introTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
       expect(introTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
       expect(introTable.push.mock.calls[3][0]).toEqual(['Tags', 2])
@@ -153,7 +153,7 @@ test('Runs Contentful Import', () => {
       expect(introTable.push.mock.calls).toHaveLength(8)
 
       const resultTable = TableStub.mock.instances[1]
-      expect(resultTable.push.mock.calls[0][0]).toEqual([{colSpan: 2, content: 'Imported entities'}])
+      expect(resultTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'Imported entities' }])
       expect(resultTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
       expect(resultTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
       expect(resultTable.push.mock.calls[3][0]).toEqual(['Tags', 2])
@@ -225,7 +225,7 @@ test('Intro CLI table respects skipContentModel', () => {
   })
     .then(() => {
       const introTable = TableStub.mock.instances[0]
-      expect(introTable.push.mock.calls[0][0]).toEqual([{colSpan: 2, content: 'The following entities are going to be imported:'}])
+      expect(introTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'The following entities are going to be imported:' }])
       expect(introTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
       expect(introTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
       expect(introTable.push.mock.calls[3][0]).toEqual(['Locales', 2])
@@ -275,7 +275,7 @@ test('Intro CLI table respects contentModelOnly and skipLocales', () => {
   })
     .then(() => {
       const introTable = TableStub.mock.instances[0]
-      expect(introTable.push.mock.calls[0][0]).toEqual([{colSpan: 2, content: 'The following entities are going to be imported:'}])
+      expect(introTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'The following entities are going to be imported:' }])
       expect(introTable.push.mock.calls[1][0]).toEqual(['Content Types', 2])
       expect(introTable.push.mock.calls[2][0]).toEqual(['Editor Interfaces', 2])
       expect(introTable.push.mock.calls).toHaveLength(3)
@@ -321,7 +321,7 @@ test('Intro CLI table respects contentModelOnly', () => {
   })
     .then(() => {
       const introTable = TableStub.mock.instances[0]
-      expect(introTable.push.mock.calls[0][0]).toEqual([{colSpan: 2, content: 'The following entities are going to be imported:'}])
+      expect(introTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'The following entities are going to be imported:' }])
       expect(introTable.push.mock.calls[1][0]).toEqual(['Content Types', 2])
       expect(introTable.push.mock.calls[2][0]).toEqual(['Editor Interfaces', 2])
       expect(introTable.push.mock.calls[3][0]).toEqual(['Locales', 2])

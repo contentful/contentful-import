@@ -1,4 +1,4 @@
-import {cloneMock} from 'contentful-batch-libs/test/mocks/'
+import { cloneMock } from 'contentful-batch-libs/test/mocks/'
 
 import * as transformers from '../../../lib/transform/transformers'
 
@@ -6,8 +6,8 @@ test('It should transform processed asset', () => {
   const assetMock = cloneMock('asset')
   assetMock.fields = {
     file: {
-      'en-US': {fileName: 'filename.jpg', url: '//server/filename.jpg'},
-      'de-DE': {fileName: 'filename.jpg', url: '//server/filename-de.jpg'}
+      'en-US': { fileName: 'filename.jpg', url: '//server/filename.jpg' },
+      'de-DE': { fileName: 'filename.jpg', url: '//server/filename-de.jpg' }
     }
   }
   const transformedAsset = transformers.assets(assetMock)
@@ -21,8 +21,8 @@ test('It should transform processed asset with and without protocol', () => {
   const assetMock = cloneMock('asset')
   assetMock.fields = {
     file: {
-      'en-US': {fileName: 'filename.jpg', url: 'https://server/filename.jpg'},
-      'de-DE': {fileName: 'filename.jpg', url: '//server/filename-de.jpg'}
+      'en-US': { fileName: 'filename.jpg', url: 'https://server/filename.jpg' },
+      'de-DE': { fileName: 'filename.jpg', url: '//server/filename-de.jpg' }
     }
   }
   const transformedAsset = transformers.assets(assetMock)
@@ -36,8 +36,8 @@ test('It should transform unprocessed asset', () => {
   const assetMock = cloneMock('asset')
   assetMock.fields = {
     file: {
-      'en-US': {fileName: 'filename.jpg', upload: '//server/filename.jpg'},
-      'de-DE': {fileName: 'filename.jpg', upload: '//server/filename-de.jpg'}
+      'en-US': { fileName: 'filename.jpg', upload: '//server/filename.jpg' },
+      'de-DE': { fileName: 'filename.jpg', upload: '//server/filename-de.jpg' }
     }
   }
   const transformedAsset = transformers.assets(assetMock)
@@ -51,8 +51,8 @@ test('It should transform unprocessed asset with uploadFrom', () => {
   const assetMock = cloneMock('asset')
   assetMock.fields = {
     file: {
-      'en-US': {fileName: 'filename.jpg', uploadFrom: {sys: {id: 'upload-en-US'}}},
-      'de-DE': {fileName: 'filename.jpg', uploadFrom: {sys: {id: 'upload-de-DE'}}}
+      'en-US': { fileName: 'filename.jpg', uploadFrom: { sys: { id: 'upload-en-US' } } },
+      'de-DE': { fileName: 'filename.jpg', uploadFrom: { sys: { id: 'upload-de-DE' } } }
     }
   }
   const transformedAsset = transformers.assets(assetMock)
@@ -71,8 +71,8 @@ test('It should transform webhook with credentials to normal webhook', () => {
 
 test('It should transform webhook with secret headers', () => {
   const webhookMock = cloneMock('webhook')
-  const secretHeader = {key: 'Authorization', secret: true}
-  const nonSecretHeader = {key: 'headerkey', value: 'headerval'}
+  const secretHeader = { key: 'Authorization', secret: true }
+  const nonSecretHeader = { key: 'headerkey', value: 'headerval' }
   const headers = [secretHeader, nonSecretHeader]
   webhookMock.headers = headers
   const transformedWebhook = transformers.webhooks(webhookMock)
@@ -91,14 +91,14 @@ test('It should transform a locale and return it', () => {
 
 test('It should transform an entry with tags enabled, and return it', () => {
   const entryMock = cloneMock('entry')
-  entryMock.metadata = {tags: []}
-  const transformed = transformers.entries(entryMock, null, true);
-  expect(transformed.metadata).toEqual({tags: []})
+  entryMock.metadata = { tags: [] }
+  const transformed = transformers.entries(entryMock, null, true)
+  expect(transformed.metadata).toEqual({ tags: [] })
 })
 
 test('It should transform an entry with tags disabled, and return it', () => {
   const entryMock = cloneMock('entry')
-  entryMock.metadata = {tags: []}
-  const transformed = transformers.entries(entryMock, null, false);
-  expect(transformed.metadata).toBe(undefined)
+  entryMock.metadata = { tags: [] }
+  const transformed = transformers.entries(entryMock, null, false)
+  expect(transformed.metadata).toBeUndefined()
 })

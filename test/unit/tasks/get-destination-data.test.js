@@ -1,13 +1,14 @@
 import { times } from 'lodash/util'
+import PQueue from 'p-queue'
 
 import getDestinationData from '../../../lib/tasks/get-destination-data'
 
 const sourceData = {
-  contentTypes: times(150, (n) => ({sys: {id: `ct-${n}`}})),
-  locales: times(5, (n) => ({sys: {id: `ct-${n}`}})),
-  entries: times(2000, (n) => ({sys: {id: `e-${n}`}})),
-  assets: times(1500, (n) => ({sys: {id: `a-${n}`}})),
-  tags: times(100, (n) => ({sys: {id: `t-${n}`}, name: `t-${n}`}))
+  contentTypes: times(150, (n) => ({ sys: { id: `ct-${n}` } })),
+  locales: times(5, (n) => ({ sys: { id: `ct-${n}` } })),
+  entries: times(2000, (n) => ({ sys: { id: `e-${n}` } })),
+  assets: times(1500, (n) => ({ sys: { id: `a-${n}` } })),
+  tags: times(100, (n) => ({ sys: { id: `t-${n}` }, name: `t-${n}` }))
 }
 
 function batchQueryResolver (query) {
@@ -26,7 +27,7 @@ const mockEnvironment = {
   getEntries: jest.fn(batchQueryResolver),
   getAssets: jest.fn(batchQueryResolver),
   getLocales: jest.fn(batchQueryResolver),
-  getTags: jest.fn().mockReturnValue(Promise.resolve({items: sourceData.tags})) // resolve 100 tags
+  getTags: jest.fn().mockReturnValue(Promise.resolve({ items: sourceData.tags })) // resolve 100 tags
 }
 
 const mockSpace = {
@@ -36,6 +37,17 @@ const mockSpace = {
 const mockClient = {
   getSpace: jest.fn()
 }
+
+let requestQueue
+
+beforeEach(() => {
+  // We set a high interval cap here because with the amount of data to fetch
+  // We will otherwise run into timeouts of the tests due to being rate limited
+  requestQueue = new PQueue({
+    interval: 1000,
+    intervalCap: 1000
+  })
+})
 
 afterEach(() => {
   mockEnvironment.getContentTypes.mockClear()
@@ -60,7 +72,8 @@ test('Gets destination content', () => {
     client: mockClient,
     spaceId: 'spaceid',
     environmentId: 'master',
-    sourceData
+    sourceData,
+    requestQueue
   })
     .then((response) => {
       expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(2)
@@ -87,7 +100,8 @@ test('Gets destination content with content model skipped', () => {
     spaceId: 'spaceid',
     environmentId: 'master',
     sourceData,
-    skipContentModel: true
+    skipContentModel: true,
+    requestQueue
   })
     .then((response) => {
       expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(0)
@@ -112,7 +126,8 @@ test('Gets destination content with locales skipped', () => {
     spaceId: 'spaceid',
     environmentId: 'master',
     sourceData,
-    skipLocales: true
+    skipLocales: true,
+    requestQueue
   })
     .then((response) => {
       expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(2)
@@ -138,7 +153,8 @@ test('Gets destination content with contentModelOnly', () => {
     spaceId: 'spaceid',
     environmentId: 'master',
     sourceData,
-    contentModelOnly: true
+    contentModelOnly: true,
+    requestQueue
   })
     .then((response) => {
       expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(2)
@@ -162,7 +178,8 @@ test('Does not fail with incomplete source data', () => {
     client: mockClient,
     spaceId: 'spaceid',
     environmentId: 'master',
-    sourceData: {}
+    sourceData: {},
+    requestQueue
   })
     .then((response) => {
       expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(0)
@@ -187,7 +204,8 @@ test('Removes Tags key from response if tags endpoint throws error (meaning tags
     client: mockClient,
     spaceId: 'spaceid',
     environmentId: 'master',
-    sourceData: {}
+    sourceData: {},
+    requestQueue
   })
     .then((response) => {
       expect(mockEnvironment.getTags.mock.calls).toHaveLength(1)
@@ -205,7 +223,8 @@ test('Fails to get destination space', () => {
     spaceId: 'spaceid',
     environmentId: 'master',
     sourceData,
-    skipContentModel: true
+    skipContentModel: true,
+    requestQueue
   })
     .then(() => {
       throw new Error('should not succeed')

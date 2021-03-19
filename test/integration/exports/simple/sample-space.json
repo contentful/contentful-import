@@ -1094,6 +1094,43 @@
         },
         "updatedAt": "2017-05-11T12:01:17Z"
       }
+    },
+    {
+      "name": "German",
+      "code": "de-DE",
+      "fallbackCode": null,
+      "default": true,
+      "contentManagementApi": true,
+      "contentDeliveryApi": true,
+      "optional": false,
+      "sys": {
+        "type": "Locale",
+        "id": "someAssetIdIdk",
+        "version": 0,
+        "space": {
+          "sys": {
+            "type": "Link",
+            "linkType": "Space",
+            "id": "28p9vvm1oxuw"
+          }
+        },
+        "createdBy": {
+          "sys": {
+            "type": "Link",
+            "linkType": "User",
+            "id": "066RqBikAjzKy0SWUEtFvH"
+          }
+        },
+        "createdAt": "2017-05-11T12:01:17Z",
+        "updatedBy": {
+          "sys": {
+            "type": "Link",
+            "linkType": "User",
+            "id": "066RqBikAjzKy0SWUEtFvH"
+          }
+        },
+        "updatedAt": "2017-05-11T12:01:17Z"
+      }
     }
   ],
   "webhooks": [],

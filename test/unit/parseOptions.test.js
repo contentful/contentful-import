@@ -86,14 +86,14 @@ test('parseOptions sets correct default options', () => {
   expect(options.errorLogFile).toMatch(new RegExp(`^${resolve(basePath, errorFileNamePattern)}$`))
 
   expect(options.application).toBe(`contentful.import/${version}`)
-  expect(options.feature).toBe(`library-import`)
+  expect(options.feature).toBe('library-import')
   expect(options.accessToken).toBe(managementToken)
   expect(options.spaceId).toBe(spaceId)
 
-  expect(options.prePublishDelay).toBe(3000)
   expect(options.skipContentModel).toBe(false)
   expect(options.skipLocales).toBe(false)
   expect(options.skipContentPublishing).toBe(false)
+  expect(options.uploadAssets).toBe(false)
   expect(options.content).toEqual({
     assets: [],
     contentTypes: [],
@@ -181,7 +181,7 @@ test('parseOption cleans up content to only include supported entity types', () 
     spaceId,
     managementToken,
     content: {
-      invalid: [{foo: 'bar'}],
+      invalid: [{ foo: 'bar' }],
       entries: [
         { sys: { id: 'entry1' } },
         { sys: { id: 'entry2' } }

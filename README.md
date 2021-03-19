@@ -121,6 +121,14 @@ Skip importing of locales
 #### `skipContentPublishing` [boolean] [default: false]
 Skips content publishing. Creates content but does not publish it
 
+## Assets
+
+#### `uploadAssets` [boolean] [default: false]
+Upload local asset files downloaded via the [downloadAssets](https://github.com/contentful/contentful-export#downloadassets-boolean) option of the export. Requires `assetsDirectory`
+
+#### `assetsDirectory` [string]
+Path to a directory with an asset export made using the [downloadAssets](https://github.com/contentful/contentful-export#downloadassets-boolean) option of the export. Requires `uploadAssets`
+
 ### Connection
 
 #### `host` [string] [default: 'api.contentful.com']
@@ -131,6 +139,9 @@ Proxy configuration in HTTP auth format: `host:port` or `user:password@host:port
 
 #### `rawProxy` [boolean]
 Pass proxy config to Axios instead of creating a custom httpsAgent
+
+#### `rateLimit` [number] [default: 7]
+Maximum requests per second used for API requests
 
 ### Other
 

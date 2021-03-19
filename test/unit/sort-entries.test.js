@@ -2,11 +2,11 @@ import sortEntries from '../../lib/utils/sort-entries'
 
 const entries = [
   {
-    sys: {id: 'abc'},
+    sys: { id: 'abc' },
     fields: {}
   },
   {
-    sys: {id: '123'},
+    sys: { id: '123' },
     fields: {
       links: [
         {
@@ -20,11 +20,11 @@ const entries = [
     }
   },
   {
-    sys: {id: '456'},
+    sys: { id: '456' },
     fields: {}
   },
   {
-    sys: {id: '789'},
+    sys: { id: '789' },
     fields: {}
   }
 ]
@@ -40,23 +40,23 @@ test('Sorts entries by link order', () => {
 
 const complexEntries = [
   {
-    'sys': {
-      'id': 'FJlJfypzaewiwyukGi2kI'
+    sys: {
+      id: 'FJlJfypzaewiwyukGi2kI'
     },
-    'fields': {}
+    fields: {}
   },
   {
-    'sys': {
-      'id': '5JQ715oDQW68k8EiEuKOk8'
+    sys: {
+      id: '5JQ715oDQW68k8EiEuKOk8'
     },
-    'fields': {
-      'createdEntries': {
+    fields: {
+      createdEntries: {
         'en-US': [
           {
-            'sys': {
-              'type': 'Link',
-              'linkType': 'Entry',
-              'id': 'A96usFSlY4G0W4kwAqswk'
+            sys: {
+              type: 'Link',
+              linkType: 'Entry',
+              id: 'A96usFSlY4G0W4kwAqswk'
             }
           }
         ]
@@ -64,26 +64,26 @@ const complexEntries = [
     }
   },
   {
-    'sys': {
-      'id': '6EczfGnuHCIYGGwEwIqiq2'
+    sys: {
+      id: '6EczfGnuHCIYGGwEwIqiq2'
     },
-    'fields': {
-      'profilePhoto': {
+    fields: {
+      profilePhoto: {
         'en-US': {
-          'sys': {
-            'type': 'Link',
-            'linkType': 'Asset',
-            'id': '2ReMHJhXoAcy4AyamgsgwQ'
+          sys: {
+            type: 'Link',
+            linkType: 'Asset',
+            id: '2ReMHJhXoAcy4AyamgsgwQ'
           }
         }
       },
-      'createdEntries': {
+      createdEntries: {
         'en-US': [
           {
-            'sys': {
-              'type': 'Link',
-              'linkType': 'Entry',
-              'id': '1asN98Ph3mUiCYIYiiqwko'
+            sys: {
+              type: 'Link',
+              linkType: 'Entry',
+              id: '1asN98Ph3mUiCYIYiiqwko'
             }
           }
         ]
@@ -91,10 +91,10 @@ const complexEntries = [
     }
   },
   {
-    'sys': {
-      'id': '1asN98Ph3mUiCYIYiiqwko'
+    sys: {
+      id: '1asN98Ph3mUiCYIYiiqwko'
     },
-    'fields': {
+    fields: {
       /*
       Circular dependencies are not supported yet.
        'author': {
@@ -109,56 +109,56 @@ const complexEntries = [
         ]
       },
       */
-      'category': {
+      category: {
         'en-US': [
           {
-            'sys': {
-              'type': 'Link',
-              'linkType': 'Entry',
-              'id': '6XL7nwqRZ6yEw0cUe4y0y6'
+            sys: {
+              type: 'Link',
+              linkType: 'Entry',
+              id: '6XL7nwqRZ6yEw0cUe4y0y6'
             }
           },
           {
-            'sys': {
-              'type': 'Link',
-              'linkType': 'Entry',
-              'id': 'FJlJfypzaewiwyukGi2kI'
+            sys: {
+              type: 'Link',
+              linkType: 'Entry',
+              id: 'FJlJfypzaewiwyukGi2kI'
             }
           }
         ]
       },
-      'featuredImage': {
+      featuredImage: {
         'en-US': {
-          'sys': {
-            'type': 'Link',
-            'linkType': 'Asset',
-            'id': 'bXvdSYHB3Guy2uUmuEco8'
+          sys: {
+            type: 'Link',
+            linkType: 'Asset',
+            id: 'bXvdSYHB3Guy2uUmuEco8'
           }
         }
       }
     }
   },
   {
-    'sys': {
-      'id': '6XL7nwqRZ6yEw0cUe4y0y6'
+    sys: {
+      id: '6XL7nwqRZ6yEw0cUe4y0y6'
     },
-    'fields': {
-      'icon': {
+    fields: {
+      icon: {
         'en-US': {
-          'sys': {
-            'type': 'Link',
-            'linkType': 'Asset',
-            'id': '5Q6yYElPe8w8AEsKeki4M4'
+          sys: {
+            type: 'Link',
+            linkType: 'Asset',
+            id: '5Q6yYElPe8w8AEsKeki4M4'
           }
         }
       }
     }
   },
   {
-    'sys': {
-      'id': 'A96usFSlY4G0W4kwAqswk'
+    sys: {
+      id: 'A96usFSlY4G0W4kwAqswk'
     },
-    'fields': {
+    fields: {
       /*
       Circular dependencies are not supported yet.
       'author': {
@@ -173,13 +173,13 @@ const complexEntries = [
         ]
       },
       */
-      'category': {
+      category: {
         'en-US': [
           {
-            'sys': {
-              'type': 'Link',
-              'linkType': 'Entry',
-              'id': '6XL7nwqRZ6yEw0cUe4y0y6'
+            sys: {
+              type: 'Link',
+              linkType: 'Entry',
+              id: '6XL7nwqRZ6yEw0cUe4y0y6'
             }
           }
         ]
