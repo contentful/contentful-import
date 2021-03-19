@@ -16,7 +16,7 @@ jest.setTimeout(1.5 * 60 * 1000) // 1.5min timeout
 
 beforeEach(async () => {
   const client = createClient({ accessToken: managementToken })
-  space = await client.createSpace({ name: 'temp contentful-import space' }, orgId)
+  space = await client.createSpace({ name: 'IMPORT [AUTO] TOOL' }, orgId)
 })
 
 afterEach(async () => {
