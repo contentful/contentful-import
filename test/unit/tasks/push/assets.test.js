@@ -1,5 +1,7 @@
 import PQueue from 'p-queue'
-import { processAssets } from '../../../../lib/tasks/push-to-space/assets'
+import fs from 'fs'
+import { Stream } from 'stream'
+import { processAssets, getAssetStreamForURL } from '../../../../lib/tasks/push-to-space/assets'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 
@@ -8,6 +10,10 @@ jest.mock('contentful-batch-libs/dist/logging', () => ({
     emit: jest.fn()
   }
 }))
+
+jest.mock('fs')
+
+const assetPaths = ['assets/images/contentful-en.jpg', 'assets/images/contentful-de.jpg']
 
 let requestQueue
 
@@ -18,10 +24,8 @@ beforeEach(() => {
     interval: 1000,
     intervalCap: 1000
   })
-})
-
-beforeEach(() => {
   logEmitter.emit.mockClear()
+  fs.__setMockFiles(assetPaths)
 })
 
 test('Process assets', () => {
@@ -65,4 +69,18 @@ test('Process assets fails', () => {
       expect(logEmitter.emit.mock.calls[2][0]).toBe('error')
       expect(logEmitter.emit.mock.calls[2][1]).toBe(failedError)
     })
+})
+
+test('Get asset stream for url: Throw error if filePath does not exist', async () => {
+  const fileUrl = 'https://images/nonexistentfile.jpg'
+  await expect(getAssetStreamForURL(fileUrl, 'assets')).rejects.toThrowError('Cannot open asset from filesystem')
+})
+
+test('Get asset stream for url: Create stream if filepath exists', async () => {
+  const createReadStreamSpy = jest.spyOn(fs, 'createReadStream')
+  const fileUrl = 'https://images/contentful-en.jpg'
+  const stream = await getAssetStreamForURL(fileUrl, 'assets')
+
+  expect(createReadStreamSpy).toHaveBeenCalledTimes(1)
+  expect(stream instanceof Stream).toBe(true)
 })

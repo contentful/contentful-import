@@ -43,7 +43,8 @@ jest.mock('../../../../lib/tasks/push-to-space/publishing', () => ({
   unpublishEntities: jest.fn(() => Promise.resolve())
 }))
 jest.mock('../../../../lib/tasks/push-to-space/assets', () => ({
-  processAssets: jest.fn(() => Promise.resolve([]))
+  processAssets: jest.fn(() => Promise.resolve([])),
+  getAssetStreamForURL: jest.fn(() => Promise.resolve([]))
 }))
 
 const sourceData = {
@@ -94,7 +95,12 @@ const clientMock = {
           },
           update: editorInterfaceUpdateMock
         })
-      }
+      },
+      createUpload: () => Promise.resolve({
+        sys: {
+          id: 'id'
+        }
+      })
     }))
   }))
 }
@@ -136,6 +142,7 @@ test('Push content to destination space', () => {
       expect(publishing.publishEntities.mock.calls).toHaveLength(3)
       expect(publishing.archiveEntities.mock.calls).toHaveLength(2)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(1)
+      expect(assets.getAssetStreamForURL.mock.calls).toHaveLength(0)
       expect(assets.processAssets.mock.calls).toHaveLength(1)
       expect(assets.processAssets.mock.calls[0][0].retryLimit).toEqual(20)
       expect(assets.processAssets.mock.calls[0][0].timeout).toEqual(40000)
@@ -222,5 +229,51 @@ test('Push only entries and assets to destination space and skip publishing', ()
       expect(publishing.publishEntities.mock.calls).toHaveLength(0)
       expect(assets.processAssets.mock.calls).toHaveLength(1)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(0)
+    })
+})
+
+test('Upload each local asset file before pushing to space', () => {
+  const transformedAssets = [
+    {
+      transformed: {
+        sys: {
+          id: 'xxx',
+          type: 'Asset'
+        },
+        fields: {
+          file: {
+            'en-US': {
+              upload: 'https://images/contentful-en.jpg'
+            },
+            'de-DE': {
+              upload: 'https://images/contentful-de.jpg'
+            }
+          }
+        }
+      },
+      original: {
+        sys: {
+          id: 'xxx'
+        }
+      }
+    }
+  ]
+  return pushToSpace({
+    sourceData: { ...sourceData, assets: transformedAssets },
+    destinationData,
+    client: clientMock,
+    spaceId: 'spaceid',
+    environmentId: 'master',
+    uploadAssets: true,
+    assetsDirectory: 'assets',
+    requestQueue
+  })
+    .run({ data: {} })
+    .then(() => {
+      expect(assets.getAssetStreamForURL.mock.calls).toHaveLength(2)
+      expect(assets.getAssetStreamForURL).toHaveBeenCalledWith('https://images/contentful-en.jpg', 'assets')
+      expect(assets.getAssetStreamForURL).toHaveBeenCalledWith('https://images/contentful-de.jpg', 'assets')
+      expect(transformedAssets[0].transformed.fields.file['en-US']).not.toHaveProperty('upload')
+      expect(transformedAssets[0].transformed.fields.file['en-US']).toHaveProperty('uploadFrom')
     })
 })
