@@ -81,7 +81,7 @@
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^5.0.0",
-    "husky": "^5.0.9",
+    "husky": "^4.3.8",
     "jest": "^23.4.2",
     "nixt": "^0.5.0",
     "rimraf": "^3.0.2",
