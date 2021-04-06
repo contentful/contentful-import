@@ -143,6 +143,11 @@ Pass proxy config to Axios instead of creating a custom httpsAgent
 #### `rateLimit` [number] [default: 7]
 Maximum requests per second used for API requests
 
+#### `headers` [object]
+
+Additional headers to attach to the requests. 
+
+
 ### Other
 
 #### `errorLogFile` [string]
