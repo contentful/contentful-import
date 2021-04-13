@@ -1,29 +1,29 @@
-const { getHeadersFromOption } = require('../../../lib/utils/headers')
+const { getHeadersConfig } = require('../../../lib/utils/headers')
 
-test('getHeadersFromOption returns empty object when value is undefined', () => {
-  expect(getHeadersFromOption(undefined)).toEqual({})
+test('getHeadersConfig returns empty object when value is undefined', () => {
+  expect(getHeadersConfig(undefined)).toEqual({})
 })
 
-test('getHeadersFromOption accepts single or multiple values', () => {
-  expect(getHeadersFromOption('Accept: Any')).toEqual({ Accept: 'Any' })
-  expect(getHeadersFromOption(['Accept: Any', 'X-Version: 1'])).toEqual({
+test('getHeadersConfig accepts single or multiple values', () => {
+  expect(getHeadersConfig('Accept: Any')).toEqual({ Accept: 'Any' })
+  expect(getHeadersConfig(['Accept: Any', 'X-Version: 1'])).toEqual({
     Accept: 'Any',
     'X-Version': '1'
   })
 })
 
-test('getHeadersFromOption ignores invalid headers', () => {
+test('getHeadersConfig ignores invalid headers', () => {
   expect(
-    getHeadersFromOption(['Accept: Any', 'X-Version: 1', 'invalid'])
+    getHeadersConfig(['Accept: Any', 'X-Version: 1', 'invalid'])
   ).toEqual({
     Accept: 'Any',
     'X-Version': '1'
   })
 })
 
-test('getHeadersFromOption trims spacing around keys & values', () => {
+test('getHeadersConfig trims spacing around keys & values', () => {
   expect(
-    getHeadersFromOption([
+    getHeadersConfig([
       '  Accept:   Any   ',
       '   X-Version   :1 ',
       'invalid'
