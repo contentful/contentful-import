@@ -228,3 +228,13 @@ test('parseOption parses headers option', () => {
     header2: '2'
   })
 })
+
+test('parses params.header if provided', function () {
+  const config = parseOptions({
+    spaceId,
+    managementToken,
+    content: {},
+    header: ['Accept   : application/json ', ' X-Header: 1']
+  })
+  expect(config.headers).toEqual({ Accept: 'application/json', 'X-Header': '1' })
+})
