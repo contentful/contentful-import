@@ -212,3 +212,29 @@ test('parseOptions accepts custom application & feature', () => {
   expect(options.application).toBe(managementApplication)
   expect(options.feature).toBe(managementFeature)
 })
+
+test('parseOption parses headers option', () => {
+  const options = parseOptions({
+    spaceId,
+    managementToken,
+    content: {},
+    headers: {
+      header1: '1',
+      header2: '2'
+    }
+  })
+  expect(options.headers).toEqual({
+    header1: '1',
+    header2: '2'
+  })
+})
+
+test('parses params.header if provided', function () {
+  const config = parseOptions({
+    spaceId,
+    managementToken,
+    content: {},
+    header: ['Accept   : application/json ', ' X-Header: 1']
+  })
+  expect(config.headers).toEqual({ Accept: 'application/json', 'X-Header': '1' })
+})
