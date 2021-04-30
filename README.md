@@ -2,7 +2,6 @@
 
 [![npm](https://img.shields.io/npm/v/contentful-import.svg)](https://www.npmjs.com/package/contentful-import)
 [![Build Status](https://travis-ci.org/contentful/contentful-import.svg?branch=master)](https://travis-ci.org/contentful/contentful-import)
-[![codecov](https://codecov.io/gh/contentful/contentful-import/branch/master/graph/badge.svg)](https://codecov.io/gh/contentful/contentful-import)
 [![Dependency Status](https://img.shields.io/david/contentful/contentful-import.svg)](https://david-dm.org/contentful/contentful-import)
 [![devDependency Status](https://img.shields.io/david/dev/contentful/contentful-import.svg)](https://david-dm.org/contentful/contentful-import#info=devDependencies)
 
