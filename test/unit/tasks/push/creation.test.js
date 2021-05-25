@@ -188,6 +188,115 @@ test('Create entries and handle regular errors', () => {
     })
 })
 
+test('Create private tags', () => {
+  const target = {
+    createTag: jest.fn().mockReturnValue(Promise.resolve({ sys: { type: 'Tag' } }))
+  }
+  const tags = [
+    {
+      original: {
+        name: 'Test Tag',
+        sys: {
+          id: 'testTag',
+          visibility: 'private',
+          type: 'Tag'
+        }
+      },
+      transformed: {
+        name: 'Test Tag',
+        sys: {
+          id: 'testTag',
+          visibility: 'private',
+          type: 'Tag'
+        }
+      }
+    }
+  ]
+
+  return createEntities({
+    context: { target, type: 'Tag' },
+    entities: tags,
+    destinationEntitiesById: new Map(),
+    requestQueue
+  })
+    .then((response) => {
+      expect(target.createTag.mock.calls).toHaveLength(1)
+      expect(target.createTag).toHaveBeenCalledWith('testTag', 'Test Tag', 'private')
+    })
+})
+
+test('Create default private tags', () => {
+  const target = {
+    createTag: jest.fn().mockReturnValue(Promise.resolve({ sys: { type: 'Tag' } }))
+  }
+  const tags = [
+    {
+      original: {
+        name: 'Test Tag',
+        sys: {
+          id: 'testTag',
+          type: 'Tag'
+        }
+      },
+      transformed: {
+        name: 'Test Tag',
+        sys: {
+          id: 'testTag',
+          type: 'Tag'
+        }
+      }
+    }
+  ]
+
+  return createEntities({
+    context: { target, type: 'Tag' },
+    entities: tags,
+    destinationEntitiesById: new Map(),
+    requestQueue
+  })
+    .then((response) => {
+      expect(target.createTag.mock.calls).toHaveLength(1)
+      expect(target.createTag).toHaveBeenCalledWith('testTag', 'Test Tag', 'private')
+    })
+})
+
+test('Create public tags', () => {
+  const target = {
+    createTag: jest.fn().mockReturnValue(Promise.resolve({ sys: { type: 'Tag' } }))
+  }
+  const tags = [
+    {
+      original: {
+        name: 'Test Tag',
+        sys: {
+          id: 'testTag',
+          type: 'Tag',
+          visibility: 'public'
+        }
+      },
+      transformed: {
+        name: 'Test Tag',
+        sys: {
+          id: 'testTag',
+          type: 'Tag',
+          visibility: 'public'
+        }
+      }
+    }
+  ]
+
+  return createEntities({
+    context: { target, type: 'Tag' },
+    entities: tags,
+    destinationEntitiesById: new Map(),
+    requestQueue
+  })
+    .then((response) => {
+      expect(target.createTag.mock.calls).toHaveLength(1)
+      expect(target.createTag).toHaveBeenCalledWith('testTag', 'Test Tag', 'public')
+    })
+})
+
 test('Fails to create locale if it already exists', () => {
   const target = {
     createLocale: jest.fn(() => Promise.reject(errorValidationFailed))
