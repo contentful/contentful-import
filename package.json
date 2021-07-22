@@ -55,7 +55,7 @@
     "contentful-batch-libs": "^9.0.1",
     "contentful-management": "^7.3.1",
     "echo-cli": "^1.0.8",
-    "joi": "^13.4.0",
+    "joi": "^17.4.1",
     "listr": "^0.14.1",
     "listr-update-renderer": "^0.5.0",
     "listr-verbose-renderer": "^0.6.0",
