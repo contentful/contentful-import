@@ -61,7 +61,7 @@
     "lodash": "^4.17.10",
     "moment": "^2.22.2",
     "p-queue": "^6.6.2",
-    "yargs": "^17.0.1"
+    "yargs": "^17.3.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.16.0",
