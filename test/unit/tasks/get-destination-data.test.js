@@ -213,23 +213,25 @@ test('Removes Tags key from response if tags endpoint throws error (meaning tags
     })
 })
 
-test('Fails to get destination space', () => {
+test('Fails to get destination space', async () => {
   const errorNotFound = new Error()
   errorNotFound.name = 'NotFound'
   mockClient.getSpace = jest.fn(() => Promise.reject(errorNotFound))
 
-  return getDestinationData({
-    client: mockClient,
-    spaceId: 'spaceid',
-    environmentId: 'master',
-    sourceData,
-    skipContentModel: true,
-    requestQueue
-  })
-    .then(() => {
-      throw new Error('should not succeed')
+  const wrappedFunc = () => {
+    return getDestinationData({
+      client: mockClient,
+      spaceId: 'spaceid',
+      environmentId: 'master',
+      sourceData,
+      skipContentModel: true,
+      requestQueue
     })
-    .catch((err) => {
-      expect(err.name).toEqual('NotFound')
-    })
+  }
+
+  let err
+  await wrappedFunc()
+    .catch(e => { err = e })
+
+  expect(err.name).toEqual('NotFound')
 })

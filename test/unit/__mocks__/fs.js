@@ -1,6 +1,6 @@
 const { Readable } = require('stream')
 
-const fs = jest.genMockFromModule('fs')
+const fs = jest.createMockFromModule('fs')
 
 let mockFiles = []
 
