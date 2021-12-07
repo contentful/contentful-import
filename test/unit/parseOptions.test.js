@@ -225,7 +225,8 @@ test('parseOption parses headers option', () => {
   })
   expect(options.headers).toEqual({
     header1: '1',
-    header2: '2'
+    header2: '2',
+    'CF-Sequence': expect.any(String)
   })
 })
 
@@ -236,5 +237,5 @@ test('parses params.header if provided', function () {
     content: {},
     header: ['Accept   : application/json ', ' X-Header: 1']
   })
-  expect(config.headers).toEqual({ Accept: 'application/json', 'X-Header': '1' })
+  expect(config.headers).toEqual({ Accept: 'application/json', 'X-Header': '1', 'CF-Sequence': expect.any(String) })
 })

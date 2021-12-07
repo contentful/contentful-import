@@ -72,28 +72,37 @@ afterEach(() => {
   TableStub.mockClear()
 })
 
-test('Stops import when default locales does not match', () => {
+test('Stops import when default locales does not match', async () => {
   const errorLogFile = 'errorlogfile.json'
   validations.assertDefaultLocale.mockImplementationOnce(() => { throw new Error('Invalid locale error') })
   expect.assertions(1)
-  return contentfulImport({
-    errorLogFile,
-    config: resolve(__dirname, '..', '..', 'example-config.json'),
-    content: {
-      locales: [
-        {
-          name: 'German (Germany)',
-          code: 'de-DE',
-          default: false
-        },
-        {
-          name: 'U.S English',
-          code: 'en-US',
-          default: true
-        }
-      ]
-    }
-  }).catch((err) => expect(err.name).toBe('ContentfulMultiError'))
+
+  const wrappedFunc = () => {
+    return contentfulImport({
+      errorLogFile,
+      config: resolve(__dirname, '..', '..', 'example-config.json'),
+      content: {
+        locales: [
+          {
+            name: 'German (Germany)',
+            code: 'de-DE',
+            default: false
+          },
+          {
+            name: 'U.S English',
+            code: 'en-US',
+            default: true
+          }
+        ]
+      }
+    })
+  }
+
+  let err
+  await wrappedFunc()
+    .catch(e => { err = e })
+
+  expect(err.name).toBe('ContentfulMultiError')
 })
 test('Runs Contentful Import', () => {
   return contentfulImport({
