@@ -52,7 +52,7 @@
   "dependencies": {
     "bluebird": "^3.5.1",
     "cli-table3": "^0.6.0",
-    "contentful-batch-libs": "^9.2.1",
+    "contentful-batch-libs": "^9.2.2",
     "contentful-management": "^7.45.5",
     "joi": "^17.5.0",
     "listr": "^0.14.1",
