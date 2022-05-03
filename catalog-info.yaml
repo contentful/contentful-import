@@ -1,0 +1,13 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: contentful-import
+  description: |
+    Node module that uses the data provided by contentful-export to import it to contentful space
+  annotations:
+    circleci.com/project-slug: github/contentful/contentful-import
+    github.com/project-slug: contentful/contentful-import
+spec:
+  type: cli
+  lifecycle: production
+  owner: group:team-dev-workflows
