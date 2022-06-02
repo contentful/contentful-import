@@ -1,4 +1,4 @@
-import { join, resolve } from 'path'
+import { basename, isAbsolute, join, resolve, sep } from 'path'
 
 import HttpsProxyAgent from 'https-proxy-agent'
 
@@ -9,6 +9,12 @@ const managementToken = 'managementToken'
 const contentFile = resolve(__dirname, 'example-content.json')
 
 const basePath = resolve(__dirname, '..', '..')
+
+const toBeAbsolutePathWithPattern = (received, pattern) => {
+  const escapedPattern = [basename(basePath), pattern].join(`\\${sep}`)
+
+  return (!isAbsolute(received) || !RegExp(`/${escapedPattern}$/`).test(received))
+}
 
 test('parseOptions requires spaceId', () => {
   expect(
@@ -82,7 +88,7 @@ test('parseOptions sets correct default options', () => {
   const errorFileNamePattern = `contentful-import-error-log-${spaceId}-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}\\.json`
 
   expect(options.contentFile).toMatch(contentFile)
-  expect(options.errorLogFile).toMatch(new RegExp(`^${resolve(basePath, errorFileNamePattern)}$`))
+  expect(toBeAbsolutePathWithPattern(options.errorLogFile, errorFileNamePattern)).toBe(true)
 
   expect(options.application).toBe(`contentful.import/${version}`)
   expect(options.feature).toBe('library-import')
