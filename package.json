@@ -12,7 +12,7 @@
   "scripts": {
     "build": "npm run clean && babel lib --out-dir dist",
     "build:watch": "babel lib --out-dir dist --watch",
-    "clean": "rimraf dist",
+    "clean": "rimraf dist && rimraf coverage",
     "lint": "eslint lib bin/contentful-import test",
     "pretest": "npm run lint && npm run build",
     "test": "npm run test:unit && npm run test:integration",
@@ -67,6 +67,7 @@
     "@babel/cli": "^7.16.0",
     "@babel/core": "^7.16.0",
     "@babel/plugin-proposal-object-rest-spread": "^7.16.0",
+    "@babel/preset-env": "^7.18.2",
     "babel-eslint": "^10.1.0",
     "babel-jest": "^27.4.2",
     "babel-plugin-add-module-exports": "^1.0.2",
