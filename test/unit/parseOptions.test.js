@@ -1,6 +1,5 @@
 import { join, resolve } from 'path'
 
-import moment from 'moment'
 import HttpsProxyAgent from 'https-proxy-agent'
 
 import parseOptions from '../../lib/parseOptions'
@@ -105,7 +104,7 @@ test('parseOptions sets correct default options', () => {
     ...require(contentFile)
   })
 
-  expect(options.startTime instanceof moment).toBe(true)
+  expect(options.startTime instanceof Date).toBe(true)
   expect(options.useVerboseRenderer).toBe(false)
 })
 
