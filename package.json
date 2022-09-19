@@ -54,7 +54,7 @@
     "cli-table3": "^0.6.0",
     "contentful-batch-libs": "^9.4.1",
     "contentful-management": "^7.45.5",
-    "date-fns": "^2.28.0",
+    "date-fns": "^2.29.3",
     "joi": "^17.5.0",
     "listr": "^0.14.1",
     "listr-update-renderer": "^0.5.0",
