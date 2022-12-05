@@ -50,6 +50,12 @@ contentfulImport(options)
   })
 ```
 
+Using ESM:
+
+```javascript
+import spaceImport from 'contentful-import';
+```
+
 or
 
 ```javascript
