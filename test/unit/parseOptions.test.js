@@ -16,70 +16,64 @@ const toBeAbsolutePathWithPattern = (received, pattern) => {
   return (!isAbsolute(received) || !RegExp(`/${escapedPattern}$/`).test(received))
 }
 
-test('parseOptions requires spaceId', () => {
-  expect(
-    () => parseOptions({})
-  ).toThrow('The `spaceId` option is required.')
+test('parseOptions requires spaceId', async () => {
+  await expect(parseOptions({})).rejects.toThrow('The `spaceId` option is required.')
 })
 
-test('parseOptions requires managementToken', () => {
-  expect(
-    () => parseOptions({
-      spaceId
-    })
-  ).toThrow('The `managementToken` option is required.')
+test('parseOptions requires managementToken', async () => {
+  await expect(parseOptions({ spaceId })).rejects.toThrow('The `managementToken` option is required.')
 })
 
-test('parseOptions requires contentFile or content', () => {
-  expect(
-    () => parseOptions({
-      spaceId,
-      managementToken
-    })
-  ).toThrow('Either the `contentFile` or `content` option are required.')
-  expect(
-    () => parseOptions({
+test('parseOptions requires contentFile or content', async () => {
+  await expect(parseOptions({
+    spaceId,
+    managementToken
+  })
+  ).rejects.toThrow('Either the `contentFile` or `content` option are required.')
+
+  await expect(
+    parseOptions({
       spaceId,
       managementToken,
       content: {}
     })
-  ).not.toThrow('Either the `contentFile` or `content` option are required.')
-  expect(
-    () => parseOptions({
+  ).resolves.toBeTruthy()
+  await expect(
+    parseOptions({
       spaceId,
       managementToken,
       contentFile
     })
-  ).not.toThrow('Either the `contentFile` or `content` option are required.')
+  ).resolves.toBeTruthy()
 })
 
-test('parseOptions does not allow contentModelOnly and skipContentModel at the same time', () => {
-  expect(
-    () => parseOptions({
+test('parseOptions does not allow contentModelOnly and skipContentModel at the same time', async () => {
+  await expect(
+    parseOptions({
       spaceId,
       managementToken,
       contentFile,
       contentModelOnly: true,
       skipContentModel: true
     })
-  ).toThrow('`contentModelOnly` and `skipContentModel` cannot be used together')
+  ).rejects.toThrow('`contentModelOnly` and `skipContentModel` cannot be used together')
 })
 
-test('parseOptions does allow skipLocales only when contentModelOnly is set', () => {
-  expect(
+test('parseOptions does allow skipLocales only when contentModelOnly is set', async () => {
+  await expect(
     () => parseOptions({
       spaceId,
       managementToken,
       contentFile,
       skipLocales: true
     })
-  ).toThrow('`skipLocales` can only be used together with `contentModelOnly`')
+  ).rejects.toThrow('`skipLocales` can only be used together with `contentModelOnly`')
 })
 
-test('parseOptions sets correct default options', () => {
+test('parseOptions sets correct default options', async () => {
   const version = require(resolve(basePath, 'package.json')).version
 
-  const options = parseOptions({
+  const options = await parseOptions({
     spaceId,
     managementToken,
     contentFile
@@ -114,11 +108,11 @@ test('parseOptions sets correct default options', () => {
   expect(options.useVerboseRenderer).toBe(false)
 })
 
-test('parseOption accepts config file', () => {
+test('parseOption accepts config file', async () => {
   const configFileName = join('test', 'unit', 'example-config.json')
   const config = require(resolve(basePath, configFileName))
 
-  const options = parseOptions({
+  const options = await parseOptions({
     config: configFileName
   })
   Object.keys(config).forEach((key) => {
@@ -126,9 +120,9 @@ test('parseOption accepts config file', () => {
   })
 })
 
-test('parseOption overwrites errorLogFile', () => {
+test('parseOption overwrites errorLogFile', async () => {
   const errorLogFile = 'error.log'
-  const options = parseOptions({
+  const options = await parseOptions({
     spaceId,
     managementToken,
     contentFile,
@@ -137,19 +131,19 @@ test('parseOption overwrites errorLogFile', () => {
   expect(options.errorLogFile).toBe(resolve(basePath, errorLogFile))
 })
 
-test('parseOptions detects malformed proxy config', () => {
-  expect(
-    () => parseOptions({
+test('parseOptions detects malformed proxy config', async () => {
+  await expect(
+    parseOptions({
       spaceId,
       managementToken,
       contentFile,
       proxy: 'invalid'
     })
-  ).toThrow('Please provide the proxy config in the following format:\nhost:port or user:password@host:port')
+  ).rejects.toThrow('Please provide the proxy config in the following format:\nhost:port or user:password@host:port')
 })
 
-test('parseOption accepts proxy config as string', () => {
-  const options = parseOptions({
+test('parseOption accepts proxy config as string', async () => {
+  const options = await parseOptions({
     spaceId,
     managementToken,
     contentFile,
@@ -162,8 +156,8 @@ test('parseOption accepts proxy config as string', () => {
   expect(options.httpsAgent.options).not.toHaveProperty('auth')
 })
 
-test('parseOption accepts proxy config as object', () => {
-  const options = parseOptions({
+test('parseOption accepts proxy config as object', async () => {
+  const options = await parseOptions({
     spaceId,
     managementToken,
     content: {},
@@ -181,8 +175,8 @@ test('parseOption accepts proxy config as object', () => {
   expect(options.httpsAgent.options).not.toHaveProperty('auth')
 }, 'broken')
 
-test('parseOption cleans up content to only include supported entity types', () => {
-  const options = parseOptions({
+test('parseOption cleans up content to only include supported entity types', async () => {
+  const options = await parseOptions({
     spaceId,
     managementToken,
     content: {
@@ -202,11 +196,11 @@ test('parseOption cleans up content to only include supported entity types', () 
   expect(content.invalid).toBeUndefined()
 })
 
-test('parseOptions accepts custom application & feature', () => {
+test('parseOptions accepts custom application & feature', async () => {
   const managementApplication = 'managementApplicationMock'
   const managementFeature = 'managementFeatureMock'
 
-  const options = parseOptions({
+  const options = await parseOptions({
     spaceId,
     managementToken,
     content: {},
@@ -218,8 +212,8 @@ test('parseOptions accepts custom application & feature', () => {
   expect(options.feature).toBe(managementFeature)
 })
 
-test('parseOption parses headers option', () => {
-  const options = parseOptions({
+test('parseOption parses headers option', async () => {
+  const options = await parseOptions({
     spaceId,
     managementToken,
     content: {},
@@ -235,8 +229,8 @@ test('parseOption parses headers option', () => {
   })
 })
 
-test('parses params.header if provided', function () {
-  const config = parseOptions({
+test('parses params.header if provided', async () => {
+  const config = await parseOptions({
     spaceId,
     managementToken,
     content: {},
