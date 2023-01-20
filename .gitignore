@@ -197,5 +197,3 @@ $RECYCLE.BIN/
 # ignore left over error files
 errorlogfile.json
 
-# test input
-large-space.json
