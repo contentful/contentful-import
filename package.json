@@ -61,7 +61,7 @@
     "listr-update-renderer": "^0.5.0",
     "listr-verbose-renderer": "^0.6.0",
     "lodash": "^4.17.10",
-    "p-queue": "^6.6.2",
+    "p-queue": "^7.3.3",
     "yargs": "^17.6.2"
   },
   "devDependencies": {
