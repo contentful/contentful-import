@@ -62,7 +62,7 @@
     "listr-verbose-renderer": "^0.6.0",
     "lodash": "^4.17.10",
     "p-queue": "^6.6.2",
-    "yargs": "^17.7.0"
+    "yargs": "^17.7.1"
   },
   "devDependencies": {
     "@babel/cli": "^7.21.0",
