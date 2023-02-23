@@ -7,6 +7,7 @@ metadata:
   annotations:
     circleci.com/project-slug: github/contentful/contentful-import
     github.com/project-slug: contentful/contentful-import
+    contentful.com/ci-alert-slack: prd-dev-workflows-ci-alerts
 spec:
   type: cli
   lifecycle: production
