@@ -28,7 +28,7 @@ test('It should transform processed asset with and without protocol', () => {
   const transformedAsset = transformers.assets(assetMock)
   expect(transformedAsset.fields.file['en-US'].upload).toBeTruthy()
   expect(transformedAsset.fields.file['de-DE'].upload).toBeTruthy()
-  expect(transformedAsset.fields.file['en-US'].upload).toBe('https:' + assetMock.fields.file['en-US'].url)
+  expect(transformedAsset.fields.file['en-US'].upload).toBe(assetMock.fields.file['en-US'].url)
   expect(transformedAsset.fields.file['de-DE'].upload).toBe('https:' + assetMock.fields.file['de-DE'].url)
 })
 
