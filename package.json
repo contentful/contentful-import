@@ -53,7 +53,7 @@
     "@discoveryjs/json-ext": "^0.5.7",
     "bluebird": "^3.5.1",
     "cli-table3": "^0.6.0",
-    "contentful-batch-libs": "^9.4.2",
+    "contentful-batch-libs": "^9.5.0",
     "contentful-management": "^10.35.0",
     "date-fns": "^2.30.0",
     "joi": "^17.9.2",
