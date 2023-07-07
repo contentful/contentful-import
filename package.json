@@ -70,7 +70,7 @@
     "@babel/plugin-proposal-object-rest-spread": "^7.20.7",
     "@babel/preset-env": "^7.22.6",
     "babel-eslint": "^10.1.0",
-    "babel-jest": "^29.6.0",
+    "babel-jest": "^29.6.1",
     "babel-plugin-add-module-exports": "^1.0.2",
     "babel-preset-env": "^1.7.0",
     "cz-conventional-changelog": "^3.1.0",
