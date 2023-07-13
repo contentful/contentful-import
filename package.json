@@ -68,7 +68,7 @@
     "@babel/cli": "^7.22.6",
     "@babel/core": "^7.22.8",
     "@babel/plugin-proposal-object-rest-spread": "^7.20.7",
-    "@babel/preset-env": "^7.22.7",
+    "@babel/preset-env": "^7.22.9",
     "babel-eslint": "^10.1.0",
     "babel-jest": "^29.6.1",
     "babel-plugin-add-module-exports": "^1.0.2",
