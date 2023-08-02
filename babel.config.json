@@ -4,13 +4,10 @@
       "@babel/preset-env",
       {
         "targets": {
-          "node": "14"
+          "node": "18"
         }
       }
     ]
   ],
-  "plugins": [
-    "@babel/plugin-proposal-object-rest-spread",
-    "add-module-exports"
-  ]
+  "plugins": ["@babel/plugin-proposal-object-rest-spread", "add-module-exports"]
 }
