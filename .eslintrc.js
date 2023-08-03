@@ -1,11 +1,5 @@
 module.exports = {
-  parser: 'babel-eslint',
-  extends: [
-    'standard',
-    'plugin:jest/recommended'
-  ],
-  plugins: [
-    'standard',
-    'promise'
-  ]
+  parser: '@babel/eslint-parser',
+  extends: ['standard', 'plugin:jest/recommended'],
+  plugins: ['standard', 'promise'],
 }

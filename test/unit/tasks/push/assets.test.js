@@ -73,7 +73,7 @@ test('Process assets fails', () => {
 
 test('Get asset stream for url: Throw error if filePath does not exist', async () => {
   const fileUrl = 'https://images/nonexistentfile.jpg'
-  await expect(getAssetStreamForURL(fileUrl, 'assets')).rejects.toThrowError('Cannot open asset from filesystem')
+  await expect(getAssetStreamForURL(fileUrl, 'assets')).rejects.toThrow('Cannot open asset from filesystem')
 })
 
 test('Get asset stream for url: Create stream if filepath exists', async () => {
