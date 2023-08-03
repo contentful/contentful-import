@@ -4,7 +4,7 @@
   "description": "this tool allows you to import JSON dump exported by contentful-export",
   "main": "dist/index.js",
   "engines": {
-    "node": ">=12"
+    "node": ">=16"
   },
   "bin": {
     "contentful-import": "./bin/contentful-import"
@@ -80,7 +80,6 @@
     "eslint-plugin-jest": "^27.2.3",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^6.1.1",
-    "eslint-plugin-standard": "^5.0.0",
     "husky": "^8.0.3",
     "jest": "^29.6.2",
     "rimraf": "^5.0.0",
