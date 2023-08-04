@@ -58,9 +58,24 @@ test('Sorts locales by "fallback" order', () => {
 
   expect(sortedLocales).toHaveLength(9)
 
-  expect(sortedLocales.map(x => x.code)).toEqual(
-    ['base', 'base2', 'a', 'b', 'c', 'fallback_a', 'fallback_fallback_a', 'fallback_b', 'fallback_c']
-  )
+  expect(sortedLocales.map((x) => x.code)).toEqual([
+    'base',
+    'base2',
+    'a',
+    'b',
+    'c',
+    'fallback_a',
+    'fallback_fallback_a',
+    'fallback_b',
+    'fallback_c',
+  ])
+})
+
+test('Does not mutate fallbackCode to undefined during sorting', () => {
+  const sortedLocales = sortLocales(locales)
+  // We need empty fallbackCode values to be null not undefined as only this way they will be properly created by the
+  // contentful-management client without en-US fallback
+  expect(sortedLocales.filter((x) => x.fallbackCode !== undefined)).toHaveLength(9)
 })
 
 /*
