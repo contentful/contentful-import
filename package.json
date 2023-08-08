@@ -50,7 +50,7 @@
     "url": "https://github.com/contentful/contentful-import/issues"
   },
   "dependencies": {
-    "@babel/eslint-parser": "^7.22.9",
+    "@babel/eslint-parser": "^7.22.10",
     "@discoveryjs/json-ext": "^0.5.7",
     "bluebird": "^3.5.1",
     "cli-table3": "^0.6.0",
