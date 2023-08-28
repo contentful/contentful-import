@@ -57,7 +57,7 @@
     "contentful-batch-libs": "^9.5.0",
     "contentful-management": "^10.40.0",
     "date-fns": "^2.30.0",
-    "eslint": "^8.47.0",
+    "eslint": "^8.48.0",
     "eslint-config-standard": "^17.1.0",
     "joi": "^17.10.0",
     "listr": "^0.14.1",
