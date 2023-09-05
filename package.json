@@ -55,7 +55,7 @@
     "bluebird": "^3.5.1",
     "cli-table3": "^0.6.0",
     "contentful-batch-libs": "^9.5.0",
-    "contentful-management": "^10.42.0",
+    "contentful-management": "^10.43.0",
     "date-fns": "^2.30.0",
     "eslint": "^8.48.0",
     "eslint-config-standard": "^17.1.0",
