@@ -68,7 +68,7 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "@babel/cli": "^7.22.10",
+    "@babel/cli": "^7.22.15",
     "@babel/core": "^7.22.15",
     "@babel/plugin-proposal-object-rest-spread": "^7.20.7",
     "@babel/preset-env": "^7.22.15",
