@@ -67,7 +67,7 @@ test('Sorts locales by "fallback" order', () => {
     'fallback_a',
     'fallback_fallback_a',
     'fallback_b',
-    'fallback_c',
+    'fallback_c'
   ])
 })
 
