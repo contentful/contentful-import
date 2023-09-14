@@ -1,7 +1,10 @@
 import PQueue from 'p-queue'
 import fs from 'fs'
 import { Stream } from 'stream'
-import { processAssets, getAssetStreamForURL } from '../../../../lib/tasks/push-to-space/assets'
+import {
+  processAssets,
+  getAssetStreamForURL
+} from '../../../../lib/tasks/push-to-space/assets'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 
@@ -13,7 +16,10 @@ jest.mock('contentful-batch-libs/dist/logging', () => ({
 
 jest.mock('fs')
 
-const assetPaths = ['assets/images/contentful-en.jpg', 'assets/images/contentful-de.jpg']
+const assetPaths = [
+  'assets/images/contentful-en.jpg',
+  'assets/images/contentful-de.jpg'
+]
 
 let requestQueue
 
@@ -28,52 +34,128 @@ beforeEach(() => {
   fs.__setMockFiles(assetPaths)
 })
 
-test('Process assets', () => {
-  const processStub = jest.fn()
+test('Process assets', async () => {
+  const processStub = jest
+    .fn()
     .mockReturnValue(Promise.resolve({ sys: { type: 'Asset' } }))
 
-  return processAssets({
+  const assets = await processAssets({
     assets: [
-      { sys: { id: '123' }, fields: { file: { 'en-US': 'file object', 'en-GB': {} } }, processForAllLocales: processStub },
-      { sys: { id: '456' }, fields: { file: { 'en-US': 'file object', 'en-GB': {} } }, processForAllLocales: processStub }
+      {
+        sys: { id: '123' },
+        fields: { file: { 'en-US': 'file object', 'en-GB': {} } },
+        processForLocale: processStub
+      },
+      {
+        sys: { id: '456' },
+        fields: { file: { 'en-US': 'file object', 'en-GB': {} } },
+        processForLocale: processStub
+      }
     ],
+    locales: ['en-US', 'en-GB'],
     requestQueue
   })
-    .then((response) => {
-      expect(processStub.mock.calls).toHaveLength(2)
-      expect(logEmitter.emit.mock.calls).toHaveLength(2)
-    })
+
+  // We expect two assets to be returned
+  expect(assets).toHaveLength(2)
+  // We expect 4 calls, one for each locale
+  expect(processStub.mock.calls).toHaveLength(4)
+  expect(processStub.mock.calls[0][0]).toBe('en-US')
+  expect(processStub.mock.calls[1][0]).toBe('en-GB')
+  expect(processStub.mock.calls[2][0]).toBe('en-US')
+  expect(processStub.mock.calls[3][0]).toBe('en-GB')
+  expect(logEmitter.emit.mock.calls).toHaveLength(2)
 })
 
-test('Process assets fails', () => {
+test('Return most up to date processed asset version', async () => {
+  const processStub = jest
+    .fn()
+    .mockImplementationOnce(() => new Promise(resolve => setTimeout(() => resolve({
+      sys: { id: '123' },
+      fields: {
+        file: {
+          'en-US': {
+            url: 'updated-url-which-show-this-process-was-succesful'
+          },
+          'en-GB': {
+            url: 'updated-url-which-show-this-process-was-succesful'
+          }
+        }
+      }
+    }), 100))) // This call takes longer and therefore should be the
+    // one to inform the final asset shape
+    .mockImplementationOnce(() => new Promise(resolve => setTimeout(() => resolve({
+      sys: { id: '123' },
+      fields: {
+        file: {
+          'en-US': {
+            url: 'updated-url-which-show-this-process-was-succesful'
+          }
+        }
+      }
+    }), 50)))
+
+  const assets = await processAssets({
+    assets: [
+      {
+        sys: { id: '123' },
+        fields: { file: { 'en-US': 'file object', 'en-GB': {} } },
+        processForLocale: processStub
+      }
+    ],
+    locales: ['en-US', 'en-GB'],
+    requestQueue
+  })
+  expect(assets).toHaveLength(1)
+  expect(processStub.mock.calls).toHaveLength(2)
+  // We expect a url property to be present for both locales, as the
+  // last call that is resolved has this shape
+  expect(assets[0].fields.file['en-US'].url).toBeTruthy()
+  expect(assets[0].fields.file['en-GB'].url).toBeTruthy()
+})
+
+test('Process assets fails', async () => {
   const failedError = new Error('processing failed')
 
-  const processStub = jest.fn()
+  const processStub = jest
+    .fn()
+    .mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset' } }))
     .mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset' } }))
     .mockImplementationOnce(() => Promise.reject(failedError))
 
-  return processAssets({
+  await processAssets({
     assets: [
-      { sys: { id: '123' }, fields: { file: { 'en-US': 'file object', 'en-GB': {} } }, processForAllLocales: processStub },
-      { sys: { id: '456' }, fields: { file: { 'en-US': 'file object', 'en-GB': {} } }, processForAllLocales: processStub }
+      {
+        sys: { id: '123' },
+        fields: { file: { 'en-US': 'file object', 'en-GB': {} } },
+        processForLocale: processStub
+      },
+      {
+        sys: { id: '456' },
+        fields: { file: { 'en-US': 'file object', 'en-GB': {} } },
+        processForLocale: processStub
+      }
     ],
+    locales: ['en-US', 'en-GB'],
     requestQueue
   })
-    .then((response) => {
-      expect(processStub.mock.calls).toHaveLength(2)
-      expect(logEmitter.emit.mock.calls).toHaveLength(3)
-      expect(logEmitter.emit.mock.calls[0][0]).toBe('info')
-      expect(logEmitter.emit.mock.calls[0][1]).toBe('Processing Asset 123')
-      expect(logEmitter.emit.mock.calls[1][0]).toBe('info')
-      expect(logEmitter.emit.mock.calls[1][1]).toBe('Processing Asset 456')
-      expect(logEmitter.emit.mock.calls[2][0]).toBe('error')
-      expect(logEmitter.emit.mock.calls[2][1]).toBe(failedError)
-    })
+  // We expect two calls for the first asset (one for each locale)
+  // and one for the second asset which fails
+  expect(processStub.mock.calls).toHaveLength(4)
+  expect(logEmitter.emit.mock.calls).toHaveLength(3)
+  expect(logEmitter.emit.mock.calls[0][0]).toBe('info')
+  expect(logEmitter.emit.mock.calls[0][1]).toBe('Processing Asset 123')
+  expect(logEmitter.emit.mock.calls[1][0]).toBe('info')
+  expect(logEmitter.emit.mock.calls[1][1]).toBe('Processing Asset 456')
+  expect(logEmitter.emit.mock.calls[2][0]).toBe('error')
+  expect(logEmitter.emit.mock.calls[2][1]).toBe(failedError)
 })
 
 test('Get asset stream for url: Throw error if filePath does not exist', async () => {
   const fileUrl = 'https://images/nonexistentfile.jpg'
-  await expect(getAssetStreamForURL(fileUrl, 'assets')).rejects.toThrow('Cannot open asset from filesystem')
+  await expect(getAssetStreamForURL(fileUrl, 'assets')).rejects.toThrow(
+    'Cannot open asset from filesystem'
+  )
 })
 
 test('Get asset stream for url: Create stream if filepath exists', async () => {
