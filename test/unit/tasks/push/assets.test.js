@@ -140,7 +140,7 @@ test('Process assets fails', async () => {
     requestQueue
   })
   // We expect two calls for the first asset (one for each locale)
-  // and one for the second asset which fails
+  // and two for the second asset of which one fails
   expect(processStub.mock.calls).toHaveLength(4)
   expect(logEmitter.emit.mock.calls).toHaveLength(3)
   expect(logEmitter.emit.mock.calls[0][0]).toBe('info')
