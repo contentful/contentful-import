@@ -40,7 +40,10 @@
     "type": "git",
     "url": "https://github.com/contentful/contentful-import.git"
   },
-  "keywords": ["contentful", "contentful-import"],
+  "keywords": [
+    "contentful",
+    "contentful-import"
+  ],
   "author": "Contentful <opensource@contentful.com>",
   "license": "MIT",
   "bugs": {
@@ -88,7 +91,11 @@
     "ts-jest": "^29.1.1",
     "typescript": "^5.2.2"
   },
-  "files": ["bin", "dist", "example-config.json"],
+  "files": [
+    "bin",
+    "dist",
+    "example-config.json"
+  ],
   "config": {
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
