@@ -24,7 +24,7 @@
     "lint": "eslint lib bin/contentful-import test",
     "pretest": "npm run lint && npm run build",
     "test": "npm run test:unit && npm run test:integration",
-    "test:unit": "jest --testPathPattern=test/unit --coverage",
+    "test:unit": "jest --testPathPattern=test/unit --runInBand --coverage",
     "test:unit:debug": "node --inspect-brk ./node_modules/.bin/jest --runInBand --watch --testPathPattern=test/unit",
     "test:unit:watch": "npm run test:unit -- --watch",
     "test:integration": "jest --testPathPattern=test/integration",
