@@ -10,7 +10,7 @@
     "contentful-import": "./bin/contentful-import"
   },
   "scripts": {
-    "build": "npm run clean && babel lib --out-dir dist",
+    "build": "npm run clean && tsc",
     "build:watch": "babel lib --out-dir dist --watch",
     "clean": "rimraf dist && rimraf coverage",
     "lint": "eslint lib bin/contentful-import test",
@@ -40,17 +40,13 @@
     "type": "git",
     "url": "https://github.com/contentful/contentful-import.git"
   },
-  "keywords": [
-    "contentful",
-    "contentful-import"
-  ],
+  "keywords": ["contentful", "contentful-import"],
   "author": "Contentful <opensource@contentful.com>",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/contentful/contentful-import/issues"
   },
   "dependencies": {
-    "@babel/eslint-parser": "^7.22.15",
     "@discoveryjs/json-ext": "^0.5.7",
     "bluebird": "^3.5.1",
     "cli-table3": "^0.6.0",
@@ -72,6 +68,10 @@
     "@babel/core": "^7.23.0",
     "@babel/plugin-proposal-object-rest-spread": "^7.20.7",
     "@babel/preset-env": "^7.22.20",
+    "@types/jest": "^29.5.5",
+    "@types/node": "^20.6.3",
+    "@typescript-eslint/eslint-plugin": "^6.7.2",
+    "@typescript-eslint/parser": "^6.7.2",
     "babel-jest": "^29.7.0",
     "babel-plugin-add-module-exports": "^1.0.2",
     "babel-preset-env": "^1.7.0",
@@ -80,16 +80,15 @@
     "eslint-plugin-jest": "^27.4.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^6.1.1",
+    "eslint-plugin-standard": "^5.0.0",
     "husky": "^8.0.3",
     "jest": "^29.7.0",
-    "rimraf": "^5.0.4",
-    "semantic-release": "^19.0.5"
+    "rimraf": "^5.0.0",
+    "semantic-release": "^19.0.5",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.2.2"
   },
-  "files": [
-    "bin",
-    "dist",
-    "example-config.json"
-  ],
+  "files": ["bin", "dist", "example-config.json"],
   "config": {
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
@@ -112,18 +111,6 @@
       "@semantic-release/release-notes-generator",
       "@semantic-release/npm",
       "@semantic-release/github"
-    ]
-  },
-  "jest": {
-    "testEnvironment": "node",
-    "collectCoverageFrom": [
-      "lib/**/*.js"
-    ],
-    "coveragePathIgnorePatterns": [
-      "usageParams.js"
-    ],
-    "transformIgnorePatterns": [
-      "node_modules/(?!(contentful-batch-libs)/)"
     ]
   }
 }
