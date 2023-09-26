@@ -2,21 +2,29 @@
   "name": "contentful-import",
   "version": "0.0.0-determined-by-semantic-release",
   "description": "this tool allows you to import JSON dump exported by contentful-export",
-  "main": "dist/index.js",
+  "main": "dist/index.mjs",
+  "typings": "dist/index.d.ts",
+  "module": "dist/index.mjs",
   "engines": {
     "node": ">=16"
+  },
+  "exports": {
+    "default": "./dist/index.js",
+    "require": "./dist/index.js",
+    "import": "./dist/index.mjs",
+    "node": "./dist/index.js"
   },
   "bin": {
     "contentful-import": "./bin/contentful-import"
   },
   "scripts": {
-    "build": "npm run clean && tsc",
+    "build": "tsup",
     "build:watch": "babel lib --out-dir dist --watch",
     "clean": "rimraf dist && rimraf coverage",
     "lint": "eslint lib bin/contentful-import test",
     "pretest": "npm run lint && npm run build",
     "test": "npm run test:unit && npm run test:integration",
-    "test:unit": "jest --testPathPattern=test/unit --coverage",
+    "test:unit": "jest --testPathPattern=test/unit --runInBand --coverage",
     "test:unit:debug": "node --inspect-brk ./node_modules/.bin/jest --runInBand --watch --testPathPattern=test/unit",
     "test:unit:watch": "npm run test:unit -- --watch",
     "test:integration": "jest --testPathPattern=test/integration",
@@ -45,6 +53,12 @@
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/contentful/contentful-import/issues"
+  },
+  "tsup": {
+    "entry": ["lib/index.ts"],
+    "format": ["cjs", "esm"],
+    "clean": true,
+    "dts": true
   },
   "dependencies": {
     "@discoveryjs/json-ext": "^0.5.7",
@@ -86,6 +100,7 @@
     "rimraf": "^5.0.0",
     "semantic-release": "^19.0.5",
     "ts-jest": "^29.1.1",
+    "tsup": "^7.2.0",
     "typescript": "^5.2.2"
   },
   "files": ["bin", "dist", "example-config.json"],

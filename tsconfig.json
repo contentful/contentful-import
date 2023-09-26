@@ -13,15 +13,10 @@
     "strictPropertyInitialization": false,
     "noImplicitThis": false,
     "alwaysStrict": false,
-    "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": false
+    "forceConsistentCasingInFileNames": false,
+    "esModuleInterop": true
   },
-  "include": [
-    "lib/**/*.ts",
-    "lib/**/*.js",
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["lib/**/*.ts", "lib/**/*.js"],
+  "exclude": ["node_modules"]
 }
