@@ -4,12 +4,19 @@ import { assign, get, omitBy, omit } from 'lodash/object'
 import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 
+type CreateEntitiesParams = {
+  context: any,
+  entities: any[],
+  destinationEntitiesById: Map<string, any>,
+  requestQueue: any
+}
+
 /**
  * Creates a list of entities
  * Applies to all entities except Entries, as the CMA API for those is slightly different
  * See handleCreationErrors for details on what errors reject the promise or not.
  */
-export function createEntities ({ context, entities, destinationEntitiesById, requestQueue }) {
+export function createEntities ({ context, entities, destinationEntitiesById, requestQueue }: CreateEntitiesParams) {
   return createEntitiesWithConcurrency({ context, entities, destinationEntitiesById, requestQueue })
 }
 

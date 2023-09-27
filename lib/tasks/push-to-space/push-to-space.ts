@@ -7,6 +7,8 @@ import { wrapTask } from 'contentful-batch-libs/dist/listr'
 import * as assets from './assets'
 import * as creation from './creation'
 import * as publishing from './publishing'
+import { SpaceResources } from '../../types'
+import type { AssetProps, Link } from 'contentful-management'
 
 const DEFAULT_CONTENT_STRUCTURE = {
   entries: [],
@@ -16,6 +18,47 @@ const DEFAULT_CONTENT_STRUCTURE = {
   locales: [],
   webhooks: [],
   editorInterfaces: []
+}
+
+type DestinationData = SpaceResources
+
+// TODO For some reasons, the asset objects used here do not conform
+// with the asset type from contentful-management, e.g. having an
+// additional field "transformed". Thats why for now we use our own
+// divergent object.
+type TransformedAsset = {
+  fields: { file: { upload: string, uploadFrom: Link<'Upload'> }[] },
+  sys: {id: string}
+}
+
+type AssetWithTransformed = {
+  transformed: TransformedAsset,
+} & AssetProps
+
+type SourceData = Pick<SpaceResources, 'entries' | 'contentTypes' | 'tags' | 'locales' | 'webhooks' | 'editorInterfaces'> & {
+  assets: AssetWithTransformed[]
+}
+
+type DestinationDataById = {
+  [K in keyof SpaceResources]: Map<string, any>
+}
+
+type PushToSpaceData = {
+  destinationData: DestinationData,
+  sourceData: SourceData,
+  client: any,
+  spaceId: string,
+  environmentId: string,
+  contentModelOnly: boolean,
+  skipContentModel: boolean,
+  skipLocales: boolean,
+  skipContentPublishing: boolean,
+  timeout: number,
+  retryLimit: number,
+  listrOptions: any,
+  uploadAssets: boolean,
+  assetsDirectory: string,
+  requestQueue: any
 }
 
 /**
@@ -56,7 +99,7 @@ export default function pushToSpace ({
   uploadAssets,
   assetsDirectory,
   requestQueue
-}) {
+}: PushToSpaceData) {
   sourceData = {
     ...DEFAULT_CONTENT_STRUCTURE,
     ...sourceData
@@ -70,7 +113,7 @@ export default function pushToSpace ({
     renderer: verboseRenderer
   }
 
-  const destinationDataById = {}
+  const destinationDataById: DestinationDataById = {}
 
   for (const [entityType, entities] of Object.entries(destinationData)) {
     const entitiesById = new Map()
