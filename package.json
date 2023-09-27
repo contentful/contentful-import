@@ -18,7 +18,7 @@
     "contentful-import": "./bin/contentful-import"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsc && tsup",
     "build:watch": "babel lib --out-dir dist --watch",
     "clean": "rimraf dist && rimraf coverage",
     "lint": "eslint lib bin/contentful-import test",
