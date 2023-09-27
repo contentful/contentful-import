@@ -97,8 +97,8 @@ function merge (left, right, compareFn) {
     }
   }
 
-  if (left.length) result.push.apply(result, left)
-  if (right.length) result.push.apply(result, right)
+  if (left.length) result.push(...left)
+  if (right.length) result.push(...right)
 
   return result
 }

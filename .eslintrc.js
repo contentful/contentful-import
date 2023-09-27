@@ -11,5 +11,6 @@ module.exports = {
     "@typescript-eslint/no-unused-vars": "warn",
     "space-before-function-paren": "warn",
     "@typescript-eslint/ban-ts-comment": "warn",
+    "@typescript-eslint/no-explicit-any": "warn",
   },
 };
