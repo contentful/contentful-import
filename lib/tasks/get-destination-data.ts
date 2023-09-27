@@ -57,6 +57,16 @@ function getIdBatches (ids) {
   return batches
 }
 
+type AllDestinationData = {
+  contentTypes: Promise<any[]>
+  tags: Promise<any[]>
+  locales: Promise<any[]>
+  entries: Promise<any[]>
+  assets: Promise<any[]>
+  // TODO Why are webhooks optional?
+  webhooks?: Promise<any[]>
+}
+
 /**
  * Gets content from a space which will have content copied to it, based on a
  * collection of existing content.
@@ -78,7 +88,7 @@ export default async function getDestinationData ({
 }) {
   const space = await client.getSpace(spaceId)
   const environment = await space.getEnvironment(environmentId)
-  const result = {
+  const result: AllDestinationData = {
     contentTypes: [],
     tags: [],
     locales: [],
