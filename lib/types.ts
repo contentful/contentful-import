@@ -1,6 +1,6 @@
 import type { AssetProps, ContentTypeProps, EditorInterfaceProps, EntryProps, LocaleProps, TagProps, WebhookProps } from 'contentful-management'
 
-export type SpaceResources = {
+export type Resources = {
   contentTypes?: ContentTypeProps[]
   tags?: TagProps[]
   locales?: LocaleProps[]

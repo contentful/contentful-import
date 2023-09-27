@@ -7,7 +7,7 @@ import { wrapTask } from 'contentful-batch-libs/dist/listr'
 import * as assets from './assets'
 import * as creation from './creation'
 import * as publishing from './publishing'
-import { SpaceResources } from '../../types'
+import type { Resources } from '../../types'
 import type { AssetProps, Link } from 'contentful-management'
 
 const DEFAULT_CONTENT_STRUCTURE = {
@@ -20,7 +20,7 @@ const DEFAULT_CONTENT_STRUCTURE = {
   editorInterfaces: []
 }
 
-type DestinationData = SpaceResources
+type DestinationData = Resources
 
 // TODO For some reasons, the asset objects used here do not conform
 // with the asset type from contentful-management, e.g. having an
@@ -35,12 +35,12 @@ type AssetWithTransformed = {
   transformed: TransformedAsset,
 } & AssetProps
 
-type SourceData = Pick<SpaceResources, 'entries' | 'contentTypes' | 'tags' | 'locales' | 'webhooks' | 'editorInterfaces'> & {
+type SourceData = Pick<Resources, 'entries' | 'contentTypes' | 'tags' | 'locales' | 'webhooks' | 'editorInterfaces'> & {
   assets: AssetWithTransformed[]
 }
 
 type DestinationDataById = {
-  [K in keyof SpaceResources]: Map<string, any>
+  [K in keyof Resources]: Map<string, any>
 }
 
 type PushToSpaceData = {
