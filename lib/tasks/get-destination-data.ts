@@ -1,6 +1,7 @@
 import Promise from 'bluebird'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import type { AssetProps, ContentTypeProps, EntryProps, LocaleProps, TagProps, WebhookProps } from 'contentful-management'
 
 const BATCH_CHAR_LIMIT = 1990
 const BATCH_SIZE_LIMIT = 100
@@ -58,13 +59,13 @@ function getIdBatches (ids) {
 }
 
 type AllDestinationData = {
-  contentTypes: Promise<any[]>
-  tags: Promise<any[]>
-  locales: Promise<any[]>
-  entries: Promise<any[]>
-  assets: Promise<any[]>
+  contentTypes: Promise<ContentTypeProps[]>
+  tags: Promise<TagProps[]>
+  locales: Promise<LocaleProps[]>
+  entries: Promise<EntryProps[]>
+  assets: Promise<AssetProps[]>
   // TODO Why are webhooks optional?
-  webhooks?: Promise<any[]>
+  webhooks?: Promise<WebhookProps[]>
 }
 
 /**
