@@ -4,6 +4,7 @@ import { promisify } from 'util'
 
 import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { ContentfulAssetError } from '../../utils/errors'
 
 const stat = promisify(fs.stat)
 
@@ -14,8 +15,7 @@ export async function getAssetStreamForURL (url, assetsDirectory) {
     await stat(filePath)
     return fs.createReadStream(filePath)
   } catch (err) {
-    const error = new Error('Cannot open asset from filesystem')
-    error.filePath = filePath
+    const error = new ContentfulAssetError('Cannot open asset from filesystem', filePath)
     throw error
   }
 }

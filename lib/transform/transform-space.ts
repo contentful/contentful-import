@@ -13,7 +13,7 @@ const spaceEntities = [
  * is a need to transform data when copying it to the destination space
  */
 export default function (
-  sourceData, destinationData, customTransformers, entities = spaceEntities
+  sourceData, destinationData, customTransformers?: any, entities = spaceEntities
 ) {
   const transformers = defaults(customTransformers, defaultTransformers)
   const baseSpaceData = omit(sourceData, ...entities)
