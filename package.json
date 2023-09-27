@@ -21,7 +21,7 @@
     "build": "tsup",
     "build:watch": "babel lib --out-dir dist --watch",
     "clean": "rimraf dist && rimraf coverage",
-    "lint": "eslint lib bin/contentful-import test",
+    "lint": "eslint lib bin/contentful-import test && tsc",
     "pretest": "npm run lint && npm run build",
     "test": "npm run test:unit && npm run test:integration",
     "test:unit": "jest --testPathPattern=test/unit --runInBand --coverage",

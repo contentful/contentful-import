@@ -27,7 +27,7 @@ const assertPayload = (payload) => {
     attachEntityName(result.error.details, payload)
     const invalidEntityCount = countInvalidEntities(result.error.details).join(', ')
     result.error.message = `${invalidEntityCount} - Get further details in the error log file`
-    delete result.error._object
+    delete result.error._original
     throw result.error
   }
 }
