@@ -29,16 +29,16 @@ type PushToSpaceParams = {
   client: any,
   spaceId: string,
   environmentId: string,
-  contentModelOnly: boolean,
-  skipContentModel: boolean,
-  skipLocales: boolean,
-  skipContentPublishing: boolean,
-  timeout: number,
-  retryLimit: number,
-  listrOptions: any,
-  uploadAssets: boolean,
-  assetsDirectory: string,
-  requestQueue: any
+  contentModelOnly?: boolean,
+  skipContentModel?: boolean,
+  skipLocales?: boolean,
+  skipContentPublishing?: boolean,
+  timeout?: number,
+  retryLimit?: number,
+  listrOptions?: any,
+  uploadAssets?: boolean,
+  assetsDirectory?: string,
+  requestQueue?: any
 }
 
 /**

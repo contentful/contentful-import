@@ -20,7 +20,7 @@ export async function getAssetStreamForURL (url, assetsDirectory) {
   }
 }
 
-async function processAssetForLocale(locale, asset, processingOptions) {
+async function processAssetForLocale (locale, asset, processingOptions) {
   try {
     return await asset.processForLocale(locale, processingOptions)
   } catch (err) {
@@ -32,7 +32,7 @@ async function processAssetForLocale(locale, asset, processingOptions) {
 
 // From
 // https://stackoverflow.com/questions/67339630/how-to-get-last-resolved-promise-from-a-list-of-resolved-promises-in-javascript
-async function lastResult(promises) {
+async function lastResult (promises) {
   if (!promises.length) throw new RangeError('No last result from no promises')
   const results = []
   await Promise.all(
@@ -45,7 +45,7 @@ async function lastResult(promises) {
   return results[results.length - 1]
 }
 
-export async function processAssets({
+export async function processAssets ({
   assets,
   timeout,
   retryLimit,

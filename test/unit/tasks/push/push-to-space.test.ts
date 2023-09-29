@@ -3,12 +3,17 @@ import { each } from 'lodash/collection'
 
 import pushToSpace from '../../../../lib/tasks/push-to-space/push-to-space'
 
-import * as creation from '../../../../lib/tasks/push-to-space/creation'
-import * as publishing from '../../../../lib/tasks/push-to-space/publishing'
-import * as assets from '../../../../lib/tasks/push-to-space/assets'
-import { TransformedSourceData } from '../../../../lib/types'
-
-// addListener as jest.MockedFunction<typeof addListener>;
+import { createEntities, createEntries, createLocales } from '../../../../lib/tasks/push-to-space/creation'
+import { archiveEntities, publishEntities } from '../../../../lib/tasks/push-to-space/publishing'
+import { getAssetStreamForURL, processAssets } from '../../../../lib/tasks/push-to-space/assets'
+import { AssetWithTransformed, TransformedSourceData } from '../../../../lib/types'
+// We group together these functions into objects manually instead of
+// using wildcard imports (*). This ensures that during the `afterEach` cleanup,
+// Jest's mock clearing mechanism does not attempt to invoke `mockClear`
+// on non-mocked methods or properties, thus preventing errors.
+const creation = { createEntities, createEntries, createLocales }
+const publishing = { archiveEntities, publishEntities }
+const assets = { getAssetStreamForURL, processAssets }
 
 jest.mock('../../../../lib/tasks/push-to-space/creation', () => ({
   createEntities: jest.fn(({ context }) => {
@@ -42,8 +47,7 @@ jest.mock('../../../../lib/tasks/push-to-space/publishing', () => ({
     }
     return Promise.resolve([])
   }),
-  archiveEntities: jest.fn(() => Promise.resolve([])),
-  unpublishEntities: jest.fn(() => Promise.resolve())
+  archiveEntities: jest.fn(() => Promise.resolve([]))
 }))
 jest.mock('../../../../lib/tasks/push-to-space/assets', () => ({
   processAssets: jest.fn(() => Promise.resolve([])),
@@ -144,7 +148,7 @@ test('Push content to destination space', () => {
       expect((creation.createLocales as jest.Mock).mock.calls).toHaveLength(1)
       expect((publishing.publishEntities as jest.Mock).mock.calls).toHaveLength(3)
       expect((publishing.archiveEntities as jest.Mock).mock.calls).toHaveLength(2)
-      expect((editorInterfaceUpdateMock as jest.Mock).mock.calls).toHaveLength(1)
+      expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(1)
       expect((assets.getAssetStreamForURL as jest.Mock).mock.calls).toHaveLength(0)
       expect((assets.processAssets as jest.Mock).mock.calls).toHaveLength(1)
       expect((assets.processAssets as jest.Mock).mock.calls[0][0].retryLimit).toEqual(20)
@@ -164,12 +168,12 @@ test('Push only content types and locales to destination space', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect(creation.createEntities.mock.calls).toHaveLength(2)
-      expect(creation.createEntries.mock.calls).toHaveLength(0)
-      expect(creation.createLocales.mock.calls).toHaveLength(1)
-      expect(publishing.publishEntities.mock.calls).toHaveLength(1)
+      expect((creation.createEntities as jest.Mock).mock.calls).toHaveLength(2)
+      expect((creation.createEntries as jest.Mock).mock.calls).toHaveLength(0)
+      expect((creation.createLocales as jest.Mock).mock.calls).toHaveLength(1)
+      expect((publishing.publishEntities as jest.Mock).mock.calls).toHaveLength(1)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(1)
-      expect(assets.processAssets.mock.calls).toHaveLength(0)
+      expect((assets.processAssets as jest.Mock).mock.calls).toHaveLength(0)
     })
 })
 
@@ -186,11 +190,11 @@ test('Push only content types', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect(creation.createEntities.mock.calls).toHaveLength(2)
-      expect(creation.createEntries.mock.calls).toHaveLength(0)
-      expect(publishing.publishEntities.mock.calls).toHaveLength(1)
+      expect((creation.createEntities as jest.Mock).mock.calls).toHaveLength(2)
+      expect((creation.createEntries as jest.Mock).mock.calls).toHaveLength(0)
+      expect((publishing.publishEntities as jest.Mock).mock.calls).toHaveLength(1)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(1)
-      expect(assets.processAssets.mock.calls).toHaveLength(0)
+      expect((assets.processAssets as jest.Mock).mock.calls).toHaveLength(0)
     })
 })
 
@@ -206,10 +210,10 @@ test('Push only entries and assets to destination space', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect(creation.createEntities.mock.calls).toHaveLength(3)
-      expect(creation.createEntries.mock.calls).toHaveLength(1)
-      expect(publishing.publishEntities.mock.calls).toHaveLength(2)
-      expect(assets.processAssets.mock.calls).toHaveLength(1)
+      expect((creation.createEntities as jest.Mock).mock.calls).toHaveLength(3)
+      expect((creation.createEntries as jest.Mock).mock.calls).toHaveLength(1)
+      expect((publishing.publishEntities as jest.Mock).mock.calls).toHaveLength(2)
+      expect((assets.processAssets as jest.Mock).mock.calls).toHaveLength(1)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(0)
     })
 })
@@ -227,10 +231,10 @@ test('Push only entries and assets to destination space and skip publishing', ()
   })
     .run({ data: {} })
     .then(() => {
-      expect(creation.createEntities.mock.calls).toHaveLength(3)
-      expect(creation.createEntries.mock.calls).toHaveLength(1)
-      expect(publishing.publishEntities.mock.calls).toHaveLength(0)
-      expect(assets.processAssets.mock.calls).toHaveLength(1)
+      expect((creation.createEntities as jest.Mock).mock.calls).toHaveLength(3)
+      expect((creation.createEntries as jest.Mock).mock.calls).toHaveLength(1)
+      expect((publishing.publishEntities as jest.Mock).mock.calls).toHaveLength(0)
+      expect((assets.processAssets as jest.Mock).mock.calls).toHaveLength(1)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(0)
     })
 })
@@ -260,7 +264,7 @@ test('Upload each local asset file before pushing to space', () => {
         }
       }
     }
-  ]
+  ] as unknown as AssetWithTransformed[]
   return pushToSpace({
     sourceData: { ...transformedSourceData, assets: transformedAssets },
     destinationData,

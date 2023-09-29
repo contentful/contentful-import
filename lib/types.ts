@@ -16,16 +16,17 @@ export type DestinationData = Resources
 // with the asset type from contentful-management, e.g. having an
 // additional field "transformed". Thats why for now we use our own
 // divergent object.
-type TransformedAsset = {
+export type TransformedAsset = {
   fields: { file: { upload: string, uploadFrom: Link<'Upload'> }[] },
   sys: {id: string}
 }
 
 type OriginalContentType = ContentTypeProps
 
-type AssetWithTransformed = {
+export type AssetWithTransformed = {
   transformed: TransformedAsset,
-} & AssetProps
+  original: any
+}
 
 type ContentTypeWithOriginal = {
   original: OriginalContentType
