@@ -12,31 +12,30 @@ export type Resources = {
 
 export type DestinationData = Resources
 
-// TODO For some reasons, the asset objects used here do not conform
-// with the asset type from contentful-management, e.g. having an
-// additional field "transformed". Thats why for now we use our own
-// divergent object.
 export type TransformedAsset = {
   fields: { file: { upload: string, uploadFrom: Link<'Upload'> }[] },
   sys: {id: string}
 }
-
-type OriginalContentType = ContentTypeProps
 
 export type AssetWithTransformed = {
   transformed: TransformedAsset,
   original: any
 }
 
+type OriginalContentType = ContentTypeProps
+
 type ContentTypeWithOriginal = {
   original: OriginalContentType
+  transformed: any
 }
 
+// TODO This is wip, mainly focusing on making expectations from the
+// tests align with types. Next step should be to completely
+// understand how the data is being transformed before being passed to
+// pushToSpace and expand and restrict the types accordingly
 export type TransformedSourceData = Pick<Resources, 'entries' | 'tags' | 'locales' | 'webhooks' | 'editorInterfaces'> & {
   assets: AssetWithTransformed[]
   contentTypes: ContentTypeWithOriginal[]
 }
 
-// // TODO Completely understand how the data is being transformed
-// // and constrain the types accordingly
 export type OriginalSourceData = Resources
