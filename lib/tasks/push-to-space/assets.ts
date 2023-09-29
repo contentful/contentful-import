@@ -45,12 +45,20 @@ async function lastResult(promises) {
   return results[results.length - 1]
 }
 
+type ProcessAssetsParams = {
+  assets: any[]
+  timeout?: number
+  retryLimit?: number
+  requestQueue: any
+  locales?: string[]
+}
+
 export async function processAssets({
   assets,
   timeout,
   retryLimit,
   requestQueue
-}) {
+}: ProcessAssetsParams) {
   const processingOptions = Object.assign(
     {},
     timeout && { processingCheckWait: timeout },
