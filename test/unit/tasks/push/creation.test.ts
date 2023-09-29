@@ -2,6 +2,7 @@ import PQueue from 'p-queue'
 import { createEntities, createLocales, createEntries } from '../../../../lib/tasks/push-to-space/creation'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { ContentfulValidationError } from '../../../../lib/utils/errors'
 
 jest.mock('contentful-batch-libs/dist/logging', () => ({
   logEmitter: {
@@ -301,7 +302,7 @@ test('Fails to create locale if it already exists', () => {
   const target = {
     createLocale: jest.fn(() => Promise.reject(errorValidationFailed))
   }
-  const errorValidationFailed = new Error()
+  const errorValidationFailed = new ContentfulValidationError()
   errorValidationFailed.error = {
     sys: { id: 'ValidationFailed' },
     details: {
