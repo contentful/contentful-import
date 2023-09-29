@@ -6,6 +6,9 @@ import pushToSpace from '../../../../lib/tasks/push-to-space/push-to-space'
 import * as creation from '../../../../lib/tasks/push-to-space/creation'
 import * as publishing from '../../../../lib/tasks/push-to-space/publishing'
 import * as assets from '../../../../lib/tasks/push-to-space/assets'
+import { TransformedSourceData } from '../../../../lib/types'
+
+// addListener as jest.MockedFunction<typeof addListener>;
 
 jest.mock('../../../../lib/tasks/push-to-space/creation', () => ({
   createEntities: jest.fn(({ context }) => {
@@ -47,7 +50,7 @@ jest.mock('../../../../lib/tasks/push-to-space/assets', () => ({
   getAssetStreamForURL: jest.fn(() => Promise.resolve([]))
 }))
 
-const sourceData = {
+const transformedSourceData = {
   locales: [],
   contentTypes: [
     {
@@ -74,7 +77,7 @@ const sourceData = {
     }
   ],
   entries: []
-}
+} as unknown as TransformedSourceData
 
 const destinationData = {}
 
@@ -125,7 +128,7 @@ afterEach(() => {
 
 test('Push content to destination space', () => {
   return pushToSpace({
-    sourceData,
+    sourceData: transformedSourceData,
     destinationData,
     client: clientMock,
     spaceId: 'spaceid',
@@ -136,22 +139,22 @@ test('Push content to destination space', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect(creation.createEntities.mock.calls).toHaveLength(4)
-      expect(creation.createEntries.mock.calls).toHaveLength(1)
-      expect(creation.createLocales.mock.calls).toHaveLength(1)
-      expect(publishing.publishEntities.mock.calls).toHaveLength(3)
-      expect(publishing.archiveEntities.mock.calls).toHaveLength(2)
-      expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(1)
-      expect(assets.getAssetStreamForURL.mock.calls).toHaveLength(0)
-      expect(assets.processAssets.mock.calls).toHaveLength(1)
-      expect(assets.processAssets.mock.calls[0][0].retryLimit).toEqual(20)
-      expect(assets.processAssets.mock.calls[0][0].timeout).toEqual(40000)
+      expect((creation.createEntities as jest.Mock).mock.calls).toHaveLength(4)
+      expect((creation.createEntries as jest.Mock).mock.calls).toHaveLength(1)
+      expect((creation.createLocales as jest.Mock).mock.calls).toHaveLength(1)
+      expect((publishing.publishEntities as jest.Mock).mock.calls).toHaveLength(3)
+      expect((publishing.archiveEntities as jest.Mock).mock.calls).toHaveLength(2)
+      expect((editorInterfaceUpdateMock as jest.Mock).mock.calls).toHaveLength(1)
+      expect((assets.getAssetStreamForURL as jest.Mock).mock.calls).toHaveLength(0)
+      expect((assets.processAssets as jest.Mock).mock.calls).toHaveLength(1)
+      expect((assets.processAssets as jest.Mock).mock.calls[0][0].retryLimit).toEqual(20)
+      expect((assets.processAssets as jest.Mock).mock.calls[0][0].timeout).toEqual(40000)
     })
 })
 
 test('Push only content types and locales to destination space', () => {
   return pushToSpace({
-    sourceData,
+    sourceData: transformedSourceData,
     destinationData,
     client: clientMock,
     spaceId: 'spaceid',
@@ -172,7 +175,7 @@ test('Push only content types and locales to destination space', () => {
 
 test('Push only content types', () => {
   return pushToSpace({
-    sourceData,
+    sourceData: transformedSourceData,
     destinationData,
     client: clientMock,
     spaceId: 'spaceid',
@@ -193,7 +196,7 @@ test('Push only content types', () => {
 
 test('Push only entries and assets to destination space', () => {
   return pushToSpace({
-    sourceData,
+    sourceData: transformedSourceData,
     destinationData,
     client: clientMock,
     spaceId: 'spaceid',
@@ -213,7 +216,7 @@ test('Push only entries and assets to destination space', () => {
 
 test('Push only entries and assets to destination space and skip publishing', () => {
   return pushToSpace({
-    sourceData,
+    sourceData: transformedSourceData,
     destinationData,
     client: clientMock,
     spaceId: 'spaceid',
@@ -259,7 +262,7 @@ test('Upload each local asset file before pushing to space', () => {
     }
   ]
   return pushToSpace({
-    sourceData: { ...sourceData, assets: transformedAssets },
+    sourceData: { ...transformedSourceData, assets: transformedAssets },
     destinationData,
     client: clientMock,
     spaceId: 'spaceid',
@@ -270,7 +273,7 @@ test('Upload each local asset file before pushing to space', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect(assets.getAssetStreamForURL.mock.calls).toHaveLength(2)
+      expect((assets.getAssetStreamForURL as jest.Mock).mock.calls).toHaveLength(2)
       expect(assets.getAssetStreamForURL).toHaveBeenCalledWith('https://images/contentful-en.jpg', 'assets')
       expect(assets.getAssetStreamForURL).toHaveBeenCalledWith('https://images/contentful-de.jpg', 'assets')
       expect(transformedAssets[0].transformed.fields.file['en-US']).not.toHaveProperty('upload')
