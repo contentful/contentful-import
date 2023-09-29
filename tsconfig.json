@@ -15,7 +15,8 @@
     "alwaysStrict": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": false,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "resolveJsonModule": true
   },
   "include": ["lib/**/*.ts", "lib/**/*.js"],
   "exclude": ["node_modules"]

@@ -1,5 +1,5 @@
 import yargs from 'yargs'
-import * as packageFile from '../package'
+import * as packageFile from '../package.json'
 
 export default yargs
   .version(packageFile.version || 'Version only available on installed package')
