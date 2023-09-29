@@ -3,9 +3,9 @@ import { each } from 'lodash/collection'
 
 import pushToSpace from '../../../../lib/tasks/push-to-space/push-to-space'
 
-import creation from '../../../../lib/tasks/push-to-space/creation'
-import publishing from '../../../../lib/tasks/push-to-space/publishing'
-import assets from '../../../../lib/tasks/push-to-space/assets'
+import * as creation from '../../../../lib/tasks/push-to-space/creation'
+import * as publishing from '../../../../lib/tasks/push-to-space/publishing'
+import * as assets from '../../../../lib/tasks/push-to-space/assets'
 
 jest.mock('../../../../lib/tasks/push-to-space/creation', () => ({
   createEntities: jest.fn(({ context }) => {
