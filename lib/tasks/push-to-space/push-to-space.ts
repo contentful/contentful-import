@@ -108,7 +108,7 @@ export default function pushToSpace ({
   return new Listr([
     {
       title: 'Connecting to space',
-      task: wrapTask(async (ctx, task) => {
+      task: wrapTask(async (ctx) => {
         const space = await client.getSpace(spaceId)
         const environment = await space.getEnvironment(environmentId)
 
@@ -118,7 +118,7 @@ export default function pushToSpace ({
     },
     {
       title: 'Importing Locales',
-      task: wrapTask(async (ctx, task) => {
+      task: wrapTask(async (ctx) => {
         const locales = await creation.createLocales({
           context: { target: ctx.environment, type: 'Locale' },
           entities: sourceData.locales,
@@ -132,7 +132,7 @@ export default function pushToSpace ({
     },
     {
       title: 'Importing Content Types',
-      task: wrapTask(async (ctx, task) => {
+      task: wrapTask(async (ctx) => {
         const contentTypes = await creation.createEntities({
           context: { target: ctx.environment, type: 'ContentType' },
           entities: sourceData.contentTypes,
@@ -146,7 +146,7 @@ export default function pushToSpace ({
     },
     {
       title: 'Publishing Content Types',
-      task: wrapTask(async (ctx, task) => {
+      task: wrapTask(async (ctx) => {
         const publishedContentTypes = await publishEntities({
           entities: ctx.data.contentTypes,
           sourceEntities: sourceData.contentTypes,
@@ -154,11 +154,11 @@ export default function pushToSpace ({
         })
         ctx.data.contentTypes = publishedContentTypes
       }),
-      skip: (ctx) => skipContentModel
+      skip: () => skipContentModel
     },
     {
       title: 'Importing Tags',
-      task: wrapTask(async (ctx, task) => {
+      task: wrapTask(async (ctx) => {
         const tags = await creation.createEntities({
           context: { target: ctx.environment, type: 'Tag' },
           entities: sourceData.tags,
@@ -173,7 +173,7 @@ export default function pushToSpace ({
     },
     {
       title: 'Importing Editor Interfaces',
-      task: wrapTask(async (ctx, task) => {
+      task: wrapTask(async (ctx) => {
         const allEditorInterfacesBeingFetched = ctx.data.contentTypes.map(async (contentType) => {
           const editorInterface = sourceData.editorInterfaces.find((editorInterface) => {
             return editorInterface.sys.contentType.sys.id === contentType.sys.id
@@ -207,7 +207,7 @@ export default function pushToSpace ({
     },
     {
       title: 'Uploading Assets',
-      task: wrapTask(async (ctx, task) => {
+      task: wrapTask(async (ctx) => {
         const allPendingUploads = []
 
         for (const asset of sourceData.assets) {
@@ -245,11 +245,11 @@ export default function pushToSpace ({
 
         ctx.data.uploadedAssetFiles = uploads
       }),
-      skip: (ctx) => !uploadAssets || !sourceData.assets.length
+      skip: () => !uploadAssets || !sourceData.assets.length
     },
     {
       title: 'Importing Assets',
-      task: wrapTask(async (ctx, task) => {
+      task: wrapTask(async (ctx) => {
         const assetsToProcess = await creation.createEntities({
           context: { target: ctx.environment, type: 'Asset' },
           entities: sourceData.assets,
@@ -265,11 +265,11 @@ export default function pushToSpace ({
         })
         ctx.data.assets = processedAssets
       }),
-      skip: (ctx) => contentModelOnly
+      skip: () => contentModelOnly
     },
     {
       title: 'Publishing Assets',
-      task: wrapTask(async (ctx, task) => {
+      task: wrapTask(async (ctx) => {
         const publishedAssets = await publishEntities({
           entities: ctx.data.assets,
           sourceEntities: sourceData.assets,
@@ -277,11 +277,11 @@ export default function pushToSpace ({
         })
         ctx.data.publishedAssets = publishedAssets
       }),
-      skip: (ctx) => contentModelOnly || skipContentPublishing
+      skip: () => contentModelOnly || skipContentPublishing
     },
     {
       title: 'Archiving Assets',
-      task: wrapTask(async (ctx, task) => {
+      task: wrapTask(async (ctx) => {
         const archivedAssets = await archiveEntities({
           entities: ctx.data.assets,
           sourceEntities: sourceData.assets,
@@ -289,11 +289,11 @@ export default function pushToSpace ({
         })
         ctx.data.archivedAssets = archivedAssets
       }),
-      skip: (ctx) => contentModelOnly || skipContentPublishing
+      skip: () => contentModelOnly || skipContentPublishing
     },
     {
       title: 'Importing Content Entries',
-      task: wrapTask(async (ctx, task) => {
+      task: wrapTask(async (ctx) => {
         const entries = await creation.createEntries({
           context: { target: ctx.environment, skipContentModel },
           entities: sourceData.entries,
@@ -302,11 +302,11 @@ export default function pushToSpace ({
         })
         ctx.data.entries = entries
       }),
-      skip: (ctx) => contentModelOnly
+      skip: () => contentModelOnly
     },
     {
       title: 'Publishing Content Entries',
-      task: wrapTask(async (ctx, task) => {
+      task: wrapTask(async (ctx) => {
         const publishedEntries = await publishEntities({
           entities: ctx.data.entries,
           sourceEntities: sourceData.entries,
@@ -314,11 +314,11 @@ export default function pushToSpace ({
         })
         ctx.data.publishedEntries = publishedEntries
       }),
-      skip: (ctx) => contentModelOnly || skipContentPublishing
+      skip: () => contentModelOnly || skipContentPublishing
     },
     {
       title: 'Archiving Entries',
-      task: wrapTask(async (ctx, task) => {
+      task: wrapTask(async (ctx) => {
         const archivedEntries = await archiveEntities({
           entities: ctx.data.entries,
           sourceEntities: sourceData.entries,
@@ -326,11 +326,11 @@ export default function pushToSpace ({
         })
         ctx.data.archivedEntries = archivedEntries
       }),
-      skip: (ctx) => contentModelOnly || skipContentPublishing
+      skip: () => contentModelOnly || skipContentPublishing
     },
     {
       title: 'Creating Web Hooks',
-      task: wrapTask(async (ctx, task) => {
+      task: wrapTask(async (ctx) => {
         const webhooks = await creation.createEntities({
           context: { target: ctx.space, type: 'Webhook' },
           entities: sourceData.webhooks,
@@ -339,7 +339,7 @@ export default function pushToSpace ({
         })
         ctx.data.webhooks = webhooks
       }),
-      skip: (ctx) =>
+      skip: () =>
         contentModelOnly || (environmentId !== 'master' && 'Webhooks can only be imported in master environment')
     }
   ], listrOptions)

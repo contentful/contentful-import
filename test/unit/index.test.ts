@@ -48,7 +48,7 @@ jest.mock('../../lib/tasks/push-to-space/push-to-space', () => {
     return new Listr([
       {
         title: 'Fake push to space',
-        task: (ctx, task) => {
+        task: (ctx) => {
           ctx.data = ctx.sourceData
         }
       }

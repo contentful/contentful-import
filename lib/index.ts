@@ -16,6 +16,7 @@ import pushToSpace from './tasks/push-to-space/push-to-space'
 import transformSpace from './transform/transform-space'
 import { assertDefaultLocale, assertPayload } from './utils/validations'
 import parseOptions from './parseOptions'
+import { ContentfulMultiError } from './utils/errors'
 
 const ONE_SECOND = 1000
 
@@ -69,7 +70,7 @@ async function runContentfulImport (params) {
   const tasks = new Listr([
     {
       title: 'Validating content-file',
-      task: (ctx) => {
+      task: () => {
         assertPayload(options.content)
       }
     },
@@ -82,8 +83,7 @@ async function runContentfulImport (params) {
     },
     {
       title: 'Checking if destination space already has any content and retrieving it',
-      task: wrapTask(async (ctx, task) => {
-        // @ts-ignore
+      task: wrapTask(async (ctx) => {
         const destinationData = await getDestinationData({
           client: ctx.client,
           spaceId: options.spaceId,
@@ -108,7 +108,7 @@ async function runContentfulImport (params) {
     },
     {
       title: 'Push content to destination space',
-      task: (ctx, task) => {
+      task: (ctx) => {
         return pushToSpace({
           sourceData: ctx.sourceData,
           destinationData: ctx.destinationData,
@@ -174,9 +174,9 @@ async function runContentfulImport (params) {
       if (errorLog.length) {
         return writeErrorLogFile(options.errorLogFile, errorLog)
           .then(() => {
-            const multiError = new Error('Errors occurred')
+            const multiError = new ContentfulMultiError('Errors occurred')
             multiError.name = 'ContentfulMultiError'
-            // @ts-ignore
+
             multiError.errors = errorLog
             throw multiError
           })
