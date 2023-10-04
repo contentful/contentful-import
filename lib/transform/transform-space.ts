@@ -3,6 +3,7 @@ import { omit, defaults } from 'lodash/object'
 import * as defaultTransformers from './transformers'
 import sortEntries from '../utils/sort-entries'
 import sortLocales from '../utils/sort-locales'
+import { DestinationData, OriginalSourceData, TransformedSourceData } from '../types'
 
 const spaceEntities = [
   'contentTypes', 'entries', 'assets', 'locales', 'webhooks', 'tags'
@@ -13,8 +14,8 @@ const spaceEntities = [
  * is a need to transform data when copying it to the destination space
  */
 export default function (
-  sourceData, destinationData, customTransformers?: any, entities = spaceEntities
-) {
+  sourceData: OriginalSourceData, destinationData: DestinationData, customTransformers?: any, entities = spaceEntities
+): TransformedSourceData {
   const transformers = defaults(customTransformers, defaultTransformers)
   const baseSpaceData = omit(sourceData, ...entities)
 

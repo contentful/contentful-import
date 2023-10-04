@@ -7,8 +7,7 @@ import { wrapTask } from 'contentful-batch-libs/dist/listr'
 import * as assets from './assets'
 import * as creation from './creation'
 import * as publishing from './publishing'
-import type { Resources } from '../../types'
-import type { AssetProps, Link } from 'contentful-management'
+import type { DestinationData, TransformedSourceData, Resources } from '../../types'
 
 const DEFAULT_CONTENT_STRUCTURE = {
   entries: [],
@@ -20,45 +19,26 @@ const DEFAULT_CONTENT_STRUCTURE = {
   editorInterfaces: []
 }
 
-type DestinationData = Resources
-
-// TODO For some reasons, the asset objects used here do not conform
-// with the asset type from contentful-management, e.g. having an
-// additional field "transformed". Thats why for now we use our own
-// divergent object.
-type TransformedAsset = {
-  fields: { file: { upload: string, uploadFrom: Link<'Upload'> }[] },
-  sys: {id: string}
-}
-
-type AssetWithTransformed = {
-  transformed: TransformedAsset,
-} & AssetProps
-
-type SourceData = Pick<Resources, 'entries' | 'contentTypes' | 'tags' | 'locales' | 'webhooks' | 'editorInterfaces'> & {
-  assets: AssetWithTransformed[]
-}
-
 type DestinationDataById = {
   [K in keyof Resources]: Map<string, any>
 }
 
-type PushToSpaceData = {
+type PushToSpaceParams = {
   destinationData: DestinationData,
-  sourceData: SourceData,
+  sourceData: TransformedSourceData,
   client: any,
   spaceId: string,
   environmentId: string,
-  contentModelOnly: boolean,
-  skipContentModel: boolean,
-  skipLocales: boolean,
-  skipContentPublishing: boolean,
-  timeout: number,
-  retryLimit: number,
-  listrOptions: any,
-  uploadAssets: boolean,
-  assetsDirectory: string,
-  requestQueue: any
+  contentModelOnly?: boolean,
+  skipContentModel?: boolean,
+  skipLocales?: boolean,
+  skipContentPublishing?: boolean,
+  timeout?: number,
+  retryLimit?: number,
+  listrOptions?: any,
+  uploadAssets?: boolean,
+  assetsDirectory?: string,
+  requestQueue?: any
 }
 
 /**
@@ -99,7 +79,7 @@ export default function pushToSpace ({
   uploadAssets,
   assetsDirectory,
   requestQueue
-}: PushToSpaceData) {
+}: PushToSpaceParams) {
   sourceData = {
     ...DEFAULT_CONTENT_STRUCTURE,
     ...sourceData
