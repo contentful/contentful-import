@@ -4,13 +4,21 @@ import { createClient } from 'contentful-management'
 
 import runContentfulImport from '../../dist/index'
 
-const managementToken = process.env.MANAGEMENT_TOKEN
-const orgId = process.env.ORG_ID
+const managementToken = process.env.MANAGEMENT_TOKEN as string
+const orgId = process.env.ORG_ID as string
 const simpleSampleSpaceFile = join(__dirname, 'exports/simple/sample-space.json')
 const withAssetsSpaceFile = join(__dirname, 'exports/with-assets/space-with-downloaded-assets.json')
 const assetsDirectory = join(__dirname, 'exports/with-assets')
 
 let space
+
+type Error = {
+  errors: {
+    error: string | {
+      message: string
+    }
+  }[]
+}
 
 jest.setTimeout(1.5 * 60 * 1000) // 1.5min timeout
 
@@ -37,7 +45,7 @@ test('It should import a space properly when used as a lib', async () => {
     })
   }
 
-  let err = { errors: [] }
+  let err: Error = { errors: [] }
   await wrappedFunc()
     .catch(e => { err = e })
 
@@ -50,7 +58,7 @@ test('It should import a space properly when used as a lib', async () => {
       return false
     }
 
-    if ('message' in error.error && error.error.message === 'Asset is taking longer then expected to process') {
+    if (typeof error.error === 'object' && error.error.message && error.error.message === 'Asset is taking longer then expected to process') {
       return false
     }
 
@@ -78,7 +86,7 @@ test('It should import a space with assets properly when used as a lib', async (
     })
   }
 
-  let err = { errors: [] }
+  let err: Error = { errors: [] }
   await wrappedFunc()
     .catch(e => { err = e })
 
@@ -92,7 +100,7 @@ test('It should import a space with assets properly when used as a lib', async (
       return false
     }
 
-    if ('message' in error.error && error.error.message === 'Asset is taking longer then expected to process') {
+    if (typeof error.error === 'object' && error.error.message && error.error.message === 'Asset is taking longer then expected to process') {
       return false
     }
 
