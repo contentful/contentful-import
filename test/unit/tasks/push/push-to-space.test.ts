@@ -6,7 +6,7 @@ import pushToSpace from '../../../../lib/tasks/push-to-space/push-to-space'
 import { createEntities, createEntries, createLocales } from '../../../../lib/tasks/push-to-space/creation'
 import { archiveEntities, publishEntities } from '../../../../lib/tasks/push-to-space/publishing'
 import { getAssetStreamForURL, processAssets } from '../../../../lib/tasks/push-to-space/assets'
-import { AssetWithTransformed, TransformedSourceData } from '../../../../lib/types'
+import { EntityTransformed, TransformedAsset, TransformedSourceData } from '../../../../lib/types'
 // We group together these functions into objects manually instead of
 // using wildcard imports (*). This ensures that during the `afterEach` cleanup,
 // Jest's mock clearing mechanism does not attempt to invoke `mockClear`
@@ -264,7 +264,7 @@ test('Upload each local asset file before pushing to space', () => {
         }
       }
     }
-  ] as unknown as AssetWithTransformed[]
+  ] as unknown as EntityTransformed<TransformedAsset, any>[]
   return pushToSpace({
     sourceData: { ...transformedSourceData, assets: transformedAssets },
     destinationData,

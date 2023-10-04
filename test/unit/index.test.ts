@@ -7,7 +7,7 @@ import transformSpaceStub from '../../lib/transform/transform-space'
 import initClientStub from '../../lib/tasks/init-client'
 import getDestinationResponseStub from '../../lib/tasks/get-destination-data'
 import contentfulImport from '../../lib/index'
-import validations from '../../lib/utils/validations'
+import * as validations from '../../lib/utils/validations'
 
 jest.mock('cli-table3')
 jest.mock('../../lib/utils/validations', () => {
@@ -65,16 +65,16 @@ jest.mock('../../lib/tasks/init-client', () => {
 })
 
 afterEach(() => {
-  initClientStub.mockClear()
-  getDestinationResponseStub.mockClear()
-  transformSpaceStub.mockClear()
-  pushToSpaceStub.mockClear()
-  TableStub.mockClear()
+  (initClientStub as jest.Mock).mockClear();
+  (getDestinationResponseStub as jest.Mock).mockClear();
+  (transformSpaceStub as jest.Mock).mockClear();
+  (pushToSpaceStub as jest.Mock).mockClear();
+  (TableStub as jest.Mock).mockClear()
 })
 
 test('Stops import when default locales does not match', async () => {
-  const errorLogFile = 'errorlogfile.json'
-  validations.assertDefaultLocale.mockImplementationOnce(() => { throw new Error('Invalid locale error') })
+  const errorLogFile = 'errorlogfile.json';
+  (validations.assertDefaultLocale as jest.Mock).mockImplementationOnce(() => { throw new Error('Invalid locale error') })
   expect.assertions(1)
 
   const wrappedFunc = () => {
@@ -145,12 +145,12 @@ test('Runs Contentful Import', () => {
     errorLogFile: 'errorlogfile'
   })
     .then(() => {
-      expect(initClientStub.mock.calls).toHaveLength(1)
-      expect(getDestinationResponseStub.mock.calls).toHaveLength(1)
-      expect(transformSpaceStub.mock.calls).toHaveLength(1)
-      expect(pushToSpaceStub.mock.calls).toHaveLength(1)
+      expect((initClientStub as jest.Mock).mock.calls).toHaveLength(1)
+      expect((getDestinationResponseStub as jest.Mock).mock.calls).toHaveLength(1)
+      expect((transformSpaceStub as jest.Mock).mock.calls).toHaveLength(1)
+      expect((pushToSpaceStub as jest.Mock).mock.calls).toHaveLength(1)
 
-      const introTable = TableStub.mock.instances[0]
+      const introTable = (TableStub as jest.Mock).mock.instances[0]
       expect(introTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'The following entities are going to be imported:' }])
       expect(introTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
       expect(introTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
@@ -161,7 +161,7 @@ test('Runs Contentful Import', () => {
       expect(introTable.push.mock.calls[7][0]).toEqual(['Webhooks', 0])
       expect(introTable.push.mock.calls).toHaveLength(8)
 
-      const resultTable = TableStub.mock.instances[1]
+      const resultTable = (TableStub as jest.Mock).mock.instances[1]
       expect(resultTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'Imported entities' }])
       expect(resultTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
       expect(resultTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
@@ -186,7 +186,7 @@ test('Creates a valid and correct opts object', () => {
     retryLimit: 2
   })
     .then(() => {
-      const opts = initClientStub.mock.calls[0][0]
+      const opts = (initClientStub as jest.Mock).mock.calls[0][0]
       expect(opts.skipContentModel).toBeFalsy()
       expect(opts.errorLogFile).toBe(resolve(process.cwd(), errorLogFile))
       expect(opts.spaceId).toBe(exampleConfig.spaceId)
@@ -233,7 +233,7 @@ test('Intro CLI table respects skipContentModel', () => {
     skipContentModel: true
   })
     .then(() => {
-      const introTable = TableStub.mock.instances[0]
+      const introTable = (TableStub as jest.Mock).mock.instances[0]
       expect(introTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'The following entities are going to be imported:' }])
       expect(introTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
       expect(introTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
@@ -283,7 +283,7 @@ test('Intro CLI table respects contentModelOnly and skipLocales', () => {
     skipLocales: true
   })
     .then(() => {
-      const introTable = TableStub.mock.instances[0]
+      const introTable = (TableStub as jest.Mock).mock.instances[0]
       expect(introTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'The following entities are going to be imported:' }])
       expect(introTable.push.mock.calls[1][0]).toEqual(['Content Types', 2])
       expect(introTable.push.mock.calls[2][0]).toEqual(['Editor Interfaces', 2])
@@ -329,7 +329,7 @@ test('Intro CLI table respects contentModelOnly', () => {
     contentModelOnly: true
   })
     .then(() => {
-      const introTable = TableStub.mock.instances[0]
+      const introTable = (TableStub as jest.Mock).mock.instances[0]
       expect(introTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'The following entities are going to be imported:' }])
       expect(introTable.push.mock.calls[1][0]).toEqual(['Content Types', 2])
       expect(introTable.push.mock.calls[2][0]).toEqual(['Editor Interfaces', 2])
