@@ -60,7 +60,7 @@ test('applies transformers to give space data', () => {
 
 test('applies custom transformers to give space data', () => {
   const result = transformSpace(space, destinationSpace, {
-    entries: (entry) => 'transformed'
+    entries: () => 'transformed'
   })
   expect(result.entries?.[0]?.transformed).toBe('transformed')
 })

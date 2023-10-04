@@ -41,7 +41,7 @@ test('Create entities', () => {
     ]),
     requestQueue
   })
-    .then((response) => {
+    .then(() => {
       expect(target.createAssetWithId.mock.calls).toHaveLength(1)
       expect(updateStub.mock.calls).toHaveLength(1)
       expect(logEmitter.emit.mock.calls).toHaveLength(2)
@@ -105,7 +105,7 @@ test('Create entries', () => {
     destinationEntitiesById: destinationEntries,
     requestQueue
   })
-    .then((response) => {
+    .then(() => {
       expect(target.createEntryWithId.mock.calls).toHaveLength(1)
       expect(target.createEntry.mock.calls).toHaveLength(1)
       expect(updateStub.mock.calls).toHaveLength(1)
@@ -147,7 +147,7 @@ test('Create entries and remove unknown fields', () => {
     destinationEntitiesById: destinationEntries,
     requestQueue
   })
-    .then((response) => {
+    .then(() => {
       expect(updateStub.mock.calls).toHaveLength(2)
       expect('existingfield' in entries[0].transformed.fields).toBeTruthy()
       expect('gonefield' in entries[0].transformed.fields).toBeFalsy()
@@ -220,7 +220,7 @@ test('Create private tags', () => {
     destinationEntitiesById: new Map(),
     requestQueue
   })
-    .then((response) => {
+    .then(() => {
       expect(target.createTag.mock.calls).toHaveLength(1)
       expect(target.createTag).toHaveBeenCalledWith('testTag', 'Test Tag', 'private')
     })
@@ -255,7 +255,7 @@ test('Create default private tags', () => {
     destinationEntitiesById: new Map(),
     requestQueue
   })
-    .then((response) => {
+    .then(() => {
       expect(target.createTag.mock.calls).toHaveLength(1)
       expect(target.createTag).toHaveBeenCalledWith('testTag', 'Test Tag', 'private')
     })
@@ -292,7 +292,7 @@ test('Create public tags', () => {
     destinationEntitiesById: new Map(),
     requestQueue
   })
-    .then((response) => {
+    .then(() => {
       expect(target.createTag.mock.calls).toHaveLength(1)
       expect(target.createTag).toHaveBeenCalledWith('testTag', 'Test Tag', 'public')
     })

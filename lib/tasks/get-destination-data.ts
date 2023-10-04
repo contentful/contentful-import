@@ -136,7 +136,7 @@ export default async function getDestinationData ({
   }
 
   // include tags even if contentModelOnly = true
-  result.tags = environment.getTags().then(response => response.items).catch((e) => {
+  result.tags = environment.getTags().then(response => response.items).catch(() => {
     // users without access to Tags will get 404
     // if they dont have access, remove tags array so they're not handled in future steps
     delete result.tags

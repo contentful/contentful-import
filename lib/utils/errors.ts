@@ -14,3 +14,7 @@ export class ContentfulValidationError extends Error {
     }
   }
 }
+
+export class ContentfulMultiError extends Error {
+  errors: ContentfulValidationError[]
+}
