@@ -1,10 +1,5 @@
 import { Readable } from 'stream'
-
-type MockedFs = {
-  __setMockFiles: (newMockFiles: any[]) => void;
-  stat: (filePath: string, callback: (err: Error | null, filePath?: string) => void) => void;
-  createReadStream: () => Readable;
-}
+import { MockedFs } from '../../types'
 
 const fs: MockedFs = jest.createMockFromModule('fs')
 
