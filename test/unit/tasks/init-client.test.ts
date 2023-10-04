@@ -34,7 +34,7 @@ test('does create clients and passes custom logHandler', () => {
 
   initClient(opts)
 
-  expect(contentfulManagement.createClient.mock.calls[0][0]).toMatchObject({
+  expect((contentfulManagement.createClient as jest.Mock).mock.calls[0][0]).toMatchObject({
     accessToken: opts.accessToken,
     host: opts.host,
     port: opts.port,
@@ -46,12 +46,12 @@ test('does create clients and passes custom logHandler', () => {
     application: opts.application,
     integration: opts.integration
   })
-  expect(contentfulManagement.createClient.mock.calls[0][0]).toHaveProperty('logHandler')
-  expect(contentfulManagement.createClient.mock.calls[0][0].timeout).toEqual(30000)
-  expect(contentfulManagement.createClient.mock.calls).toHaveLength(1)
+  expect((contentfulManagement.createClient as jest.Mock).mock.calls[0][0]).toHaveProperty('logHandler')
+  expect((contentfulManagement.createClient as jest.Mock).mock.calls[0][0].timeout).toEqual(30000)
+  expect((contentfulManagement.createClient as jest.Mock).mock.calls).toHaveLength(1);
 
   // Call passed log handler
-  contentfulManagement.createClient.mock.calls[0][0].logHandler('level', 'logMessage')
+  (contentfulManagement.createClient as jest.Mock).mock.calls[0][0].logHandler('level', 'logMessage')
 
   expect(logEmitter.emit.mock.calls[0][0]).toBe('level')
   expect(logEmitter.emit.mock.calls[0][1]).toBe('logMessage')
