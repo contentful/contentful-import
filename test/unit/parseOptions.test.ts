@@ -173,7 +173,7 @@ test('parseOption accepts proxy config as object', async () => {
   expect(options.httpsAgent.options.host).toBe('localhost')
   expect(options.httpsAgent.options.port).toBe(1234)
   expect(options.httpsAgent.options).not.toHaveProperty('auth')
-}, 'broken')
+})
 
 test('parseOption cleans up content to only include supported entity types', async () => {
   const options = await parseOptions({
