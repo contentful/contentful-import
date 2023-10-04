@@ -2,6 +2,7 @@ import Promise from 'bluebird'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import type { AssetProps, ContentTypeProps, EntryProps, LocaleProps, TagProps, WebhookProps } from 'contentful-management'
+import { OriginalSourceData } from '../types'
 
 const BATCH_CHAR_LIMIT = 1990
 const BATCH_SIZE_LIMIT = 100
@@ -68,6 +69,17 @@ type AllDestinationData = {
   webhooks?: Promise<WebhookProps[]>
 }
 
+type GetDestinationDataParams = {
+  client: any
+  spaceId: string
+  environmentId: string
+  sourceData: OriginalSourceData
+  contentModelOnly?: boolean
+  skipLocales?: boolean
+  skipContentModel?: boolean
+  requestQueue: any
+}
+
 /**
  * Gets content from a space which will have content copied to it, based on a
  * collection of existing content.
@@ -86,7 +98,7 @@ export default async function getDestinationData ({
   skipLocales,
   skipContentModel,
   requestQueue
-}) {
+}: GetDestinationDataParams) {
   const space = await client.getSpace(spaceId)
   const environment = await space.getEnvironment(environmentId)
   const result: AllDestinationData = {

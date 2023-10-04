@@ -7,6 +7,7 @@ import {
 } from '../../../../lib/tasks/push-to-space/assets'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { MockedFs } from '../../../types'
 
 jest.mock('contentful-batch-libs/dist/logging', () => ({
   logEmitter: {
@@ -30,8 +31,8 @@ beforeEach(() => {
     interval: 1000,
     intervalCap: 1000
   })
-  logEmitter.emit.mockClear()
-  fs.__setMockFiles(assetPaths)
+  logEmitter.emit.mockClear();
+  (fs as unknown as MockedFs).__setMockFiles(assetPaths)
 })
 
 test('Process assets', async () => {
