@@ -11,7 +11,7 @@ import {
 import transformSpace from '../../../lib/transform/transform-space'
 import { Resources, TransformedSourceData } from '../../../lib/types'
 import { TagSysProps } from 'contentful-management/dist/typings/entities/tag'
-import { AssetProps } from 'contentful-management'
+import type { AssetProps, LocaleProps, WebhookProps } from 'contentful-management'
 
 const tagMock = {
   sys: ({
@@ -31,9 +31,9 @@ type TransformedSourceDataWithDoNotTouch = TransformedSourceData & {
 const space: ResourcesWithDoNotTouch = {
   contentTypes: [contentTypeMock],
   entries: [entryMock],
-  assets: [assetMock],
-  locales: [localeMock],
-  webhooks: [webhookMock],
+  assets: [assetMock as unknown as AssetProps],
+  locales: [localeMock as LocaleProps],
+  webhooks: [webhookMock as WebhookProps],
   tags: [tagMock]
 }
 const destinationSpace = cloneDeep(space)
