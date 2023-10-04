@@ -22,10 +22,8 @@ export type AssetWithTransformed = {
   original: any
 }
 
-type OriginalContentType = ContentTypeProps
-
 type ContentTypeWithOriginal = {
-  original: OriginalContentType
+  original: ContentTypeProps
   transformed: any
 }
 
