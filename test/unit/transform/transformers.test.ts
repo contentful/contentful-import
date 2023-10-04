@@ -2,6 +2,8 @@ import { cloneMock } from 'contentful-batch-libs/test/mocks/'
 
 import * as transformers from '../../../lib/transform/transformers'
 
+const _ = {}
+
 test('It should transform processed asset', () => {
   const assetMock = cloneMock('asset')
   assetMock.fields = {
@@ -10,7 +12,7 @@ test('It should transform processed asset', () => {
       'de-DE': { fileName: 'filename.jpg', url: '//server/filename-de.jpg' }
     }
   }
-  const transformedAsset = transformers.assets(assetMock)
+  const transformedAsset = transformers.assets(assetMock, _)
   expect(transformedAsset.fields.file['en-US'].upload).toBeTruthy()
   expect(transformedAsset.fields.file['de-DE'].upload).toBeTruthy()
   expect(transformedAsset.fields.file['en-US'].upload).toBe('https:' + assetMock.fields.file['en-US'].url)
@@ -25,7 +27,7 @@ test('It should transform processed asset with and without protocol', () => {
       'de-DE': { fileName: 'filename.jpg', url: '//server/filename-de.jpg' }
     }
   }
-  const transformedAsset = transformers.assets(assetMock)
+  const transformedAsset = transformers.assets(assetMock, _)
   expect(transformedAsset.fields.file['en-US'].upload).toBeTruthy()
   expect(transformedAsset.fields.file['de-DE'].upload).toBeTruthy()
   expect(transformedAsset.fields.file['en-US'].upload).toBe(assetMock.fields.file['en-US'].url)
@@ -40,7 +42,7 @@ test('It should transform unprocessed asset', () => {
       'de-DE': { fileName: 'filename.jpg', upload: '//server/filename-de.jpg' }
     }
   }
-  const transformedAsset = transformers.assets(assetMock)
+  const transformedAsset = transformers.assets(assetMock, _)
   expect(transformedAsset.fields.file['en-US'].upload).toBeTruthy()
   expect(transformedAsset.fields.file['de-DE'].upload).toBeTruthy()
   expect(transformedAsset.fields.file['en-US'].upload).toBe('https:' + assetMock.fields.file['en-US'].upload)
@@ -55,7 +57,7 @@ test('It should transform unprocessed asset with uploadFrom', () => {
       'de-DE': { fileName: 'filename.jpg', uploadFrom: { sys: { id: 'upload-de-DE' } } }
     }
   }
-  const transformedAsset = transformers.assets(assetMock)
+  const transformedAsset = transformers.assets(assetMock, _)
   expect(transformedAsset.fields.file['en-US'].uploadFrom).toBeTruthy()
   expect(transformedAsset.fields.file['de-DE'].uploadFrom).toBeTruthy()
   expect(transformedAsset.fields.file['en-US'].uploadFrom.sys.id).toBe(assetMock.fields.file['en-US'].uploadFrom.sys.id)
