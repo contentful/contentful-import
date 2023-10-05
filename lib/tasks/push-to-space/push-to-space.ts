@@ -8,6 +8,7 @@ import * as assets from './assets'
 import * as creation from './creation'
 import * as publishing from './publishing'
 import type { DestinationData, TransformedSourceData, Resources } from '../../types'
+import { ContentfulEntityError } from '../../utils/errors'
 
 const DEFAULT_CONTENT_STRUCTURE = {
   entries: [],
@@ -192,8 +193,10 @@ export default function pushToSpace ({
 
             const updatedEditorInterface = await requestQueue.add(() => ctEditorInterface.update())
             return updatedEditorInterface
-          } catch (err) {
-            err.entity = editorInterface
+          } catch (err: any) {
+            if (err instanceof ContentfulEntityError) {
+              err.entity = editorInterface
+            }
             throw err
           }
         })

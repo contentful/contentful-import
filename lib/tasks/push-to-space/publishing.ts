@@ -1,5 +1,6 @@
 import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { ContentfulEntityError } from '../../utils/errors'
 
 /**
  * Publish a list of entities.
@@ -52,8 +53,10 @@ export async function archiveEntities ({ entities, requestQueue }) {
       try {
         const archivedEntity = await entity.archive()
         return archivedEntity
-      } catch (err) {
-        err.entity = entity
+      } catch (err: any) {
+        if (err instanceof ContentfulEntityError) {
+          err.entity = entity
+        }
         logEmitter.emit('error', err)
         return null
       }
@@ -76,8 +79,10 @@ async function runQueue (queue, result = [], requestQueue) {
     try {
       const publishedEntity = await requestQueue.add(() => entity.publish())
       publishedEntities.push(publishedEntity)
-    } catch (err) {
-      err.entity = entity
+    } catch (err: any) {
+      if (err instanceof ContentfulEntityError) {
+        err.entity = entity
+      }
       logEmitter.emit('error', err)
     }
   }

@@ -4,7 +4,7 @@ import { promisify } from 'util'
 
 import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
-import { ContentfulAssetError } from '../../utils/errors'
+import { ContentfulAssetError, ContentfulEntityError } from '../../utils/errors'
 
 const stat = promisify(fs.stat)
 
@@ -15,7 +15,10 @@ export async function getAssetStreamForURL (url, assetsDirectory) {
     await stat(filePath)
     return fs.createReadStream(filePath)
   } catch (err) {
-    const error = new ContentfulAssetError('Cannot open asset from filesystem', filePath)
+    const error = new ContentfulAssetError(
+      'Cannot open asset from filesystem',
+      filePath
+    )
     throw error
   }
 }
@@ -23,8 +26,10 @@ export async function getAssetStreamForURL (url, assetsDirectory) {
 async function processAssetForLocale (locale, asset, processingOptions) {
   try {
     return await asset.processForLocale(locale, processingOptions)
-  } catch (err) {
-    err.entity = asset
+  } catch (err: any) {
+    if (err instanceof ContentfulEntityError) {
+      err.entity = asset
+    }
     logEmitter.emit('error', err)
     throw err
   }
@@ -46,12 +51,12 @@ async function lastResult (promises) {
 }
 
 type ProcessAssetsParams = {
-  assets: any[]
-  timeout?: number
-  retryLimit?: number
-  requestQueue: any
-  locales?: string[]
-}
+  assets: any[];
+  timeout?: number;
+  retryLimit?: number;
+  requestQueue: any;
+  locales?: string[];
+};
 
 export async function processAssets ({
   assets,

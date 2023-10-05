@@ -3,6 +3,7 @@ import { assign, get, omitBy, omit } from 'lodash/object'
 
 import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { ContentfulEntityError } from '../../utils/errors'
 
 type CreateEntitiesParams = {
   context: any,
@@ -108,16 +109,20 @@ async function createEntry ({ entry, target, skipContentModel, destinationEntiti
     creationSuccessNotifier(operation, createdOrUpdatedEntry)
 
     return createdOrUpdatedEntry
-  } catch (err) {
+  } catch (err: any) {
     /* If a field doesn't exist, it means it has been removed from the content types
      * In that case, the field is removed from the entry, and creation is attempted again.
     */
-    if (skipContentModel && err.name === 'UnknownField') {
-      const errors = get(JSON.parse(err.message), 'details.errors')
-      entry.transformed.fields = cleanupUnknownFields(entry.transformed.fields, errors)
-      return createEntry({ entry, target, skipContentModel, destinationEntitiesById, requestQueue })
+    if (err instanceof Error) {
+      if (skipContentModel && err.name === 'UnknownField') {
+        const errors = get(JSON.parse(err.message), 'details.errors')
+        entry.transformed.fields = cleanupUnknownFields(entry.transformed.fields, errors)
+        return createEntry({ entry, target, skipContentModel, destinationEntitiesById, requestQueue })
+      }
     }
-    err.entity = entry
+    if (err instanceof ContentfulEntityError) {
+      err.entity = entry
+    }
     logEmitter.emit('error', err)
 
     // No need to pass this entry down to publishing if it wasn't created
