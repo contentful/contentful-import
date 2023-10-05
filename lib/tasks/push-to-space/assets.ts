@@ -37,9 +37,9 @@ async function processAssetForLocale (locale, asset, processingOptions) {
 
 // From
 // https://stackoverflow.com/questions/67339630/how-to-get-last-resolved-promise-from-a-list-of-resolved-promises-in-javascript
-async function lastResult (promises) {
+async function lastResult (promises: Promise<any>[]) {
   if (!promises.length) throw new RangeError('No last result from no promises')
-  const results = []
+  const results: any[] = []
   await Promise.all(
     promises.map((p) =>
       p.then((v) => {

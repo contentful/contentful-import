@@ -4,12 +4,16 @@ import { assign, get, omitBy, omit } from 'lodash/object'
 import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { ContentfulEntityError } from '../../utils/errors'
+import { TransformedSourceData, TransformedSourceDataUnion } from '../../types'
+import PQueue from 'p-queue'
+import { PushToSpaceContext } from './push-to-space'
+import { LocaleProps } from 'contentful-management'
 
 type CreateEntitiesParams = {
-  context: any,
-  entities: any[],
+  context: PushToSpaceContext,
+  entities: TransformedSourceDataUnion,
   destinationEntitiesById: Map<string, any>,
-  requestQueue: any
+  requestQueue: PQueue
 }
 
 /**
@@ -23,7 +27,14 @@ export function createEntities ({ context, entities, destinationEntitiesById, re
 
 // TODO
 // Locales need to be created in series
-export function createLocales ({ context, entities, destinationEntitiesById, requestQueue }) {
+type CreateLocalesParams = {
+  context: PushToSpaceContext,
+  entities: TransformedSourceData['locales'],
+  destinationEntitiesById: Map<string, any>,
+  requestQueue: PQueue
+}
+
+export function createLocales ({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
   return createEntitiesInSequence({ context, entities, destinationEntitiesById, requestQueue })
 }
 
@@ -53,8 +64,9 @@ async function createEntitiesWithConcurrency ({ context, entities, destinationEn
   return createdEntities.filter((entity) => entity)
 }
 
-async function createEntitiesInSequence ({ context, entities, destinationEntitiesById, requestQueue }) {
-  const createdEntities = []
+async function createEntitiesInSequence ({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
+  const createdEntities: LocaleProps[] = []
+
   for (const entity of entities) {
     const destinationEntity = getDestinationEntityForSourceEntity(destinationEntitiesById, entity.transformed)
     const operation = destinationEntity ? 'update' : 'create'

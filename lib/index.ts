@@ -16,7 +16,7 @@ import pushToSpace from './tasks/push-to-space/push-to-space'
 import transformSpace from './transform/transform-space'
 import { assertDefaultLocale, assertPayload } from './utils/validations'
 import parseOptions from './parseOptions'
-import { ContentfulMultiError } from './utils/errors'
+import { ContentfulMultiError, LogItem } from './utils/errors'
 
 const ONE_SECOND = 1000
 
@@ -33,7 +33,7 @@ function createListrOptions (options) {
 }
 
 async function runContentfulImport (params) {
-  const log = []
+  const log: LogItem[] = []
   const options = await parseOptions(params)
   const listrOptions = createListrOptions(options)
   const requestQueue = new PQueue({

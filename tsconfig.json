@@ -7,7 +7,7 @@
     "outDir": "./dist",
     "strict": true,
     "noImplicitAny": false,
-    "strictNullChecks": false,
+    "strictNullChecks": true,
     "strictFunctionTypes": true,
     "strictBindCallApply": false,
     "strictPropertyInitialization": false,

@@ -1,6 +1,8 @@
 import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { ContentfulEntityError } from '../../utils/errors'
+import { ResourcesUnion } from '../../types'
+import PQueue from 'p-queue'
 
 /**
  * Publish a list of entities.
@@ -71,8 +73,8 @@ export async function archiveEntities ({ entities, requestQueue }) {
   return allArchivedEntities
 }
 
-async function runQueue (queue, result = [], requestQueue) {
-  const publishedEntities = []
+async function runQueue (queue, result: ResourcesUnion = [], requestQueue: PQueue) {
+  const publishedEntities: ResourcesUnion = []
 
   for (const entity of queue) {
     logEmitter.emit('info', `Publishing ${entity.sys.type} ${getEntityName(entity)}`)

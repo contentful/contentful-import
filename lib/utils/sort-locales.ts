@@ -5,7 +5,7 @@
 export default function sortLocales (locales) {
   const localeByFallback = {}
 
-  locales.forEach(locale => {
+  locales.forEach((locale) => {
     if (locale.fallbackCode === null) {
       locale.fallbackCode = undefined
     }
@@ -21,14 +21,19 @@ export default function sortLocales (locales) {
 }
 
 function sortByFallbackKey (localeByFallback, key?: string) {
-  if (!localeByFallback[key]) {
+  // We expect localeByFallback to actually use undefined as property
+  // to access fallback locales, as this is not allowed in TS, we have
+  // to stringify key here
+  if (!localeByFallback[`${key}`]) {
     return []
   }
 
-  const sortedLocales = localeByFallback[key]
+  const sortedLocales = localeByFallback[`${key}`]
 
   sortedLocales.forEach((locale) => {
-    sortByFallbackKey(localeByFallback, locale.code).forEach((x) => sortedLocales.push(x))
+    sortByFallbackKey(localeByFallback, locale.code).forEach((x) =>
+      sortedLocales.push(x)
+    )
   })
 
   // We have to reset the undefined fallback code to null so that the locales are properly created without fallback and
