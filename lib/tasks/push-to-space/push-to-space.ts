@@ -7,7 +7,7 @@ import { wrapTask } from 'contentful-batch-libs/dist/listr'
 import * as assets from './assets'
 import * as creation from './creation'
 import * as publishing from './publishing'
-import type { DestinationData, TransformedSourceData, Resources } from '../../types'
+import type { DestinationData, TransformedSourceData, Resources, TransformedAsset } from '../../types'
 import { ContentfulEntityError } from '../../utils/errors'
 
 const DEFAULT_CONTENT_STRUCTURE = {
@@ -63,6 +63,11 @@ type PushToSpaceParams = {
  * - uploadAssets: upload exported files instead of pointing to an existing URL
  * - assetsDirectory: path to exported asset files to be uploaded instead of pointing to an existing URL
  */
+
+export type PushToSpaceContext = {
+    type: string,
+    target: any,
+}
 
 export default function pushToSpace ({
   sourceData,
@@ -120,6 +125,9 @@ export default function pushToSpace ({
     {
       title: 'Importing Locales',
       task: wrapTask(async (ctx) => {
+        if (!destinationDataById.locales) {
+          return
+        }
         const locales = await creation.createLocales({
           context: { target: ctx.environment, type: 'Locale' },
           entities: sourceData.locales,
@@ -134,6 +142,9 @@ export default function pushToSpace ({
     {
       title: 'Importing Content Types',
       task: wrapTask(async (ctx) => {
+        if (!destinationDataById.contentTypes) {
+          return
+        }
         const contentTypes = await creation.createEntities({
           context: { target: ctx.environment, type: 'ContentType' },
           entities: sourceData.contentTypes,
@@ -160,13 +171,15 @@ export default function pushToSpace ({
     {
       title: 'Importing Tags',
       task: wrapTask(async (ctx) => {
-        const tags = await creation.createEntities({
-          context: { target: ctx.environment, type: 'Tag' },
-          entities: sourceData.tags,
-          destinationEntitiesById: destinationDataById.tags,
-          requestQueue
-        })
-        ctx.data.tags = tags
+        if (sourceData.tags && destinationDataById.tags) {
+          const tags = await creation.createEntities({
+            context: { target: ctx.environment, type: 'Tag' },
+            entities: sourceData.tags,
+            destinationEntitiesById: destinationDataById.tags,
+            requestQueue
+          })
+          ctx.data.tags = tags
+        }
       }),
       // we remove `tags` from destination data if an error was thrown trying to access them
       // this means the user doesn't have access to this feature, skip importing tags
@@ -176,6 +189,10 @@ export default function pushToSpace ({
       title: 'Importing Editor Interfaces',
       task: wrapTask(async (ctx) => {
         const allEditorInterfacesBeingFetched = ctx.data.contentTypes.map(async (contentType) => {
+          if (!sourceData.editorInterfaces) {
+            return
+          }
+
           const editorInterface = sourceData.editorInterfaces.find((editorInterface) => {
             return editorInterface.sys.contentType.sys.id === contentType.sys.id
           })
@@ -211,7 +228,7 @@ export default function pushToSpace ({
     {
       title: 'Uploading Assets',
       task: wrapTask(async (ctx) => {
-        const allPendingUploads = []
+        const allPendingUploads: TransformedAsset[] = []
 
         for (const asset of sourceData.assets) {
           for (const file of Object.values(asset.transformed.fields.file)) {
@@ -253,6 +270,9 @@ export default function pushToSpace ({
     {
       title: 'Importing Assets',
       task: wrapTask(async (ctx) => {
+        if (!destinationDataById.assets) {
+          return
+        }
         const assetsToProcess = await creation.createEntities({
           context: { target: ctx.environment, type: 'Asset' },
           entities: sourceData.assets,
@@ -334,6 +354,9 @@ export default function pushToSpace ({
     {
       title: 'Creating Web Hooks',
       task: wrapTask(async (ctx) => {
+        if (!sourceData.webhooks || !destinationDataById.webhooks) {
+          return
+        }
         const webhooks = await creation.createEntities({
           context: { target: ctx.space, type: 'Webhook' },
           entities: sourceData.webhooks,

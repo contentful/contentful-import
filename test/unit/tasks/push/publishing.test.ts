@@ -5,6 +5,7 @@ import {
 } from '../../../../lib/tasks/push-to-space/publishing'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { AssetProps } from 'contentful-management'
 
 jest.mock('contentful-batch-libs/dist/logging', () => ({
   logEmitter: {
@@ -40,7 +41,7 @@ test('Publish entities', () => {
   })
     .then((response) => {
       expect(publishStub.mock.calls).toHaveLength(2)
-      expect(response[0].sys.publishedVersion).toBeTruthy()
+      expect((response[0] as AssetProps).sys.publishedVersion).toBeTruthy()
       expect(logEmitter.emit.mock.calls).toHaveLength(4)
       const warningCount = logEmitter.emit.mock.calls.filter((args) => args[0] === 'warning').length
       const errorCount = logEmitter.emit.mock.calls.filter((args) => args[0] === 'error').length

@@ -10,10 +10,12 @@ export type Resources = {
   webhooks?: WebhookProps[]
 }
 
+export type ResourcesUnion = (ContentTypeProps | TagProps | LocaleProps | EntryProps | AssetProps | EditorInterfaceProps | WebhookProps)[]
+
 export type DestinationData = Resources
 
 export type TransformedAsset = {
-  fields: { file: { upload: string, uploadFrom: Link<'Upload'> }[] },
+  fields: { file: { upload?: string, uploadFrom: Link<'Upload'> }[] },
   sys: {id: string}
 }
 
@@ -26,10 +28,24 @@ export type EntityTransformed<TransformedType, OriginalType> = {
 // tests align with types. Next step should be to completely
 // understand how the data is being transformed before being passed to
 // pushToSpace and expand and restrict the types accordingly
-export type TransformedSourceData = Pick<Resources, 'tags' | 'locales' | 'webhooks' | 'editorInterfaces'> & {
+export type TransformedSourceData = {
   assets: EntityTransformed<TransformedAsset, any>[]
   contentTypes: EntityTransformed<ContentTypeProps, any>[]
   entries: EntityTransformed<EntryProps, any>[]
+  locales: EntityTransformed<LocaleProps, any>[]
+  tags: EntityTransformed<TagProps, any>[]
+  webhooks: EntityTransformed<WebhookProps, any>[]
+  editorInterfaces: EditorInterfaceProps[]
 }
+
+export type TransformedSourceDataUnion = (
+  EntityTransformed<TransformedAsset, any> |
+  EntityTransformed<ContentTypeProps, any> |
+  EntityTransformed<EntryProps, any> |
+  EntityTransformed<LocaleProps, any> |
+  EntityTransformed<TagProps, any> |
+  EntityTransformed<WebhookProps, any> |
+  EntityTransformed<EditorInterfaceProps, any>
+)[]
 
 export type OriginalSourceData = Resources

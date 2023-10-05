@@ -3,6 +3,7 @@ import Promise from 'bluebird'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import type { AssetProps, ContentTypeProps, EntryProps, LocaleProps, TagProps, WebhookProps } from 'contentful-management'
 import { OriginalSourceData } from '../types'
+import PQueue from 'p-queue'
 
 const BATCH_CHAR_LIMIT = 1990
 const BATCH_SIZE_LIMIT = 100
@@ -14,7 +15,14 @@ const METHODS = {
   assets: { name: 'assets', method: 'getAssets' }
 }
 
-async function batchedIdQuery ({ environment, type, ids, requestQueue }) {
+type BatchedIdQueryParams = {
+  requestQueue: PQueue
+  environment: any
+  type: keyof typeof METHODS
+  ids: string[]
+}
+
+async function batchedIdQuery ({ environment, type, ids, requestQueue }: BatchedIdQueryParams) {
   const method = METHODS[type].method
   const entityTypeName = METHODS[type].name
   const batches = getIdBatches(ids)
@@ -41,7 +49,7 @@ async function batchedIdQuery ({ environment, type, ids, requestQueue }) {
 }
 
 function getIdBatches (ids) {
-  const batches = []
+  const batches: string[] = []
   let currentBatch = ''
   let currentSize = 0
   while (ids.length > 0) {
@@ -77,7 +85,7 @@ type GetDestinationDataParams = {
   contentModelOnly?: boolean
   skipLocales?: boolean
   skipContentModel?: boolean
-  requestQueue: any
+  requestQueue: PQueue
 }
 
 /**
@@ -116,22 +124,26 @@ export default async function getDestinationData ({
   }
 
   if (!skipContentModel) {
-    const contentTypeIds = sourceData.contentTypes.map((e) => e.sys.id)
-    result.contentTypes = batchedIdQuery({
-      environment,
-      type: 'contentTypes',
-      ids: contentTypeIds,
-      requestQueue
-    })
-
-    if (!skipLocales) {
-      const localeIds = sourceData.locales.map((e) => e.sys.id)
-      result.locales = batchedIdQuery({
+    const contentTypeIds = sourceData.contentTypes?.map((e) => e.sys.id)
+    if (contentTypeIds) {
+      result.contentTypes = batchedIdQuery({
         environment,
-        type: 'locales',
-        ids: localeIds,
+        type: 'contentTypes',
+        ids: contentTypeIds,
         requestQueue
       })
+    }
+
+    if (!skipLocales) {
+      const localeIds = sourceData.locales?.map((e) => e.sys.id)
+      if (localeIds) {
+        result.locales = batchedIdQuery({
+          environment,
+          type: 'locales',
+          ids: localeIds,
+          requestQueue
+        })
+      }
     }
   }
 
@@ -146,20 +158,25 @@ export default async function getDestinationData ({
     return Promise.props(result)
   }
 
-  const entryIds = sourceData.entries.map((e) => e.sys.id)
-  const assetIds = sourceData.assets.map((e) => e.sys.id)
-  result.entries = batchedIdQuery({
-    environment,
-    type: 'entries',
-    ids: entryIds,
-    requestQueue
-  })
-  result.assets = batchedIdQuery({
-    environment,
-    type: 'assets',
-    ids: assetIds,
-    requestQueue
-  })
+  const entryIds = sourceData.entries?.map((e) => e.sys.id)
+  const assetIds = sourceData.assets?.map((e) => e.sys.id)
+  if (entryIds) {
+    result.entries = batchedIdQuery({
+      environment,
+      type: 'entries',
+      ids: entryIds,
+      requestQueue
+    })
+  }
+  if (assetIds) {
+    result.assets = batchedIdQuery({
+      environment,
+      type: 'assets',
+      ids: assetIds,
+      requestQueue
+    })
+  }
+
   result.webhooks = []
 
   return Promise.props(result)

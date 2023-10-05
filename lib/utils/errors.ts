@@ -8,6 +8,13 @@ export class ContentfulAssetError extends Error {
   }
 }
 
+export type LogItem = {
+  ts: string
+  level: string
+  error?: Error
+  message?: string
+}
+
 export class ContentfulValidationError extends Error {
   error?: {
     sys: { id: string };
@@ -22,5 +29,5 @@ export class ContentfulEntityError extends Error {
 }
 
 export class ContentfulMultiError extends Error {
-  errors: ContentfulValidationError[]
+  errors: LogItem[]
 }

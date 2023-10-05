@@ -21,7 +21,7 @@ export default function sortLocales (locales) {
 }
 
 function sortByFallbackKey (localeByFallback, key?: string) {
-  if (!localeByFallback[key]) {
+  if ((key && !localeByFallback[key]) || !key) {
     return []
   }
 

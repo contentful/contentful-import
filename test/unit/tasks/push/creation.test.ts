@@ -3,6 +3,8 @@ import { createEntities, createLocales, createEntries } from '../../../../lib/ta
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { ContentfulValidationError } from '../../../../lib/utils/errors'
+import { EntityTransformed } from '../../../../lib/types'
+import { LocaleProps, TagProps } from 'contentful-management'
 
 jest.mock('contentful-batch-libs/dist/logging', () => ({
   logEmitter: {
@@ -33,8 +35,8 @@ test('Create entities', () => {
   return createEntities({
     context: { target, type: 'Asset' },
     entities: [
-      { original: { sys: {} }, transformed: { sys: { id: '123' } } },
-      { original: { sys: {} }, transformed: { sys: { id: '456' } } }
+      { original: { sys: {} }, transformed: { sys: { id: '123' } } as any },
+      { original: { sys: {} }, transformed: { sys: { id: '456' } } as any }
     ],
     destinationEntitiesById: new Map([
       ['123', { sys: { id: '123', version: 6 }, update: updateStub }]
@@ -61,7 +63,8 @@ test('Create entities handle regular errors', () => {
   const entries = [{
     original: { sys: { contentType: { sys: { id: 'ctid' } } } },
     transformed: { sys: { id: '123' }, fields: { gonefield: '', existingfield: '' } }
-  }]
+  }] as any[]
+
   const destinationEntries = new Map([
     ['123', { sys: { id: '123', version: 6 }, update: updateStub }]
   ])
@@ -212,7 +215,7 @@ test('Create private tags', () => {
         }
       }
     }
-  ]
+  ] as EntityTransformed<TagProps, any>[]
 
   return createEntities({
     context: { target, type: 'Tag' },
@@ -247,7 +250,7 @@ test('Create default private tags', () => {
         }
       }
     }
-  ]
+  ] as EntityTransformed<TagProps, any>[]
 
   return createEntities({
     context: { target, type: 'Tag' },
@@ -284,7 +287,7 @@ test('Create public tags', () => {
         }
       }
     }
-  ]
+  ] as EntityTransformed<TagProps, any>[]
 
   return createEntities({
     context: { target, type: 'Tag' },
@@ -309,7 +312,7 @@ test('Fails to create locale if it already exists', () => {
       errors: [{ name: 'taken' }]
     }
   }
-  const entity = { original: { sys: { } }, transformed: { sys: { } } }
+  const entity = { original: { sys: { } }, transformed: { sys: { } } } as EntityTransformed<LocaleProps, any>
 
   return createLocales({
     context: { target, type: 'Locale' },

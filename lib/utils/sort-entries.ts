@@ -69,7 +69,7 @@ function isEntityArray (item) {
  * Merge sort (http://en.wikipedia.org/wiki/Merge_sort)
  * @version 0.1.0 (2012/05/23)
  */
-function mergeSort (arr, compareFn) {
+function mergeSort (arr: any[], compareFn) {
   if (arr.length < 2) return arr
 
   if (compareFn == null) compareFn = defaultCompare
@@ -86,7 +86,7 @@ function defaultCompare (a, b) {
 }
 
 function merge (left, right, compareFn) {
-  const result = []
+  const result: any[] = []
 
   while (left.length && right.length) {
     if (compareFn(left[0], right[0]) <= 0) {
