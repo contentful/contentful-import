@@ -55,7 +55,7 @@ type RunContentfulImportParams = {
   // TODO These properties are not documented in the Readme
   timeout?: number,
   retryLimit?: number,
-  config?: object,
+  config?: string,
 }
 
 async function runContentfulImport (params: RunContentfulImportParams) {

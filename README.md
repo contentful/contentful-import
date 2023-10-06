@@ -168,6 +168,16 @@ Maximum requests per second used for API requests
 
 Additional headers to attach to the requests.
 
+### Assets
+
+#### `timeout` [number] [default: 3000]
+
+Time between retries on asset processing
+
+#### `retryLimit` [number] [default: 10]
+
+Maximum number of retries for asset processing
+
 ### Other
 
 #### `errorLogFile` [string]
@@ -177,6 +187,10 @@ Full path to the error log file
 #### `useVerboseRenderer` [boolean] [default: false]
 
 Display progress in new lines instead of displaying a busy spinner and the status in the same line. Useful for CI.
+
+### `config` [string]
+
+Path to a JSON file with the configuration options. This file will be merged with the options passed to the function. The options passed to the function will take precedence over the ones in the config file.
 
 ## :rescue_worker_helmet: Troubleshooting
 
