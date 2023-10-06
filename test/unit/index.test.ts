@@ -96,7 +96,7 @@ test('Stops import when default locales does not match', async () => {
         ]
       },
       spaceId: 'SPACE_ID',
-      managementToken: 'managementToken'
+      managementToken: 'MANAGEMENT_TOKEN'
     })
   }
 
@@ -187,7 +187,7 @@ test('Creates a valid and correct opts object', () => {
     timeout: 500,
     retryLimit: 2,
     spaceId: 'SPACE_ID',
-    managementToken: 'managementToken'
+    managementToken: 'MANAGEMENT_TOKEN'
   })
     .then(() => {
       const opts = (initClientStub as jest.Mock).mock.calls[0][0]
