@@ -134,7 +134,7 @@ Skip importing of locales
 
 Skips content publishing. Creates content but does not publish it
 
-## Assets
+### Assets
 
 #### `uploadAssets` [boolean] [default: false]
 
@@ -184,7 +184,7 @@ Full path to the error log file
 
 Display progress in new lines instead of displaying a busy spinner and the status in the same line. Useful for CI.
 
-### `config` [string]
+#### `config` [string]
 
 Path to a JSON file with the configuration options. This file will be merged with the options passed to the function. The options passed to the function will take precedence over the ones in the config file.
 
