@@ -146,6 +146,14 @@ Upload local asset files downloaded via the [downloadAssets](https://github.com/
 
 Path to a directory with an asset export made using the [downloadAssets](https://github.com/contentful/contentful-export#downloadassets-boolean) option of the export. Requires `uploadAssets`
 
+#### `timeout` [number] [default: 3000]
+
+Time between retries on asset processing
+
+#### `retryLimit` [number] [default: 10]
+
+Maximum number of retries for asset processing
+
 ### Connection
 
 #### `host` [string] [default: 'api.contentful.com']
@@ -167,16 +175,6 @@ Maximum requests per second used for API requests
 #### `headers` [object]
 
 Additional headers to attach to the requests.
-
-### Assets
-
-#### `timeout` [number] [default: 3000]
-
-Time between retries on asset processing
-
-#### `retryLimit` [number] [default: 10]
-
-Maximum number of retries for asset processing
 
 ### Other
 
