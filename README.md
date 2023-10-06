@@ -2,8 +2,6 @@
 
 [![npm](https://img.shields.io/npm/v/contentful-import.svg)](https://www.npmjs.com/package/contentful-import)
 [![CircleCI](https://circleci.com/gh/contentful/contentful-import.svg?style=shield)](https://circleci.com/gh/contentful/contentful-import/?branch=master)
-[![Dependency Status](https://img.shields.io/david/contentful/contentful-import.svg)](https://david-dm.org/contentful/contentful-import)
-[![devDependency Status](https://img.shields.io/david/dev/contentful/contentful-import.svg)](https://david-dm.org/contentful/contentful-import#info=devDependencies)
 
 [![semantic-release](https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--release-e10079.svg)](https://github.com/semantic-release/semantic-release) [![js-standard-style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg)](http://standardjs.com/)
 
@@ -146,6 +144,14 @@ Upload local asset files downloaded via the [downloadAssets](https://github.com/
 
 Path to a directory with an asset export made using the [downloadAssets](https://github.com/contentful/contentful-export#downloadassets-boolean) option of the export. Requires `uploadAssets`
 
+#### `timeout` [number] [default: 3000]
+
+Time between retries on asset processing
+
+#### `retryLimit` [number] [default: 10]
+
+Maximum number of retries for asset processing
+
 ### Connection
 
 #### `host` [string] [default: 'api.contentful.com']
@@ -177,6 +183,10 @@ Full path to the error log file
 #### `useVerboseRenderer` [boolean] [default: false]
 
 Display progress in new lines instead of displaying a busy spinner and the status in the same line. Useful for CI.
+
+### `config` [string]
+
+Path to a JSON file with the configuration options. This file will be merged with the options passed to the function. The options passed to the function will take precedence over the ones in the config file.
 
 ## :rescue_worker_helmet: Troubleshooting
 

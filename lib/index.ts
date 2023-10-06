@@ -32,7 +32,33 @@ function createListrOptions (options) {
   }
 }
 
-async function runContentfulImport (params) {
+// These type definitions follow what is specified in the Readme
+type RunContentfulImportParams = {
+  spaceId: string,
+  environmentId?: string,
+  managementToken: string,
+  contentFile?: string,
+  content?: object,
+  contentModelOnly?: boolean,
+  skipContentModel?: boolean,
+  skipLocales?: boolean,
+  skipContentPublishing?: boolean,
+  uploadAssets?: boolean,
+  assetsDirectory?: string,
+  host?: string,
+  proxy?: string,
+  rawProxy?: string,
+  rateLimit?: number,
+  headers?: object,
+  errorLogFile?: string,
+  useVerboseRenderer?: boolean,
+  // TODO These properties are not documented in the Readme
+  timeout?: number,
+  retryLimit?: number,
+  config?: string,
+}
+
+async function runContentfulImport (params: RunContentfulImportParams) {
   const log: LogItem[] = []
   const options = await parseOptions(params)
   const listrOptions = createListrOptions(options)
