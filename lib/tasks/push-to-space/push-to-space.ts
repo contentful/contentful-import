@@ -207,6 +207,8 @@ export default function pushToSpace ({
             ctEditorInterface.controls = editorInterface.controls
             ctEditorInterface.groupControls = editorInterface.groupControls
             ctEditorInterface.editorLayout = editorInterface.editorLayout
+            ctEditorInterface.sidebar = editorInterface.sidebar
+            ctEditorInterface.editors = editorInterface.editors
 
             const updatedEditorInterface = await requestQueue.add(() => ctEditorInterface.update())
             return updatedEditorInterface

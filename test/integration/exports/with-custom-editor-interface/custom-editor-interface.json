@@ -1,0 +1,117 @@
+{
+  "contentTypes": [
+    {
+      "sys": {
+        "space": {
+          "sys": {
+            "type": "Link",
+            "linkType": "Space",
+            "id": "28p9vvm1oxuw"
+          }
+        },
+        "id": "person",
+        "type": "ContentType",
+        "createdAt": "2017-05-11T12:04:23.540Z",
+        "updatedAt": "2017-05-18T14:04:51.650Z",
+        "createdBy": {
+          "sys": {
+            "type": "Link",
+            "linkType": "User",
+            "id": "066RqBikAjzKy0SWUEtFvH"
+          }
+        },
+        "updatedBy": {
+          "sys": {
+            "type": "Link",
+            "linkType": "User",
+            "id": "2AAFsI4st4sZPlF1LFT13q"
+          }
+        },
+        "publishedCounter": 7,
+        "version": 14,
+        "publishedBy": {
+          "sys": {
+            "type": "Link",
+            "linkType": "User",
+            "id": "2AAFsI4st4sZPlF1LFT13q"
+          }
+        },
+        "publishedVersion": 13,
+        "firstPublishedAt": "2017-05-11T12:04:23.869Z",
+        "publishedAt": "2017-05-18T14:04:51.628Z"
+      },
+      "displayField": "name",
+      "name": "Person",
+      "description": "",
+      "fields": [
+        {
+          "id": "name",
+          "name": "Name",
+          "type": "Symbol",
+          "localized": false,
+          "required": true,
+          "validations": [],
+          "disabled": false,
+          "omitted": false
+        }
+      ]
+    }
+  ],
+  "editorInterfaces": [
+    {
+      "sys": {
+        "id": "default",
+        "type": "EditorInterface",
+        "space": {
+          "sys": {
+            "id": "yjflzn9x6tuq",
+            "type": "Link",
+            "linkType": "Space"
+          }
+        },
+        "version": 2,
+        "createdAt": "2017-05-11T12:04:23.540Z",
+        "updatedAt": "2017-05-18T14:04:51.650Z",
+        "createdBy": {
+          "sys": {
+            "type": "Link",
+            "linkType": "User",
+            "id": "066RqBikAjzKy0SWUEtFvH"
+          }
+        },
+        "updatedBy": {
+          "sys": {
+            "type": "Link",
+            "linkType": "User",
+            "id": "2AAFsI4st4sZPlF1LFT13q"
+          }
+        },
+        "contentType": {
+          "sys": {
+            "id": "person",
+            "type": "Link",
+            "linkType": "ContentType"
+          }
+        }
+      },
+      "controls": [
+        {
+          "fieldId": "name",
+          "settings": {
+            "helpText": "A clear unique name"
+          },
+          "widgetId": "singleLine",
+          "widgetNamespace": "builtin"
+        }
+      ],
+      "sidebar":[
+        {
+          "settings": {
+          },
+          "widgetId": "custom-app-sidebar-widget-id",
+          "widgetNamespace": "app"
+        }
+      ]
+    }
+  ]
+}
