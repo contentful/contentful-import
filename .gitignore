@@ -196,3 +196,5 @@ $RECYCLE.BIN/
 # ignore left over error files
 errorlogfile.json
 
+# asdf config file
+.tool-versions
