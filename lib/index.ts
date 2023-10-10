@@ -6,7 +6,7 @@ import UpdateRenderer from 'listr-update-renderer'
 import VerboseRenderer from 'listr-verbose-renderer'
 import { startCase } from 'lodash'
 import PQueue from 'p-queue'
-
+import { pipe } from 'lodash/fp'
 import { displayErrorLog, setupLogging, writeErrorLogFile } from 'contentful-batch-libs/dist/logging'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
 
@@ -17,6 +17,9 @@ import transformSpace from './transform/transform-space'
 import { assertDefaultLocale, assertPayload } from './utils/validations'
 import parseOptions from './parseOptions'
 import { ContentfulMultiError, LogItem } from './utils/errors'
+import { transformers } from './transform/transformers'
+import { ContentTypeProps } from 'contentful-management'
+import { forceDeleteOmittedFieldTransform } from './transform/force-delete-omitted-field-transform'
 
 const ONE_SECOND = 1000
 
@@ -39,28 +42,29 @@ function createListrOptions (options) {
 
 // These type definitions follow what is specified in the Readme
 type RunContentfulImportParams = {
-  spaceId: string,
-  environmentId?: string,
-  managementToken: string,
-  contentFile?: string,
-  content?: object,
-  contentModelOnly?: boolean,
-  skipContentModel?: boolean,
-  skipLocales?: boolean,
-  skipContentPublishing?: boolean,
-  uploadAssets?: boolean,
-  assetsDirectory?: string,
-  host?: string,
-  proxy?: string,
-  rawProxy?: string,
-  rateLimit?: number,
-  headers?: object,
-  errorLogFile?: string,
-  useVerboseRenderer?: boolean,
-  // TODO These properties are not documented in the Readme
-  timeout?: number,
-  retryLimit?: number,
-  config?: string,
+    spaceId: string,
+    environmentId?: string,
+    managementToken: string,
+    contentFile?: string,
+    content?: object,
+    contentModelOnly?: boolean,
+    skipContentModel?: boolean,
+    skipLocales?: boolean,
+    skipContentPublishing?: boolean,
+    uploadAssets?: boolean,
+    assetsDirectory?: string,
+    host?: string,
+    proxy?: string,
+    rawProxy?: string,
+    rateLimit?: number,
+    headers?: object,
+    errorLogFile?: string,
+    useVerboseRenderer?: boolean,
+    // TODO These properties are not documented in the Readme
+    timeout?: number,
+    retryLimit?: number,
+    config?: string,
+    force?: boolean,
 }
 
 async function runContentfulImport (params: RunContentfulImportParams) {
@@ -133,8 +137,12 @@ async function runContentfulImport (params: RunContentfulImportParams) {
     {
       title: 'Apply transformations to source data',
       task: wrapTask(async (ctx) => {
-        const transformedSourceData = transformSpace(ctx.sourceDataUntransformed, ctx.destinationData)
-        ctx.sourceData = transformedSourceData
+        const customTransformers: Partial<typeof transformers> = {}
+        if (options.force) {
+          customTransformers.contentTypes = (contentType: ContentTypeProps) => pipe(transformers.contentTypes, forceDeleteOmittedFieldTransform)(contentType)
+        }
+
+        ctx.sourceData = transformSpace(ctx.sourceDataUntransformed, ctx.destinationData, customTransformers)
       })
     },
     {

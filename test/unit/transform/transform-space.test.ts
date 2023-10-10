@@ -60,6 +60,8 @@ test('applies transformers to give space data', () => {
 
 test('applies custom transformers to give space data', () => {
   const result = transformSpace(space, destinationSpace, {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     entries: () => 'transformed'
   })
   expect(result.entries?.[0]?.transformed).toBe('transformed')

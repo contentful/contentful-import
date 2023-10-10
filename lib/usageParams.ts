@@ -84,5 +84,10 @@ export default yargs
     type: 'string',
     describe: 'Pass an additional HTTP Header'
   })
+  .option('force', {
+    describe: 'force omitted fields to be deleted before importing',
+    type: 'boolean',
+    default: false
+  })
   .config('config', 'An optional configuration JSON file containing all the options for a single run')
   .argv

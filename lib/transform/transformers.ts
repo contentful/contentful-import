@@ -1,5 +1,6 @@
-import { ContentTypeProps, EntryProps, TagProps, WebhookProps } from 'contentful-management'
-import { find, omit, pick, reduce } from 'lodash'
+import { omit, pick, find, reduce } from 'lodash'
+import { AssetProps, ContentTypeProps, EntryProps, LocaleProps, TagProps, WebhookProps } from 'contentful-management'
+import { MetadataProps } from 'contentful-management/dist/typings/common-types'
 
 /**
  * Default transformer methods for each kind of entity.
@@ -8,19 +9,19 @@ import { find, omit, pick, reduce } from 'lodash'
  * as the whole upload process needs to be followed again.
  */
 
-export function contentTypes (contentType: ContentTypeProps) {
+function contentTypes (contentType: ContentTypeProps) {
   return contentType
 }
 
-export function tags (tag: TagProps) {
+function tags (tag: TagProps) {
   return tag
 }
 
-export function entries (entry: EntryProps, _, tagsEnabled = false) {
+function entries (entry: EntryProps, _, tagsEnabled = false) {
   return removeMetadataTags(entry, tagsEnabled)
 }
 
-export function webhooks (webhook: WebhookProps) {
+function webhooks (webhook: WebhookProps) {
   // Workaround for webhooks with credentials
   if (webhook.httpBasicUsername) {
     delete webhook.httpBasicUsername
@@ -34,9 +35,13 @@ export function webhooks (webhook: WebhookProps) {
   return webhook
 }
 
-export function assets (asset, _, tagsEnabled = false) {
+function assets (asset: AssetProps, _, tagsEnabled = false) {
   const transformedAsset = omit(asset, 'sys')
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   transformedAsset.sys = pick(asset.sys, 'id')
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   transformedAsset.fields = pick(asset.fields, 'title', 'description')
   transformedAsset.fields.file = reduce(
     asset.fields.file,
@@ -44,7 +49,7 @@ export function assets (asset, _, tagsEnabled = false) {
       newFile[locale] = pick(localizedFile, 'contentType', 'fileName')
       if (!localizedFile.uploadFrom) {
         const assetUrl = localizedFile.url || localizedFile.upload
-        newFile[locale].upload = `${/^(http|https):\/\//i.test(assetUrl) ? '' : 'https:'}${assetUrl}`
+        newFile[locale].upload = `${/^(http|https):\/\//i.test(assetUrl!) ? '' : 'https:'}${assetUrl}`
       } else {
         newFile[locale].uploadFrom = localizedFile.uploadFrom
       }
@@ -55,7 +60,7 @@ export function assets (asset, _, tagsEnabled = false) {
   return removeMetadataTags(transformedAsset, tagsEnabled)
 }
 
-export function locales (locale, destinationLocales) {
+function locales (locale: LocaleProps, destinationLocales: Array<LocaleProps>): LocaleProps {
   const transformedLocale = pick(locale, 'code', 'name', 'contentManagementApi', 'contentDeliveryApi', 'fallbackCode', 'optional')
   const destinationLocale = find(destinationLocales, { code: locale.code })
   if (destinationLocale) {
@@ -66,12 +71,23 @@ export function locales (locale, destinationLocales) {
     transformedLocale.sys = pick(destinationLocale.sys, 'id')
   }
 
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   return transformedLocale
 }
 
-function removeMetadataTags (entity, tagsEnabled = false) {
+function removeMetadataTags<T extends { metadata?: MetadataProps }> (entity: T, tagsEnabled = false): T {
   if (!tagsEnabled) {
     delete entity.metadata
   }
   return entity
+}
+
+export const transformers = {
+  contentTypes,
+  tags,
+  entries,
+  webhooks,
+  assets,
+  locales
 }
