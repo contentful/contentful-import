@@ -6,7 +6,7 @@
   "typings": "dist/index.d.ts",
   "module": "dist/index.mjs",
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   },
   "exports": {
     "default": "./dist/index.js",
