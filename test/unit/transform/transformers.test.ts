@@ -88,6 +88,8 @@ test('It should transform a locale and return it', () => {
   destinationLocalesMock[0].code = 'de-DE'
   destinationLocalesMock[0].sys.id = 'destinationLocaleId'
   const transformedLocale = transformers.locales(localeMock, destinationLocalesMock)
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   expect(transformedLocale.sys.id).toBe(destinationLocalesMock[0].sys.id)
 })
 

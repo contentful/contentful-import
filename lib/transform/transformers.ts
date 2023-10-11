@@ -1,5 +1,6 @@
-import { omit, pick } from 'lodash/object'
-import { find, reduce } from 'lodash/collection'
+import { ContentTypeProps, EntryProps, TagProps, WebhookProps } from 'contentful-management'
+import { find, omit, pick, reduce } from 'lodash'
+
 /**
  * Default transformer methods for each kind of entity.
  *
@@ -7,19 +8,19 @@ import { find, reduce } from 'lodash/collection'
  * as the whole upload process needs to be followed again.
  */
 
-export function contentTypes (contentType) {
+export function contentTypes (contentType: ContentTypeProps) {
   return contentType
 }
 
-export function tags (tag) {
+export function tags (tag: TagProps) {
   return tag
 }
 
-export function entries (entry, _, tagsEnabled = false) {
+export function entries (entry: EntryProps, _, tagsEnabled = false) {
   return removeMetadataTags(entry, tagsEnabled)
 }
 
-export function webhooks (webhook) {
+export function webhooks (webhook: WebhookProps) {
   // Workaround for webhooks with credentials
   if (webhook.httpBasicUsername) {
     delete webhook.httpBasicUsername
@@ -60,6 +61,8 @@ export function locales (locale, destinationLocales) {
   if (destinationLocale) {
     // This will implicitly remove the locale ID
     // which then causes the create path to not pick `createLocaleWithId` but `createLocale` instead
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     transformedLocale.sys = pick(destinationLocale.sys, 'id')
   }
 
