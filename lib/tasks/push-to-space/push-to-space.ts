@@ -1,7 +1,7 @@
 import Listr from 'listr'
 import verboseRenderer from 'listr-verbose-renderer'
 
-import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { logEmitter } from 'contentful-batch-libs'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
 
 import * as assets from './assets'

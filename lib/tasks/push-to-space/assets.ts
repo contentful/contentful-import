@@ -2,9 +2,8 @@ import fs from 'fs'
 import { join } from 'path'
 import { promisify } from 'util'
 
-import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
-import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { ContentfulAssetError, ContentfulEntityError } from '../../utils/errors'
+import { getEntityName, logEmitter } from 'contentful-batch-libs'
 
 const stat = promisify(fs.stat)
 
@@ -51,11 +50,11 @@ async function lastResult (promises: Promise<any>[]) {
 }
 
 type ProcessAssetsParams = {
-  assets: any[];
-  timeout?: number;
-  retryLimit?: number;
-  requestQueue: any;
-  locales?: string[];
+    assets: any[];
+    timeout?: number;
+    retryLimit?: number;
+    requestQueue: any;
+    locales?: string[];
 };
 
 export async function processAssets ({

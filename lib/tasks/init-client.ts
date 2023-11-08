@@ -1,6 +1,6 @@
 import { createClient } from 'contentful-management'
 
-import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { logEmitter } from 'contentful-batch-libs'
 
 function logHandler (level, data) {
   logEmitter.emit(level, data)

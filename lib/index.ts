@@ -7,7 +7,7 @@ import VerboseRenderer from 'listr-verbose-renderer'
 import { startCase } from 'lodash'
 import PQueue from 'p-queue'
 
-import { displayErrorLog, setupLogging, writeErrorLogFile } from 'contentful-batch-libs/dist/logging'
+import { displayErrorLog, setupLogging, writeErrorLogFile } from 'contentful-batch-libs'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
 
 import initClient from './tasks/init-client'
@@ -16,7 +16,8 @@ import pushToSpace from './tasks/push-to-space/push-to-space'
 import transformSpace from './transform/transform-space'
 import { assertDefaultLocale, assertPayload } from './utils/validations'
 import parseOptions from './parseOptions'
-import { ContentfulMultiError, LogItem } from './utils/errors'
+import { ContentfulMultiError } from './utils/errors'
+import { isDisplayLog, isErrorLog } from './utils/logging'
 
 const ONE_SECOND = 1000
 
@@ -59,7 +60,7 @@ type RunContentfulImportParams = {
 }
 
 async function runContentfulImport (params: RunContentfulImportParams) {
-  const log: LogItem[] = []
+  const log = setupLogging()
   const options = await parseOptions(params)
   const listrOptions = createListrOptions(options)
   const requestQueue = new PQueue({
@@ -69,7 +70,6 @@ async function runContentfulImport (params: RunContentfulImportParams) {
   })
 
   // Setup custom log listener to store log messages for later
-  setupLogging(log)
 
   const infoTable = new Table()
 
@@ -100,7 +100,6 @@ async function runContentfulImport (params: RunContentfulImportParams) {
         assertPayload(options.content)
       }
     },
-
     {
       title: 'Initialize client',
       task: wrapTask(async (ctx) => {
@@ -128,8 +127,7 @@ async function runContentfulImport (params: RunContentfulImportParams) {
     {
       title: 'Apply transformations to source data',
       task: wrapTask(async (ctx) => {
-        const transformedSourceData = transformSpace(ctx.sourceDataUntransformed, ctx.destinationData)
-        ctx.sourceData = transformedSourceData
+        ctx.sourceData = transformSpace(ctx.sourceDataUntransformed, ctx.destinationData)
       })
     },
     {
@@ -193,8 +191,8 @@ async function runContentfulImport (params: RunContentfulImportParams) {
       })
     })
     .then((data) => {
-      const errorLog = log.filter((logMessage) => logMessage.level !== 'info' && logMessage.level !== 'warning')
-      const displayLog = log.filter((logMessage) => logMessage.level !== 'info')
+      const errorLog = log.filter(isErrorLog)
+      const displayLog = log.filter(isDisplayLog)
       displayErrorLog(displayLog)
 
       if (errorLog.length) {
