@@ -1,6 +1,4 @@
-import { some, filter, map } from 'lodash/collection'
-import * as _o from 'lodash/object'
-import { flatten } from 'lodash/array'
+import { some, filter, map, flatten, values, get, has } from 'lodash'
 
 /**
  * Given a list of entries, this function reorders them so that entries which
@@ -34,7 +32,7 @@ function getLinkedEntries (entries) {
     const entryIndex = entries.indexOf(entry)
 
     const rawLinks = map(entry.fields, (field) => {
-      field = _o.values(field)[0]
+      field = values(field)[0]
       if (isEntryLink(field)) {
         return getFieldEntriesIndex(field, entries)
       } else if (isEntityArray(field) && isEntryLink(field[0])) {
@@ -50,17 +48,17 @@ function getLinkedEntries (entries) {
 }
 
 function getFieldEntriesIndex (field, entries) {
-  const id = _o.get(field, 'sys.id')
+  const id = get(field, 'sys.id')
   return entries.findIndex((entry) => entry.sys.id === id)
 }
 
 function isEntryLink (item) {
-  return _o.get(item, 'sys.type') === 'Entry' ||
-  _o.get(item, 'sys.linkType') === 'Entry'
+  return get(item, 'sys.type') === 'Entry' ||
+  get(item, 'sys.linkType') === 'Entry'
 }
 
 function isEntityArray (item) {
-  return Array.isArray(item) && item.length > 0 && _o.has(item[0], 'sys')
+  return Array.isArray(item) && item.length > 0 && has(item[0], 'sys')
 }
 
 /**

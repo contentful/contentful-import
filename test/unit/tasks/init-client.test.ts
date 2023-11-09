@@ -1,7 +1,7 @@
 import initClient from '../../../lib/tasks/init-client'
 
 import contentfulManagement from 'contentful-management'
-import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { logEmitter } from 'contentful-batch-libs'
 
 jest.mock('contentful-management', () => {
   return {
@@ -9,13 +9,8 @@ jest.mock('contentful-management', () => {
   }
 })
 
-jest.mock('contentful-batch-libs/dist/logging', () => {
-  return {
-    logEmitter: {
-      emit: jest.fn()
-    }
-  }
-})
+jest.spyOn(logEmitter, 'emit').mockImplementation(jest.fn())
+const mockedLogEmitter = logEmitter as jest.Mocked<typeof logEmitter>
 
 test('does create clients and passes custom logHandler', () => {
   const opts = {
@@ -53,6 +48,6 @@ test('does create clients and passes custom logHandler', () => {
   // Call passed log handler
   (contentfulManagement.createClient as jest.Mock).mock.calls[0][0].logHandler('level', 'logMessage')
 
-  expect(logEmitter.emit.mock.calls[0][0]).toBe('level')
-  expect(logEmitter.emit.mock.calls[0][1]).toBe('logMessage')
+  expect(mockedLogEmitter.emit.mock.calls[0][0]).toBe('level')
+  expect(mockedLogEmitter.emit.mock.calls[0][1]).toBe('logMessage')
 })
