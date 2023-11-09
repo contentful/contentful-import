@@ -1,17 +1,11 @@
 import { cloneDeep } from 'lodash'
 
-import {
-  contentTypeMock,
-  entryMock,
-  assetMock,
-  localeMock,
-  webhookMock
-} from 'contentful-batch-libs/test/mocks/'
+import { assetMock, contentTypeMock, entryMock, localeMock, webhookMock } from 'contentful-batch-libs/test/mocks/'
 
 import transformSpace from '../../../lib/transform/transform-space'
 import { Resources, TransformedSourceData } from '../../../lib/types'
 import { TagSysProps } from 'contentful-management/dist/typings/entities/tag'
-import type { AssetProps, LocaleProps, WebhookProps } from 'contentful-management'
+import type { AssetProps, ContentTypeProps, EntryProps, LocaleProps, WebhookProps } from 'contentful-management'
 
 const tagMock = {
   sys: ({
@@ -21,19 +15,19 @@ const tagMock = {
 }
 
 type ResourcesWithDoNotTouch = Resources & {
-  doNotTouch?: boolean;
+    doNotTouch?: boolean;
 }
 
 type TransformedSourceDataWithDoNotTouch = TransformedSourceData & {
-  doNotTouch?: boolean;
+    doNotTouch?: boolean;
 }
 
 const space: ResourcesWithDoNotTouch = {
-  contentTypes: [contentTypeMock],
-  entries: [entryMock],
+  contentTypes: [contentTypeMock as unknown as ContentTypeProps],
+  entries: [entryMock as unknown as EntryProps],
   assets: [assetMock as unknown as AssetProps],
-  locales: [localeMock as LocaleProps],
-  webhooks: [webhookMock as WebhookProps],
+  locales: [localeMock as unknown as LocaleProps],
+  webhooks: [webhookMock as unknown as WebhookProps],
   tags: [tagMock]
 }
 const destinationSpace = cloneDeep(space)
