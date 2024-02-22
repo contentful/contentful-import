@@ -68,7 +68,7 @@
     "date-fns": "^2.30.0",
     "eslint": "^8.56.0",
     "eslint-config-standard": "^17.1.0",
-    "joi": "^17.12.1",
+    "joi": "^17.12.2",
     "listr": "^0.14.1",
     "listr-update-renderer": "^0.5.0",
     "listr-verbose-renderer": "^0.6.0",
