@@ -1,6 +1,6 @@
-import { omit, defaults } from 'lodash/object'
+import { omit, defaults } from 'lodash'
 
-import * as defaultTransformers from './transformers'
+import { transformers as defaultTransformers } from './transformers'
 import sortEntries from '../utils/sort-entries'
 import sortLocales from '../utils/sort-locales'
 import { DestinationData, OriginalSourceData, TransformedSourceData } from '../types'
@@ -14,7 +14,7 @@ const spaceEntities = [
  * is a need to transform data when copying it to the destination space
  */
 export default function (
-  sourceData: OriginalSourceData, destinationData: DestinationData, customTransformers?: any, entities = spaceEntities
+  sourceData: OriginalSourceData, destinationData: DestinationData, customTransformers?: Partial<typeof defaultTransformers>, entities = spaceEntities
 ): TransformedSourceData {
   const transformers = defaults(customTransformers, defaultTransformers)
   const baseSpaceData = omit(sourceData, ...entities)
@@ -22,6 +22,8 @@ export default function (
   sourceData.locales = sortLocales(sourceData.locales)
   const tagsEnabled = !!destinationData.tags
 
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   return entities.reduce((transformedSpaceData, type) => {
     // tags don't contain links to other entities, don't need to be sorted
     const sortedEntities = (type === 'tags') ? sourceData[type] : sortEntries(sourceData[type])
