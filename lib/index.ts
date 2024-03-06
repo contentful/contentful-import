@@ -20,6 +20,11 @@ import { ContentfulMultiError, LogItem } from './utils/errors'
 
 const ONE_SECOND = 1000
 
+const tableOptions = {
+  // remove ANSI color codes for better CI/CD compatibility
+  style: { head: [], border: [] }
+}
+
 function createListrOptions (options) {
   if (options.useVerboseRenderer) {
     return {
@@ -71,7 +76,7 @@ async function runContentfulImport (params: RunContentfulImportParams) {
   // Setup custom log listener to store log messages for later
   setupLogging(log)
 
-  const infoTable = new Table()
+  const infoTable = new Table(tableOptions)
 
   infoTable.push([{ colSpan: 2, content: 'The following entities are going to be imported:' }])
 
@@ -164,7 +169,7 @@ async function runContentfulImport (params: RunContentfulImportParams) {
 
       const resultTypes = Object.keys(ctx.data)
       if (resultTypes.length) {
-        const resultTable = new Table()
+        const resultTable = new Table(tableOptions)
 
         resultTable.push([{ colSpan: 2, content: 'Imported entities' }])
 
