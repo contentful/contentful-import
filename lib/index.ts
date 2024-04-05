@@ -1,6 +1,6 @@
 import Table from 'cli-table3'
-import differenceInSeconds from 'date-fns/differenceInSeconds'
-import formatDistance from 'date-fns/formatDistance'
+import { differenceInSeconds } from 'date-fns/differenceInSeconds'
+import { formatDistance } from 'date-fns/formatDistance'
 import Listr from 'listr'
 import UpdateRenderer from 'listr-update-renderer'
 import VerboseRenderer from 'listr-verbose-renderer'

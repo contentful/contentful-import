@@ -1,6 +1,6 @@
 import fs from 'fs'
 import { resolve } from 'path'
-import format from 'date-fns/format'
+import { format } from 'date-fns/format'
 
 import { version } from '../package.json'
 import { getHeadersConfig } from './utils/headers'
