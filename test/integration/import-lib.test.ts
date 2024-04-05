@@ -1,8 +1,7 @@
 import { join } from 'path'
 
 import { createClient } from 'contentful-management'
-
-import runContentfulImport from '../../dist/index'
+import runContentfulImport from '../../lib'
 
 const managementToken = process.env.MANAGEMENT_TOKEN as string
 const orgId = process.env.ORG_ID as string
