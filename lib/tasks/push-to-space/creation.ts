@@ -111,12 +111,15 @@ async function createEntry ({ entry, target, skipContentModel, destinationEntiti
   const contentTypeId = entry.original.sys.contentType.sys.id
   const destinationEntry = getDestinationEntityForSourceEntity(
     destinationEntitiesById, entry.transformed)
-  const operation = destinationEntry ? (skipUpdates ? 'skip' : 'update') : 'create'
+  const updateOperation = skipUpdates ? 'skip' : 'update'
+  const operation = destinationEntry ? updateOperation : 'create'
   try {
     const createdOrUpdatedEntry = await requestQueue.add(() => {
-      return (destinationEntry
-        ? (skipUpdates ? undefined : updateDestinationWithSourceData(destinationEntry, entry.transformed))
-        : createEntryInDestination(target, contentTypeId, entry.transformed))
+      if (destinationEntry && !skipUpdates) {
+        return updateDestinationWithSourceData(destinationEntry, entry.transformed)
+      } else if (!destinationEntry) {
+        return createEntryInDestination(target, contentTypeId, entry.transformed)
+      }
     })
 
     creationSuccessNotifier(operation, createdOrUpdatedEntry)
