@@ -13,6 +13,7 @@ type CreateEntitiesParams = {
   context: PushToSpaceContext,
   entities: TransformedSourceDataUnion,
   destinationEntitiesById: Map<string, any>,
+  skipUpdates?: boolean,
   requestQueue: PQueue
 }
 
@@ -98,23 +99,23 @@ async function createEntitiesInSequence ({ context, entities, destinationEntitie
 /**
  * Creates a list of entries
  */
-export async function createEntries ({ context, entities, destinationEntitiesById, requestQueue }) {
+export async function createEntries ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
   const createdEntries = await Promise.all(entities.map((entry) => {
-    return createEntry({ entry, target: context.target, skipContentModel: context.skipContentModel, destinationEntitiesById, requestQueue })
+    return createEntry({ entry, target: context.target, skipContentModel: context.skipContentModel, destinationEntitiesById, skipUpdates, requestQueue })
   }))
 
   return createdEntries.filter((entry) => entry)
 }
 
-async function createEntry ({ entry, target, skipContentModel, destinationEntitiesById, requestQueue }) {
+async function createEntry ({ entry, target, skipContentModel, destinationEntitiesById, skipUpdates, requestQueue }) {
   const contentTypeId = entry.original.sys.contentType.sys.id
   const destinationEntry = getDestinationEntityForSourceEntity(
     destinationEntitiesById, entry.transformed)
-  const operation = destinationEntry ? 'update' : 'create'
+  const operation = destinationEntry ? (skipUpdates ? 'skip' : 'update') : 'create'
   try {
     const createdOrUpdatedEntry = await requestQueue.add(() => {
       return (destinationEntry
-        ? updateDestinationWithSourceData(destinationEntry, entry.transformed)
+        ? (skipUpdates ? undefined : updateDestinationWithSourceData(destinationEntry, entry.transformed))
         : createEntryInDestination(target, contentTypeId, entry.transformed))
     })
 
@@ -129,7 +130,7 @@ async function createEntry ({ entry, target, skipContentModel, destinationEntiti
       if (skipContentModel && err.name === 'UnknownField') {
         const errors = get(JSON.parse(err.message), 'details.errors')
         entry.transformed.fields = cleanupUnknownFields(entry.transformed.fields, errors)
-        return createEntry({ entry, target, skipContentModel, destinationEntitiesById, requestQueue })
+        return createEntry({ entry, target, skipContentModel, destinationEntitiesById, skipUpdates, requestQueue })
       }
     }
     if (err instanceof ContentfulEntityError) {
@@ -212,7 +213,7 @@ function getDestinationEntityForSourceEntity (destinationEntitiesById, sourceEnt
 }
 
 function creationSuccessNotifier (method, createdEntity) {
-  const verb = method[0].toUpperCase() + method.substr(1, method.length) + 'd'
+  const verb = method[0].toUpperCase()
   logEmitter.emit('info', `${verb} ${createdEntity.sys.type} ${getEntityName(createdEntity)}`)
   return createdEntity
 }

@@ -32,12 +32,14 @@ type PushToSpaceParams = {
   environmentId: string,
   contentModelOnly?: boolean,
   skipContentModel?: boolean,
+  skipContentUpdates?: boolean,
   skipLocales?: boolean,
   skipContentPublishing?: boolean,
   timeout?: number,
   retryLimit?: number,
   listrOptions?: any,
   uploadAssets?: boolean,
+  skipAssetUpdates?: boolean,
   assetsDirectory?: string,
   requestQueue?: any
 }
@@ -77,12 +79,14 @@ export default function pushToSpace ({
   environmentId,
   contentModelOnly,
   skipContentModel,
+  skipContentUpdates,
   skipLocales,
   skipContentPublishing,
   timeout,
   retryLimit,
   listrOptions,
   uploadAssets,
+  skipAssetUpdates,
   assetsDirectory,
   requestQueue
 }: PushToSpaceParams) {
@@ -149,6 +153,7 @@ export default function pushToSpace ({
           context: { target: ctx.environment, type: 'ContentType' },
           entities: sourceData.contentTypes,
           destinationEntitiesById: destinationDataById.contentTypes,
+          skipUpdates: false,
           requestQueue
         })
 
@@ -176,6 +181,7 @@ export default function pushToSpace ({
             context: { target: ctx.environment, type: 'Tag' },
             entities: sourceData.tags,
             destinationEntitiesById: destinationDataById.tags,
+            skipUpdates: false,
             requestQueue
           })
           ctx.data.tags = tags
@@ -276,9 +282,10 @@ export default function pushToSpace ({
           return
         }
         const assetsToProcess = await creation.createEntities({
-          context: { target: ctx.environment, type: 'Asset' },
+          context: { target: ctx.environment, type: 'Asset'},
           entities: sourceData.assets,
           destinationEntitiesById: destinationDataById.assets,
+          skipUpdates: skipAssetUpdates,
           requestQueue
         })
 
@@ -323,6 +330,7 @@ export default function pushToSpace ({
           context: { target: ctx.environment, skipContentModel },
           entities: sourceData.entries,
           destinationEntitiesById: destinationDataById.entries,
+          skipUpdates: skipContentUpdates,
           requestQueue
         })
         ctx.data.entries = entries

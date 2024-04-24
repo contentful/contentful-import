@@ -106,6 +106,7 @@ test('Create entries', () => {
     context: { target, skipContentModel: false },
     entities: entries,
     destinationEntitiesById: destinationEntries,
+    skipUpdates: false,
     requestQueue
   })
     .then(() => {
@@ -148,6 +149,7 @@ test('Create entries and remove unknown fields', () => {
     context: { target: {}, skipContentModel: true },
     entities: entries,
     destinationEntitiesById: destinationEntries,
+    skipUpdates: false,
     requestQueue
   })
     .then(() => {
@@ -177,6 +179,7 @@ test('Create entries and handle regular errors', () => {
     context: { target: {} },
     entities: entries,
     destinationEntitiesById: destinationEntries,
+    skipUpdates: false,
     requestQueue
   })
     .then((result) => {
