@@ -22,8 +22,8 @@ type CreateEntitiesParams = {
  * Applies to all entities except Entries, as the CMA API for those is slightly different
  * See handleCreationErrors for details on what errors reject the promise or not.
  */
-export function createEntities ({ context, entities, destinationEntitiesById, requestQueue }: CreateEntitiesParams) {
-  return createEntitiesWithConcurrency({ context, entities, destinationEntitiesById, requestQueue })
+export function createEntities ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }: CreateEntitiesParams) {
+  return createEntitiesWithConcurrency({ context, entities, destinationEntitiesById, skipUpdates, requestQueue })
 }
 
 // TODO
@@ -39,10 +39,16 @@ export function createLocales ({ context, entities, destinationEntitiesById, req
   return createEntitiesInSequence({ context, entities, destinationEntitiesById, requestQueue })
 }
 
-async function createEntitiesWithConcurrency ({ context, entities, destinationEntitiesById, requestQueue }) {
+async function createEntitiesWithConcurrency ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
   const pendingCreatedEntities = entities.map((entity) => {
     const destinationEntity = getDestinationEntityForSourceEntity(destinationEntitiesById, entity.transformed)
-    const operation = destinationEntity ? 'update' : 'create'
+    const updateOperation = skipUpdates ? 'skip' : 'update'
+    const operation = destinationEntity ? updateOperation : 'create'
+
+    if (destinationEntity && skipUpdates) {
+      creationSuccessNotifier(operation, entity.transformed)
+      return entity.transformed
+    }
 
     return requestQueue.add(async () => {
       try {
@@ -113,13 +119,15 @@ async function createEntry ({ entry, target, skipContentModel, destinationEntiti
     destinationEntitiesById, entry.transformed)
   const updateOperation = skipUpdates ? 'skip' : 'update'
   const operation = destinationEntry ? updateOperation : 'create'
+  if (destinationEntry && skipUpdates) {
+    creationSuccessNotifier(operation, entry.transformed)
+    return entry.transformed
+  }
   try {
     const createdOrUpdatedEntry = await requestQueue.add(() => {
-      if (destinationEntry && !skipUpdates) {
-        return updateDestinationWithSourceData(destinationEntry, entry.transformed)
-      } else if (!destinationEntry) {
-        return createEntryInDestination(target, contentTypeId, entry.transformed)
-      }
+      return destinationEntry 
+        ? updateDestinationWithSourceData(destinationEntry, entry.transformed) 
+        : createEntryInDestination(target, contentTypeId, entry.transformed)
     })
 
     creationSuccessNotifier(operation, createdOrUpdatedEntry)

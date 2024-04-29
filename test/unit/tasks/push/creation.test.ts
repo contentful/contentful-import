@@ -52,6 +52,32 @@ test('Create entities', () => {
     })
 })
 
+test('Create entities and skip updates', () => {
+  const updateStub = jest.fn().mockReturnValue(Promise.resolve({ sys: { type: 'Asset' } }))
+  const target = {
+    createAssetWithId: jest.fn().mockReturnValue(Promise.resolve({ sys: { type: 'Asset' } }))
+  }
+  return createEntities({
+    context: { target, type: 'Asset' },
+    entities: [
+      { original: { sys: {} }, transformed: { sys: { id: '123' } } as any },
+      { original: { sys: {} }, transformed: { sys: { id: '456' } } as any }
+    ],
+    destinationEntitiesById: new Map([
+      ['123', { sys: { id: '123', version: 6 }, update: updateStub }]
+    ]),
+    skipUpdates: true,
+    requestQueue
+  })
+    .then(() => {
+      expect(target.createAssetWithId.mock.calls).toHaveLength(1)
+      expect(updateStub.mock.calls).toHaveLength(0)
+      expect(logEmitter.emit.mock.calls).toHaveLength(2)
+      const logLevels = logEmitter.emit.mock.calls.map((args) => args[0])
+      expect(logLevels.indexOf('error') !== -1).toBeFalsy()
+    })
+})
+
 test('Create entities handle regular errors', () => {
   const updateStub = jest.fn()
   const target = {
@@ -113,6 +139,37 @@ test('Create entries', () => {
       expect(target.createEntryWithId.mock.calls).toHaveLength(1)
       expect(target.createEntry.mock.calls).toHaveLength(1)
       expect(updateStub.mock.calls).toHaveLength(1)
+      expect(logEmitter.emit.mock.calls).toHaveLength(3)
+      const logLevels = logEmitter.emit.mock.calls.map((args) => args[0])
+      expect(logLevels.indexOf('error') !== -1).toBeFalsy()
+    })
+})
+
+test('Create entries and skip updates', () => {
+  const updateStub = jest.fn().mockReturnValue(Promise.resolve({ sys: { type: 'Entry' } }))
+  const target = {
+    createEntryWithId: jest.fn().mockReturnValue(Promise.resolve({ sys: { type: 'Entry' } })),
+    createEntry: jest.fn().mockReturnValue(Promise.resolve({ sys: { type: 'Entry' } }))
+  }
+  const entries = [
+    { original: { sys: { contentType: { sys: { id: 'ctid' } } } }, transformed: { sys: { id: '123' } } },
+    { original: { sys: { contentType: { sys: { id: 'ctid' } } } }, transformed: { sys: { id: '456' } } },
+    { original: { sys: { contentType: { sys: { id: 'ctid' } } } }, transformed: { sys: {} } }
+  ]
+  const destinationEntries = new Map([
+    ['123', { sys: { id: '123', version: 6 }, update: updateStub }]
+  ])
+  return createEntries({
+    context: { target, skipContentModel: false },
+    entities: entries,
+    destinationEntitiesById: destinationEntries,
+    skipUpdates: true,
+    requestQueue
+  })
+    .then(() => {
+      expect(target.createEntryWithId.mock.calls).toHaveLength(1)
+      expect(target.createEntry.mock.calls).toHaveLength(1)
+      expect(updateStub.mock.calls).toHaveLength(0)
       expect(logEmitter.emit.mock.calls).toHaveLength(3)
       const logLevels = logEmitter.emit.mock.calls.map((args) => args[0])
       expect(logLevels.indexOf('error') !== -1).toBeFalsy()
