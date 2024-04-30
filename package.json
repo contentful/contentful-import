@@ -9,10 +9,10 @@
     "node": ">=18"
   },
   "exports": {
-    "default": "./dist/index.js",
     "require": "./dist/index.js",
     "import": "./dist/index.mjs",
-    "node": "./dist/index.js"
+    "node": "./dist/index.js",
+    "default": "./dist/index.js"
   },
   "bin": {
     "contentful-import": "./bin/contentful-import"
