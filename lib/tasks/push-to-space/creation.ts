@@ -47,7 +47,7 @@ async function createEntitiesWithConcurrency ({ context, entities, destinationEn
 
     if (destinationEntity && skipUpdates) {
       creationSuccessNotifier(operation, entity.transformed)
-      return entity.transformed
+      return
     }
 
     return requestQueue.add(async () => {
