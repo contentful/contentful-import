@@ -224,8 +224,7 @@ function getDestinationEntityForSourceEntity (destinationEntitiesById, sourceEnt
 }
 
 function creationSuccessNotifier (method, createdEntity) {
-  const verb = method[0].toUpperCase()
-  logEmitter.emit('info', `${verb} ${createdEntity.sys.type} ${getEntityName(createdEntity)}`)
+  logEmitter.emit('info', `${method.toUpperCase()} ${createdEntity.sys.type} ${getEntityName(createdEntity)}`)
   return createdEntity
 }
 
