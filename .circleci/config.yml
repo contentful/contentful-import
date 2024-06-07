@@ -26,7 +26,7 @@ jobs:
       - run: npm run test:integration
   release:
     docker:
-      - image: cimg/node:18.18.0
+      - image: cimg/node:lts # semantic-release requires node 20 or higher
     steps:
       - checkout
       - vault/get-secrets: # Loads vault secrets
