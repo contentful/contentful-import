@@ -1,6 +1,6 @@
 import { cloneMock } from 'contentful-batch-libs/test/mocks/'
 
-import * as transformers from '../../../lib/transform/transformers'
+import { transformers } from '../../../lib/transform/transformers'
 
 const _ = {}
 
@@ -60,8 +60,8 @@ test('It should transform unprocessed asset with uploadFrom', () => {
   const transformedAsset = transformers.assets(assetMock, _)
   expect(transformedAsset.fields.file['en-US'].uploadFrom).toBeTruthy()
   expect(transformedAsset.fields.file['de-DE'].uploadFrom).toBeTruthy()
-  expect(transformedAsset.fields.file['en-US'].uploadFrom.sys.id).toBe(assetMock.fields.file['en-US'].uploadFrom.sys.id)
-  expect(transformedAsset.fields.file['de-DE'].uploadFrom.sys.id).toBe(assetMock.fields.file['de-DE'].uploadFrom.sys.id)
+  expect(transformedAsset.fields.file['en-US'].uploadFrom?.sys.id).toBe(assetMock.fields.file['en-US'].uploadFrom.sys.id)
+  expect(transformedAsset.fields.file['de-DE'].uploadFrom?.sys.id).toBe(assetMock.fields.file['de-DE'].uploadFrom.sys.id)
 })
 
 test('It should transform webhook with credentials to normal webhook', () => {
