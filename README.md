@@ -130,6 +130,10 @@ Skip importing of content types and locales
 
 Skip importing of locales
 
+#### `skipContentUpdates` [boolean] [default: false]
+
+Skip updating existing content
+
 #### `skipContentPublishing` [boolean] [default: false]
 
 Skips content publishing. Creates content but does not publish it
@@ -139,6 +143,10 @@ Skips content publishing. Creates content but does not publish it
 #### `uploadAssets` [boolean] [default: false]
 
 Upload local asset files downloaded via the [downloadAssets](https://github.com/contentful/contentful-export#downloadassets-boolean) option of the export. Requires `assetsDirectory`
+
+#### `skipAssetUpdates` [boolean] [default: false]
+
+Skip updating existing assets
 
 #### `assetsDirectory` [string]
 

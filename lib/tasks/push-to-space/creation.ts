@@ -13,6 +13,7 @@ type CreateEntitiesParams = {
   context: PushToSpaceContext,
   entities: TransformedSourceDataUnion,
   destinationEntitiesById: Map<string, any>,
+  skipUpdates?: boolean,
   requestQueue: PQueue
 }
 
@@ -21,8 +22,8 @@ type CreateEntitiesParams = {
  * Applies to all entities except Entries, as the CMA API for those is slightly different
  * See handleCreationErrors for details on what errors reject the promise or not.
  */
-export function createEntities ({ context, entities, destinationEntitiesById, requestQueue }: CreateEntitiesParams) {
-  return createEntitiesWithConcurrency({ context, entities, destinationEntitiesById, requestQueue })
+export function createEntities ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }: CreateEntitiesParams) {
+  return createEntitiesWithConcurrency({ context, entities, destinationEntitiesById, skipUpdates, requestQueue })
 }
 
 // TODO
@@ -38,10 +39,16 @@ export function createLocales ({ context, entities, destinationEntitiesById, req
   return createEntitiesInSequence({ context, entities, destinationEntitiesById, requestQueue })
 }
 
-async function createEntitiesWithConcurrency ({ context, entities, destinationEntitiesById, requestQueue }) {
+async function createEntitiesWithConcurrency ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
   const pendingCreatedEntities = entities.map((entity) => {
     const destinationEntity = getDestinationEntityForSourceEntity(destinationEntitiesById, entity.transformed)
-    const operation = destinationEntity ? 'update' : 'create'
+    const updateOperation = skipUpdates ? 'skip' : 'update'
+    const operation = destinationEntity ? updateOperation : 'create'
+
+    if (destinationEntity && skipUpdates) {
+      creationSuccessNotifier(operation, entity.transformed)
+      return
+    }
 
     return requestQueue.add(async () => {
       try {
@@ -98,24 +105,29 @@ async function createEntitiesInSequence ({ context, entities, destinationEntitie
 /**
  * Creates a list of entries
  */
-export async function createEntries ({ context, entities, destinationEntitiesById, requestQueue }) {
+export async function createEntries ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
   const createdEntries = await Promise.all(entities.map((entry) => {
-    return createEntry({ entry, target: context.target, skipContentModel: context.skipContentModel, destinationEntitiesById, requestQueue })
+    return createEntry({ entry, target: context.target, skipContentModel: context.skipContentModel, destinationEntitiesById, skipUpdates, requestQueue })
   }))
 
   return createdEntries.filter((entry) => entry)
 }
 
-async function createEntry ({ entry, target, skipContentModel, destinationEntitiesById, requestQueue }) {
+async function createEntry ({ entry, target, skipContentModel, destinationEntitiesById, skipUpdates, requestQueue }) {
   const contentTypeId = entry.original.sys.contentType.sys.id
   const destinationEntry = getDestinationEntityForSourceEntity(
     destinationEntitiesById, entry.transformed)
-  const operation = destinationEntry ? 'update' : 'create'
+  const updateOperation = skipUpdates ? 'skip' : 'update'
+  const operation = destinationEntry ? updateOperation : 'create'
+  if (destinationEntry && skipUpdates) {
+    creationSuccessNotifier(operation, entry.transformed)
+    return entry.transformed
+  }
   try {
     const createdOrUpdatedEntry = await requestQueue.add(() => {
-      return (destinationEntry
-        ? updateDestinationWithSourceData(destinationEntry, entry.transformed)
-        : createEntryInDestination(target, contentTypeId, entry.transformed))
+      return destinationEntry 
+        ? updateDestinationWithSourceData(destinationEntry, entry.transformed) 
+        : createEntryInDestination(target, contentTypeId, entry.transformed)
     })
 
     creationSuccessNotifier(operation, createdOrUpdatedEntry)
@@ -129,7 +141,7 @@ async function createEntry ({ entry, target, skipContentModel, destinationEntiti
       if (skipContentModel && err.name === 'UnknownField') {
         const errors = get(JSON.parse(err.message), 'details.errors')
         entry.transformed.fields = cleanupUnknownFields(entry.transformed.fields, errors)
-        return createEntry({ entry, target, skipContentModel, destinationEntitiesById, requestQueue })
+        return createEntry({ entry, target, skipContentModel, destinationEntitiesById, skipUpdates, requestQueue })
       }
     }
     if (err instanceof ContentfulEntityError) {
@@ -212,8 +224,7 @@ function getDestinationEntityForSourceEntity (destinationEntitiesById, sourceEnt
 }
 
 function creationSuccessNotifier (method, createdEntity) {
-  const verb = method[0].toUpperCase() + method.substr(1, method.length) + 'd'
-  logEmitter.emit('info', `${verb} ${createdEntity.sys.type} ${getEntityName(createdEntity)}`)
+  logEmitter.emit('info', `${method.toUpperCase()} ${createdEntity.sys.type} ${getEntityName(createdEntity)}`)
   return createdEntity
 }
 
