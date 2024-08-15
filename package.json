@@ -60,7 +60,7 @@
     "dts": true
   },
   "dependencies": {
-    "@discoveryjs/json-ext": "^0.5.7",
+    "@discoveryjs/json-ext": "^0.6.1",
     "bluebird": "^3.7.2",
     "cli-table3": "^0.6.5",
     "contentful-batch-libs": "^9.6.0",
