@@ -12,7 +12,8 @@ const METHODS = {
   contentTypes: { name: 'content types', method: 'getContentTypes' },
   locales: { name: 'locales', method: 'getLocales' },
   entries: { name: 'entries', method: 'getEntries' },
-  assets: { name: 'assets', method: 'getAssets' }
+  assets: { name: 'assets', method: 'getAssets' },
+  tags: { name: 'tags', method: 'getTags' }
 }
 
 type BatchedIdQueryParams = {
@@ -21,6 +22,8 @@ type BatchedIdQueryParams = {
   type: keyof typeof METHODS
   ids: string[]
 }
+
+type BatchedPageQueryParams = Omit<BatchedIdQueryParams, 'ids'>
 
 async function batchedIdQuery ({ environment, type, ids, requestQueue }: BatchedIdQueryParams) {
   const method = METHODS[type].method
@@ -48,6 +51,41 @@ async function batchedIdQuery ({ environment, type, ids, requestQueue }: Batched
   return responses.flat()
 }
 
+async function batchedPageQuery ({ environment, type, requestQueue }: BatchedPageQueryParams) {
+  const method = METHODS[type].method
+  const entityTypeName = METHODS[type].name
+
+  let totalFetched = 0
+  const { items, total } = await requestQueue.add(async () => {
+    const response = await environment[method]({
+      skip: 0,
+      limit: BATCH_SIZE_LIMIT
+    })
+    totalFetched += response.items.length
+    logEmitter.emit('info', `Fetched ${totalFetched} of ${response.total} ${entityTypeName}`)
+    
+    return { items: response.items, total: response.total }
+  })
+
+  const batches = getPagedBatches(totalFetched, total)
+
+  const remainingTotalResponses = batches.map(({ skip }) => {
+    return requestQueue.add(async () => {
+      const response = await environment[method]({
+        skip,
+        limit: BATCH_SIZE_LIMIT
+      })
+      totalFetched = totalFetched + response.items.length
+      logEmitter.emit('info', `Fetched ${totalFetched} of ${response.total} ${entityTypeName}`)
+
+      return response.items
+    })
+  })
+  const remainingResponses = await Promise.all(remainingTotalResponses)
+
+  return items.concat(remainingResponses.flat())
+}
+
 function getIdBatches (ids) {
   const batches: string[] = []
   let currentBatch = ''
@@ -63,6 +101,20 @@ function getIdBatches (ids) {
     } else {
       currentBatch += ','
     }
+  }
+  return batches
+}
+
+function getPagedBatches(totalFetched: number, total: number) {
+  const batches: { skip: number }[] = []
+  if (totalFetched >= total) {
+    return batches
+  }
+
+  let skip = totalFetched
+  while (skip < total) {
+    batches.push({ skip })
+    skip += BATCH_SIZE_LIMIT
   }
   return batches
 }
@@ -148,11 +200,13 @@ export default async function getDestinationData ({
   }
 
   // include tags even if contentModelOnly = true
-  result.tags = environment.getTags().then(response => response.items).catch(() => {
+  try {
+    result.tags = await batchedPageQuery({ environment, type: 'tags', requestQueue })
+  } catch (_) {
     // users without access to Tags will get 404
     // if they dont have access, remove tags array so they're not handled in future steps
     delete result.tags
-  })
+  }
 
   if (contentModelOnly) {
     return Promise.props(result)
