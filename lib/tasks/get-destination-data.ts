@@ -63,7 +63,7 @@ async function batchedPageQuery ({ environment, type, requestQueue }: BatchedPag
     })
     totalFetched += response.items.length
     logEmitter.emit('info', `Fetched ${totalFetched} of ${response.total} ${entityTypeName}`)
-    
+
     return { items: response.items, total: response.total }
   })
 
@@ -189,10 +189,10 @@ export default async function getDestinationData ({
     if (!skipLocales) {
       const localeIds = sourceData.locales?.map((e) => e.sys.id)
       if (localeIds) {
-        result.locales = batchedIdQuery({
+        // Get all locales as there's a bug in getting locales by IDs
+        result.locales = batchedPageQuery({
           environment,
           type: 'locales',
-          ids: localeIds,
           requestQueue
         })
       }
