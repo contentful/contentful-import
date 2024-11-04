@@ -188,7 +188,7 @@ export default async function getDestinationData ({
 
     if (!skipLocales) {
       const localeIds = sourceData.locales?.map((e) => e.sys.id)
-      if (localeIds) {
+      if (localeIds && localeIds.length) {
         // Get all locales as there's a bug in getting locales by IDs
         result.locales = batchedPageQuery({
           environment,
