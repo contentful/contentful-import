@@ -107,7 +107,12 @@
   },
   "release": {
     "branches": [
-      "main"
+      "main",
+      {
+        "name": "beta",
+        "channel": "beta",
+        "prerelease": true
+      }
     ],
     "plugins": [
       [
