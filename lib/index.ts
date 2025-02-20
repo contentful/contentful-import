@@ -223,19 +223,4 @@ async function runContentfulImport (params: RunContentfulImportParams) {
     })
 }
 
-// We are providing default exports both for CommonJS and ES6 module
-// systems here as a workaround, because we have some contraints which
-// don't allow us to generate compatibility for both es6 and common js
-// otherwise. We originally wanted to set 'esModuleInterop' to false
-// to keep compatibility with direct 'require()' calls in JavaScript,
-// ensuring that consumers can simply use 'require("package-name")'
-// without the '.default'. However, we have a dependency on
-// 'cli-table3' that requires 'esModuleInterop' to be set to true for
-// its default imports to work. Thats why we just provide both export
-// mechanisms.
-
-// Default export for ES6-style imports
 export default runContentfulImport
-
-// Export for CommonJS-style imports
-module.exports = runContentfulImport

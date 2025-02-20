@@ -9,9 +9,9 @@
     "node": ">=18"
   },
   "exports": {
+    "node": "./dist/index.js",
     "require": "./dist/index.js",
     "import": "./dist/index.mjs",
-    "node": "./dist/index.js",
     "default": "./dist/index.js"
   },
   "bin": {
@@ -57,7 +57,8 @@
       "esm"
     ],
     "clean": true,
-    "dts": true
+    "dts": true,
+    "splitting": true
   },
   "dependencies": {
     "@discoveryjs/json-ext": "^0.6.3",
