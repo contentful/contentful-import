@@ -9,10 +9,17 @@ export class ContentfulAssetError extends Error {
 }
 
 export type LogItem = {
-  ts: string
-  level: string
-  error?: Error
-  message?: string
+  ts: string;
+  level: 'info';
+  info: string;
+}|{
+  ts: string;
+  level: 'warning';
+  warning: string;
+} | {
+  ts: string;
+  level: 'error';
+  error: Error;
 }
 
 export class ContentfulValidationError extends Error {

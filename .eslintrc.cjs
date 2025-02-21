@@ -2,7 +2,6 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   extends: [
     'standard',
-    'plugin:jest/recommended',
     'plugin:@typescript-eslint/recommended' // Recommended TypeScript rules
   ],
   plugins: ['standard', 'promise', '@typescript-eslint'],

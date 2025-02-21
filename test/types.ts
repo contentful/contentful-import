@@ -1,7 +1,7 @@
 import { Readable } from 'stream'
 
-export type MockedFs = {
-  __setMockFiles: (newMockFiles: any[]) => void;
-  stat: (filePath: string, callback: (err: Error | null, filePath?: string) => void) => void;
-  createReadStream: () => Readable;
+export interface MockedFs {
+  __setMockFiles: (files: string[]) => void;
+  stat: (filePath: string, callback: (err: Error | null, stats?: any) => void) => void;
+  createReadStream: (filePath: string) => Readable;
 }

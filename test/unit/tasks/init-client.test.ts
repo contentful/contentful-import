@@ -1,18 +1,20 @@
 import initClient from '../../../lib/tasks/init-client'
 
-import contentfulManagement from 'contentful-management'
+import * as contentfulManagement from 'contentful-management'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { Mock } from 'vitest'
 
-jest.mock('contentful-management', () => {
+vi.mock('contentful-management', () => {
   return {
-    createClient: jest.fn(() => 'cmaClient')
+    default: {},
+    createClient: vi.fn().mockReturnValue('cmaClient')
   }
 })
 
-jest.mock('contentful-batch-libs/dist/logging', () => {
+vi.mock('contentful-batch-libs/dist/logging', () => {
   return {
     logEmitter: {
-      emit: jest.fn()
+      emit: vi.fn()
     }
   }
 })
@@ -34,7 +36,7 @@ test('does create clients and passes custom logHandler', () => {
 
   initClient(opts)
 
-  expect((contentfulManagement.createClient as jest.Mock).mock.calls[0][0]).toMatchObject({
+  expect((contentfulManagement.createClient as Mock).mock.calls[0][0]).toMatchObject({
     accessToken: opts.accessToken,
     host: opts.host,
     port: opts.port,
@@ -46,13 +48,13 @@ test('does create clients and passes custom logHandler', () => {
     application: opts.application,
     integration: opts.integration
   })
-  expect((contentfulManagement.createClient as jest.Mock).mock.calls[0][0]).toHaveProperty('logHandler')
-  expect((contentfulManagement.createClient as jest.Mock).mock.calls[0][0].timeout).toEqual(30000)
-  expect((contentfulManagement.createClient as jest.Mock).mock.calls).toHaveLength(1);
+  expect((contentfulManagement.createClient as Mock).mock.calls[0][0]).toHaveProperty('logHandler')
+  expect((contentfulManagement.createClient as Mock).mock.calls[0][0].timeout).toEqual(30000)
+  expect((contentfulManagement.createClient as Mock).mock.calls).toHaveLength(1);
 
   // Call passed log handler
-  (contentfulManagement.createClient as jest.Mock).mock.calls[0][0].logHandler('level', 'logMessage')
+  (contentfulManagement.createClient as Mock).mock.calls[0][0].logHandler('level', 'logMessage')
 
-  expect(logEmitter.emit.mock.calls[0][0]).toBe('level')
-  expect(logEmitter.emit.mock.calls[0][1]).toBe('logMessage')
+  expect((logEmitter.emit as Mock).mock.calls[0][0]).toBe('level')
+  expect((logEmitter.emit as Mock).mock.calls[0][1]).toBe('logMessage')
 })

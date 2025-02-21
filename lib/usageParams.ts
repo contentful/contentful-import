@@ -1,7 +1,7 @@
 import yargs from 'yargs'
 import * as packageFile from '../package.json'
 
-export default yargs
+export default yargs()
   .version(packageFile.version || 'Version only available on installed package')
   .usage('Usage: $0 [options]')
   .option('space-id', {

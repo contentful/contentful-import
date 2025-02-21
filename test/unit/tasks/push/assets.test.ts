@@ -8,14 +8,15 @@ import {
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { MockedFs } from '../../../types'
+import { Mock } from 'vitest'
 
-jest.mock('contentful-batch-libs/dist/logging', () => ({
+vi.mock('contentful-batch-libs/dist/logging', () => ({
   logEmitter: {
-    emit: jest.fn()
+    emit: vi.fn()
   }
 }))
 
-jest.mock('fs')
+vi.mock('fs')
 
 const assetPaths = [
   'assets/images/contentful-en.jpg',
@@ -30,13 +31,13 @@ beforeEach(() => {
   requestQueue = new PQueue({
     interval: 1000,
     intervalCap: 1000
-  })
-  logEmitter.emit.mockClear();
+  });
+  (logEmitter.emit as Mock).mockClear();
   (fs as unknown as MockedFs).__setMockFiles(assetPaths)
 })
 
 test('Process assets', async () => {
-  const processStub = jest
+  const processStub = vi
     .fn()
     .mockReturnValue(Promise.resolve({ sys: { type: 'Asset' } }))
 
@@ -65,11 +66,11 @@ test('Process assets', async () => {
   expect(processStub.mock.calls[1][0]).toBe('en-GB')
   expect(processStub.mock.calls[2][0]).toBe('en-US')
   expect(processStub.mock.calls[3][0]).toBe('en-GB')
-  expect(logEmitter.emit.mock.calls).toHaveLength(2)
+  expect((logEmitter.emit as Mock).mock.calls).toHaveLength(2)
 })
 
 test('Return most up to date processed asset version', async () => {
-  const processStub = jest
+  const processStub = vi
     .fn()
     .mockImplementationOnce(() => new Promise(resolve => setTimeout(() => resolve({
       sys: { id: '123' },
@@ -118,7 +119,7 @@ test('Return most up to date processed asset version', async () => {
 test('Process assets fails', async () => {
   const failedError = new Error('processing failed')
 
-  const processStub = jest
+  const processStub = vi
     .fn()
     .mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset' } }))
     .mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset' } }))
@@ -143,13 +144,13 @@ test('Process assets fails', async () => {
   // We expect two calls for the first asset (one for each locale)
   // and two for the second asset of which one fails
   expect(processStub.mock.calls).toHaveLength(4)
-  expect(logEmitter.emit.mock.calls).toHaveLength(3)
-  expect(logEmitter.emit.mock.calls[0][0]).toBe('info')
-  expect(logEmitter.emit.mock.calls[0][1]).toBe('Processing Asset 123')
-  expect(logEmitter.emit.mock.calls[1][0]).toBe('info')
-  expect(logEmitter.emit.mock.calls[1][1]).toBe('Processing Asset 456')
-  expect(logEmitter.emit.mock.calls[2][0]).toBe('error')
-  expect(logEmitter.emit.mock.calls[2][1]).toBe(failedError)
+  expect((logEmitter.emit as Mock).mock.calls).toHaveLength(3)
+  expect((logEmitter.emit as Mock).mock.calls[0][0]).toBe('info')
+  expect((logEmitter.emit as Mock).mock.calls[0][1]).toBe('Processing Asset 123')
+  expect((logEmitter.emit as Mock).mock.calls[1][0]).toBe('info')
+  expect((logEmitter.emit as Mock).mock.calls[1][1]).toBe('Processing Asset 456')
+  expect((logEmitter.emit as Mock).mock.calls[2][0]).toBe('error')
+  expect((logEmitter.emit as Mock).mock.calls[2][1]).toBe(failedError)
 })
 
 test('Get asset stream for url: Throw error if filePath does not exist', async () => {
@@ -160,7 +161,7 @@ test('Get asset stream for url: Throw error if filePath does not exist', async (
 })
 
 test('Get asset stream for url: Create stream if filepath exists', async () => {
-  const createReadStreamSpy = jest.spyOn(fs, 'createReadStream')
+  const createReadStreamSpy = vi.spyOn(fs, 'createReadStream')
   const fileUrl = 'https://images/contentful-en.jpg'
   const stream = await getAssetStreamForURL(fileUrl, 'assets')
 

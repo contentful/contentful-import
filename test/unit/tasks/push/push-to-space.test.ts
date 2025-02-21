@@ -7,6 +7,7 @@ import { createEntities, createEntries, createLocales } from '../../../../lib/ta
 import { archiveEntities, publishEntities } from '../../../../lib/tasks/push-to-space/publishing'
 import { getAssetStreamForURL, processAssets } from '../../../../lib/tasks/push-to-space/assets'
 import { EntityTransformed, TransformedAsset, TransformedSourceData } from '../../../../lib/types'
+import { Mock } from 'vitest'
 // We group together these functions into objects manually instead of
 // using wildcard imports (*). This ensures that during the `afterEach` cleanup,
 // Jest's mock clearing mechanism does not attempt to invoke `mockClear`
@@ -15,8 +16,8 @@ const creation = { createEntities, createEntries, createLocales }
 const publishing = { archiveEntities, publishEntities }
 const assets = { getAssetStreamForURL, processAssets }
 
-jest.mock('../../../../lib/tasks/push-to-space/creation', () => ({
-  createEntities: jest.fn(({ context }) => {
+vi.mock('../../../../lib/tasks/push-to-space/creation', () => ({
+  createEntities: vi.fn(({ context }) => {
     // Actually return one content type to get editor interfaces imported
     if (context.type === 'ContentType') {
       return Promise.resolve([
@@ -31,11 +32,11 @@ jest.mock('../../../../lib/tasks/push-to-space/creation', () => ({
     }
     return Promise.resolve([])
   }),
-  createEntries: jest.fn(() => Promise.resolve([])),
-  createLocales: jest.fn(() => Promise.resolve([]))
+  createEntries: vi.fn(() => Promise.resolve([])),
+  createLocales: vi.fn(() => Promise.resolve([]))
 }))
-jest.mock('../../../../lib/tasks/push-to-space/publishing', () => ({
-  publishEntities: jest.fn(({ entities }) => {
+vi.mock('../../../../lib/tasks/push-to-space/publishing', () => ({
+  publishEntities: vi.fn(({ entities }) => {
     // Actually return one content type to get editor interfaces imported
     if (entities[0] && entities[0].sys.type === 'ContentType') {
       return Promise.resolve([{
@@ -47,11 +48,11 @@ jest.mock('../../../../lib/tasks/push-to-space/publishing', () => ({
     }
     return Promise.resolve([])
   }),
-  archiveEntities: jest.fn(() => Promise.resolve([]))
+  archiveEntities: vi.fn(() => Promise.resolve([]))
 }))
-jest.mock('../../../../lib/tasks/push-to-space/assets', () => ({
-  processAssets: jest.fn(() => Promise.resolve([])),
-  getAssetStreamForURL: jest.fn(() => Promise.resolve([]))
+vi.mock('../../../../lib/tasks/push-to-space/assets', () => ({
+  processAssets: vi.fn(() => Promise.resolve([])),
+  getAssetStreamForURL: vi.fn(() => Promise.resolve([]))
 }))
 
 const transformedSourceData = {
@@ -85,11 +86,11 @@ const transformedSourceData = {
 
 const destinationData = {}
 
-const editorInterfaceUpdateMock = jest.fn()
+const editorInterfaceUpdateMock = vi.fn()
 
 const clientMock = {
-  getSpace: jest.fn(() => Promise.resolve({
-    getEnvironment: jest.fn(() => Promise.resolve({
+  getSpace: vi.fn(() => Promise.resolve({
+    getEnvironment: vi.fn(() => Promise.resolve({
       getEditorInterfaceForContentType: () => {
         return Promise.resolve({
           sys: {
@@ -143,16 +144,16 @@ test('Push content to destination space', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect((creation.createEntities as jest.Mock).mock.calls).toHaveLength(4)
-      expect((creation.createEntries as jest.Mock).mock.calls).toHaveLength(1)
-      expect((creation.createLocales as jest.Mock).mock.calls).toHaveLength(1)
-      expect((publishing.publishEntities as jest.Mock).mock.calls).toHaveLength(3)
-      expect((publishing.archiveEntities as jest.Mock).mock.calls).toHaveLength(2)
+      expect((creation.createEntities as Mock).mock.calls).toHaveLength(4)
+      expect((creation.createEntries as Mock).mock.calls).toHaveLength(1)
+      expect((creation.createLocales as Mock).mock.calls).toHaveLength(1)
+      expect((publishing.publishEntities as Mock).mock.calls).toHaveLength(3)
+      expect((publishing.archiveEntities as Mock).mock.calls).toHaveLength(2)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(1)
-      expect((assets.getAssetStreamForURL as jest.Mock).mock.calls).toHaveLength(0)
-      expect((assets.processAssets as jest.Mock).mock.calls).toHaveLength(1)
-      expect((assets.processAssets as jest.Mock).mock.calls[0][0].retryLimit).toEqual(20)
-      expect((assets.processAssets as jest.Mock).mock.calls[0][0].timeout).toEqual(40000)
+      expect((assets.getAssetStreamForURL as Mock).mock.calls).toHaveLength(0)
+      expect((assets.processAssets as Mock).mock.calls).toHaveLength(1)
+      expect((assets.processAssets as Mock).mock.calls[0][0].retryLimit).toEqual(20)
+      expect((assets.processAssets as Mock).mock.calls[0][0].timeout).toEqual(40000)
     })
 })
 
@@ -168,12 +169,12 @@ test('Push only content types and locales to destination space', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect((creation.createEntities as jest.Mock).mock.calls).toHaveLength(2)
-      expect((creation.createEntries as jest.Mock).mock.calls).toHaveLength(0)
-      expect((creation.createLocales as jest.Mock).mock.calls).toHaveLength(1)
-      expect((publishing.publishEntities as jest.Mock).mock.calls).toHaveLength(1)
+      expect((creation.createEntities as Mock).mock.calls).toHaveLength(2)
+      expect((creation.createEntries as Mock).mock.calls).toHaveLength(0)
+      expect((creation.createLocales as Mock).mock.calls).toHaveLength(1)
+      expect((publishing.publishEntities as Mock).mock.calls).toHaveLength(1)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(1)
-      expect((assets.processAssets as jest.Mock).mock.calls).toHaveLength(0)
+      expect((assets.processAssets as Mock).mock.calls).toHaveLength(0)
     })
 })
 
@@ -190,11 +191,11 @@ test('Push only content types', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect((creation.createEntities as jest.Mock).mock.calls).toHaveLength(2)
-      expect((creation.createEntries as jest.Mock).mock.calls).toHaveLength(0)
-      expect((publishing.publishEntities as jest.Mock).mock.calls).toHaveLength(1)
+      expect((creation.createEntities as Mock).mock.calls).toHaveLength(2)
+      expect((creation.createEntries as Mock).mock.calls).toHaveLength(0)
+      expect((publishing.publishEntities as Mock).mock.calls).toHaveLength(1)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(1)
-      expect((assets.processAssets as jest.Mock).mock.calls).toHaveLength(0)
+      expect((assets.processAssets as Mock).mock.calls).toHaveLength(0)
     })
 })
 
@@ -210,10 +211,10 @@ test('Push only entries and assets to destination space', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect((creation.createEntities as jest.Mock).mock.calls).toHaveLength(3)
-      expect((creation.createEntries as jest.Mock).mock.calls).toHaveLength(1)
-      expect((publishing.publishEntities as jest.Mock).mock.calls).toHaveLength(2)
-      expect((assets.processAssets as jest.Mock).mock.calls).toHaveLength(1)
+      expect((creation.createEntities as Mock).mock.calls).toHaveLength(3)
+      expect((creation.createEntries as Mock).mock.calls).toHaveLength(1)
+      expect((publishing.publishEntities as Mock).mock.calls).toHaveLength(2)
+      expect((assets.processAssets as Mock).mock.calls).toHaveLength(1)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(0)
     })
 })
@@ -231,10 +232,10 @@ test('Push only entries and assets to destination space and skip publishing', ()
   })
     .run({ data: {} })
     .then(() => {
-      expect((creation.createEntities as jest.Mock).mock.calls).toHaveLength(3)
-      expect((creation.createEntries as jest.Mock).mock.calls).toHaveLength(1)
-      expect((publishing.publishEntities as jest.Mock).mock.calls).toHaveLength(0)
-      expect((assets.processAssets as jest.Mock).mock.calls).toHaveLength(1)
+      expect((creation.createEntities as Mock).mock.calls).toHaveLength(3)
+      expect((creation.createEntries as Mock).mock.calls).toHaveLength(1)
+      expect((publishing.publishEntities as Mock).mock.calls).toHaveLength(0)
+      expect((assets.processAssets as Mock).mock.calls).toHaveLength(1)
       expect(editorInterfaceUpdateMock.mock.calls).toHaveLength(0)
     })
 })
@@ -277,7 +278,7 @@ test('Upload each local asset file before pushing to space', () => {
   })
     .run({ data: {} })
     .then(() => {
-      expect((assets.getAssetStreamForURL as jest.Mock).mock.calls).toHaveLength(2)
+      expect((assets.getAssetStreamForURL as Mock).mock.calls).toHaveLength(2)
       expect(assets.getAssetStreamForURL).toHaveBeenCalledWith('https://images/contentful-en.jpg', 'assets')
       expect(assets.getAssetStreamForURL).toHaveBeenCalledWith('https://images/contentful-de.jpg', 'assets')
       expect(transformedAssets[0].transformed.fields.file['en-US']).not.toHaveProperty('upload')

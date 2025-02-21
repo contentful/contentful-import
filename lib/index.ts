@@ -4,7 +4,7 @@ import formatDistance from 'date-fns/formatDistance'
 import Listr from 'listr'
 import UpdateRenderer from 'listr-update-renderer'
 import VerboseRenderer from 'listr-verbose-renderer'
-import { startCase } from 'lodash'
+import { startCase } from 'lodash-es'
 import PQueue from 'p-queue'
 
 import { displayErrorLog, setupLogging, writeErrorLogFile } from 'contentful-batch-libs/dist/logging'
@@ -76,7 +76,7 @@ async function runContentfulImport (params: RunContentfulImportParams) {
   })
 
   // Setup custom log listener to store log messages for later
-  setupLogging(log)
+  setupLogging(log.filter(log => log.level !== 'info'))
 
   const infoTable = new Table(tableOptions)
 

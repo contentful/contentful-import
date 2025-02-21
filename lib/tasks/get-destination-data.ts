@@ -56,7 +56,7 @@ async function batchedPageQuery ({ environment, type, requestQueue }: BatchedPag
   const entityTypeName = METHODS[type].name
 
   let totalFetched = 0
-  const { items, total } = await requestQueue.add(async () => {
+  const data = await requestQueue.add(async () => {
     const response = await environment[method]({
       skip: 0,
       limit: BATCH_SIZE_LIMIT
@@ -66,6 +66,12 @@ async function batchedPageQuery ({ environment, type, requestQueue }: BatchedPag
 
     return { items: response.items, total: response.total }
   })
+
+  if (!data) {
+    // eslint-disable-next-line no-throw-literal
+    throw 'Error'
+  }
+  const { items, total } = data
 
   const batches = getPagedBatches(totalFetched, total)
 
@@ -105,7 +111,7 @@ function getIdBatches (ids) {
   return batches
 }
 
-function getPagedBatches(totalFetched: number, total: number) {
+function getPagedBatches (totalFetched: number, total: number) {
   const batches: { skip: number }[] = []
   if (totalFetched >= total) {
     return batches

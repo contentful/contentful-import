@@ -1,8 +1,9 @@
 import { join } from 'path'
 
+import 'dotenv/config'
 import { createClient } from 'contentful-management'
 
-import runContentfulImport from '../../dist/index'
+import runContentfulImport from '../../dist/lib/index'
 
 const managementToken = process.env.MANAGEMENT_TOKEN as string
 const orgId = process.env.ORG_ID as string
@@ -21,7 +22,7 @@ type Error = {
     }[]
 }
 
-jest.setTimeout(1.5 * 60 * 1000) // 1.5min timeout
+const timeout = 1.5 * 60 * 1000 // 1.5min timeout
 
 beforeEach(async () => {
   const client = createClient({ accessToken: managementToken })
@@ -73,7 +74,7 @@ test('It should import a space properly when used as a lib', async () => {
   // Ensures that there is no deletion attempt in the afterEach function if the
   // deletion had been successful
   space = undefined
-})
+}, timeout)
 
 test('It should import a space with assets properly when used as a lib', async () => {
   console.log(`Created temporary space ${space.sys.id} to test importing as lib`)
@@ -116,7 +117,7 @@ test('It should import a space with assets properly when used as a lib', async (
   // Ensures that there is no deletion attempt in the afterEach function if the
   // deletion had been successful
   space = undefined
-})
+}, timeout)
 
 test('It should import a space with custom editor interfaces properly when used as a lib', async () => {
   console.log(`Created temporary space ${space.sys.id} to test importing as lib`)
@@ -152,4 +153,4 @@ test('It should import a space with custom editor interfaces properly when used 
   // Ensures that there is no deletion attempt in the afterEach function if the
   // deletion had been successful
   space = undefined
-})
+}, timeout)

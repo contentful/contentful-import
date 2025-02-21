@@ -35,19 +35,19 @@ function batchPageResolver (sourceData) {
 }
 
 const mockEnvironment = {
-  getContentTypes: jest.fn(batchQueryResolver),
-  getEntries: jest.fn(batchQueryResolver),
-  getAssets: jest.fn(batchQueryResolver),
-  getLocales: jest.fn(batchPageResolver(sourceData.locales)),
-  getTags: jest.fn(batchPageResolver(sourceData.tags)) // resolve 250 tags
+  getContentTypes: vi.fn(batchQueryResolver),
+  getEntries: vi.fn(batchQueryResolver),
+  getAssets: vi.fn(batchQueryResolver),
+  getLocales: vi.fn(batchPageResolver(sourceData.locales)),
+  getTags: vi.fn(batchPageResolver(sourceData.tags)) // resolve 250 tags
 }
 
 const mockSpace = {
-  getEnvironment: jest.fn(() => Promise.resolve(mockEnvironment))
+  getEnvironment: vi.fn(() => Promise.resolve(mockEnvironment))
 }
 
 const mockClient = {
-  getSpace: jest.fn()
+  getSpace: vi.fn()
 }
 
 let requestQueue
@@ -79,7 +79,7 @@ function testQueryLength (method) {
 }
 
 test('Gets destination content', () => {
-  mockClient.getSpace = jest.fn(() => Promise.resolve(mockSpace))
+  mockClient.getSpace = vi.fn(() => Promise.resolve(mockSpace))
   return getDestinationData({
     client: mockClient,
     spaceId: 'spaceid',
@@ -105,7 +105,7 @@ test('Gets destination content', () => {
 })
 
 test('Gets destination content with content model skipped', () => {
-  mockClient.getSpace = jest.fn(() => Promise.resolve(mockSpace))
+  mockClient.getSpace = vi.fn(() => Promise.resolve(mockSpace))
   return getDestinationData({
     client: mockClient,
     spaceId: 'spaceid',
@@ -131,7 +131,7 @@ test('Gets destination content with content model skipped', () => {
 })
 
 test('Gets destination content with locales skipped', () => {
-  mockClient.getSpace = jest.fn(() => Promise.resolve(mockSpace))
+  mockClient.getSpace = vi.fn(() => Promise.resolve(mockSpace))
   return getDestinationData({
     client: mockClient,
     spaceId: 'spaceid',
@@ -158,7 +158,7 @@ test('Gets destination content with locales skipped', () => {
 })
 
 test('Gets destination content with contentModelOnly', () => {
-  mockClient.getSpace = jest.fn(() => Promise.resolve(mockSpace))
+  mockClient.getSpace = vi.fn(() => Promise.resolve(mockSpace))
   return getDestinationData({
     client: mockClient,
     spaceId: 'spaceid',
@@ -183,7 +183,7 @@ test('Gets destination content with contentModelOnly', () => {
 })
 
 test('Does not fail with incomplete source data', () => {
-  mockClient.getSpace = jest.fn(() => Promise.resolve(mockSpace))
+  mockClient.getSpace = vi.fn(() => Promise.resolve(mockSpace))
   return getDestinationData({
     client: mockClient,
     spaceId: 'spaceid',
@@ -226,7 +226,7 @@ test('Removes Tags key from response if tags endpoint throws error (meaning tags
 test('Fails to get destination space', async () => {
   const errorNotFound = new Error()
   errorNotFound.name = 'NotFound'
-  mockClient.getSpace = jest.fn(() => Promise.reject(errorNotFound))
+  mockClient.getSpace = vi.fn(() => Promise.reject(errorNotFound))
 
   const wrappedFunc = () => {
     return getDestinationData({

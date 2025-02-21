@@ -1,4 +1,4 @@
-import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
+import { getEntityName } from 'contentful-batch-libs/dist/get-entity-name'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { ContentfulEntityError } from '../../utils/errors'
 import { ResourcesUnion } from '../../types'

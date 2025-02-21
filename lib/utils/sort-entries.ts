@@ -1,6 +1,6 @@
-import { some, filter, map } from 'lodash/collection'
-import * as _o from 'lodash/object'
-import { flatten } from 'lodash/array'
+import { some, filter, map } from 'lodash-es/collection'
+import * as _o from 'lodash-es/object'
+import { flatten } from 'lodash-es/array'
 
 /**
  * Given a list of entries, this function reorders them so that entries which

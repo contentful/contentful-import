@@ -2,7 +2,7 @@ import fs from 'fs'
 import { join } from 'path'
 import { promisify } from 'util'
 
-import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
+import { getEntityName } from 'contentful-batch-libs/dist/get-entity-name'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { ContentfulAssetError, ContentfulEntityError } from '../../utils/errors'
 
