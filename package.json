@@ -4,9 +4,12 @@
   "description": "This tool allows you to import JSON dump exported by contentful-export",
   "type": "module",
   "exports": {
-    "require": "./dist/lib/index.cjs",
-    "import": "./dist/lib/index.js",
-    "default": "./dist/lib/index.js"
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "require": "./dist/lib/index.cjs",
+      "import": "./dist/lib/index.js",
+      "default": "./dist/lib/index.js"
+    }
   },
   "bin": {
     "contentful-import": "./bin/contentful-import"
