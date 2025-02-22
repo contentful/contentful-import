@@ -1,26 +1,6 @@
 import dts from 'vite-plugin-dts'
-import { UserConfig } from 'vite'
 import { defineConfig } from 'vitest/config'
-import { readFileSync } from 'fs'
-
-const externaliseDependencies = () => {
-  return {
-    name: 'externalise-dependencies',
-    config: async ({ root }: UserConfig): Promise<UserConfig | null | void> => {
-      const rootDir = root || process.cwd()
-      const packageJson = readFileSync(`${rootDir}/package.json`, 'utf-8')
-      const deps = Object.keys(JSON.parse(packageJson).dependencies)
-
-      return {
-        build: {
-          rollupOptions: {
-            external: [...deps]
-          }
-        }
-      }
-    }
-  }
-}
+import externaliseDependencies from '@itxch/vite-plugin-externalise-dependencies'
 
 export default defineConfig({
   plugins: [

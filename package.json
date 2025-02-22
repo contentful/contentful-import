@@ -59,6 +59,7 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@itxch/vite-plugin-externalise-dependencies": "^1.0.0",
     "@types/lodash": "^4.17.15",
     "@types/node": "^20.6.3",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
