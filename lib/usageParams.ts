@@ -48,7 +48,6 @@ export default yargs
   .option('upload-assets', {
     describe: 'Uses local asset files and uploads them instead of pointing to the URLs of previously uploaded assets. Requires assets-directory',
     type: 'boolean',
-    default: false
   })
   .implies('upload-assets', 'assets-directory')
   .option('assets-directory', {
