@@ -10,9 +10,7 @@
   },
   "exports": {
     "require": "./dist/index.js",
-    "import": "./dist/index.mjs",
-    "node": "./dist/index.js",
-    "default": "./dist/index.js"
+    "import": "./dist/index.mjs"
   },
   "bin": {
     "contentful-import": "./bin/contentful-import"
