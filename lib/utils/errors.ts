@@ -1,5 +1,5 @@
 import type { AssetProps, EditorInterfaceProps, EntryProps } from 'contentful-management'
-import { LogMessage } from "contentful-batch-libs";
+import { LogMessage } from 'contentful-batch-libs'
 export class ContentfulAssetError extends Error {
   filePath: string
   constructor (message: string, filePath: string) {
@@ -22,5 +22,5 @@ export class ContentfulEntityError extends Error {
 }
 
 export class ContentfulMultiError extends Error {
-  errors: LogMessage[];
+  errors: LogMessage[]
 }

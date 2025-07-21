@@ -105,7 +105,7 @@ function getIdBatches (ids) {
   return batches
 }
 
-function getPagedBatches(totalFetched: number, total: number) {
+function getPagedBatches (totalFetched: number, total: number) {
   const batches: { skip: number }[] = []
   if (totalFetched >= total) {
     return batches
