@@ -8,8 +8,8 @@ test('It should transform processed asset', () => {
   const assetMock = cloneMock('asset')
   assetMock.fields = {
     file: {
-      'en-US': { fileName: 'filename.jpg', url: '//server/filename.jpg' },
-      'de-DE': { fileName: 'filename.jpg', url: '//server/filename-de.jpg' }
+      'en-US': { fileName: 'filename.jpg', url: '//server/filename.jpg', contentType: 'image/jpeg' },
+      'de-DE': { fileName: 'filename.jpg', url: '//server/filename-de.jpg', contentType: 'image/jpeg' }
     }
   }
   const transformedAsset = transformers.assets(assetMock, _)
@@ -17,6 +17,10 @@ test('It should transform processed asset', () => {
   expect(transformedAsset.fields.file['de-DE'].upload).toBeTruthy()
   expect(transformedAsset.fields.file['en-US'].upload).toBe('https:' + assetMock.fields.file['en-US'].url)
   expect(transformedAsset.fields.file['de-DE'].upload).toBe('https:' + assetMock.fields.file['de-DE'].url)
+  expect(transformedAsset.fields.file['en-US'].fileName).toBe('filename.jpg')
+  expect(transformedAsset.fields.file['de-DE'].fileName).toBe('filename.jpg')
+  expect(transformedAsset.fields.file['en-US'].contentType).toBe('image/jpeg')
+  expect(transformedAsset.fields.file['de-DE'].contentType).toBe('image/jpeg')
 })
 
 test('It should transform processed asset with and without protocol', () => {

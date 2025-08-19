@@ -250,10 +250,12 @@ test('Upload each local asset file before pushing to space', () => {
         fields: {
           file: {
             'en-US': {
-              upload: 'https://images/contentful-en.jpg'
+              upload: 'https://images/contentful-en.jpg',
+              fileName: 'contentful-en.jpg'
             },
             'de-DE': {
-              upload: 'https://images/contentful-de.jpg'
+              upload: 'https://images/contentful-de.jpg',
+              fileName: 'contentful-de.jpg'
             }
           }
         }
@@ -278,8 +280,8 @@ test('Upload each local asset file before pushing to space', () => {
     .run({ data: {} })
     .then(() => {
       expect((assets.getAssetStreamForURL as jest.Mock).mock.calls).toHaveLength(2)
-      expect(assets.getAssetStreamForURL).toHaveBeenCalledWith('https://images/contentful-en.jpg', 'assets')
-      expect(assets.getAssetStreamForURL).toHaveBeenCalledWith('https://images/contentful-de.jpg', 'assets')
+      expect(assets.getAssetStreamForURL).toHaveBeenCalledWith('https://images/contentful-en.jpg', 'assets', 'contentful-en.jpg')
+      expect(assets.getAssetStreamForURL).toHaveBeenCalledWith('https://images/contentful-de.jpg', 'assets', 'contentful-de.jpg')
       expect(transformedAssets[0].transformed.fields.file['en-US']).not.toHaveProperty('upload')
       expect(transformedAssets[0].transformed.fields.file['en-US']).toHaveProperty('uploadFrom')
     })

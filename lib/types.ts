@@ -15,7 +15,16 @@ export type ResourcesUnion = (ContentTypeProps | TagProps | LocaleProps | EntryP
 export type DestinationData = Resources
 
 export type TransformedAsset = {
-  fields: { file: { upload?: string, uploadFrom: Link<'Upload'> }[] },
+  fields: {
+    file: {
+      [locale: string]: {
+        upload?: string,
+        uploadFrom?: Link<'Upload'>,
+        fileName?: string,
+        contentType?: string
+      }
+    }
+  },
   sys: {id: string}
 }
 

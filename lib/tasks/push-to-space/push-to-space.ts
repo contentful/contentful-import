@@ -243,7 +243,7 @@ export default function pushToSpace ({
             allPendingUploads.push(requestQueue.add(async () => {
               try {
                 logEmitter.emit('info', `Uploading Asset file ${file.upload}`)
-                const assetStream = await assets.getAssetStreamForURL(file.upload, assetsDirectory)
+                const assetStream = await assets.getAssetStreamForURL(file.upload, assetsDirectory, file.fileName)
                 const upload = await ctx.environment.createUpload({
                   fileName: asset.transformed.sys.id,
                   file: assetStream
@@ -282,7 +282,7 @@ export default function pushToSpace ({
           return
         }
         const assetsToProcess = await creation.createEntities({
-          context: { target: ctx.environment, type: 'Asset'},
+          context: { target: ctx.environment, type: 'Asset' },
           entities: sourceData.assets,
           destinationEntitiesById: destinationDataById.assets,
           skipUpdates: skipAssetUpdates,

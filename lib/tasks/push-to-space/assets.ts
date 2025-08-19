@@ -1,16 +1,16 @@
 import fs from 'fs'
-import { join } from 'path'
 import { promisify } from 'util'
 
 import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { buildLocalFilePath } from '../../utils/buildLocalFilePath'
 import { ContentfulAssetError, ContentfulEntityError } from '../../utils/errors'
 
 const stat = promisify(fs.stat)
 
-export async function getAssetStreamForURL (url, assetsDirectory) {
-  const [, assetPath] = url.split('//')
-  const filePath = join(assetsDirectory, assetPath)
+export async function getAssetStreamForURL (url, assetsDirectory, fileName) {
+  const filePath = buildLocalFilePath(url, assetsDirectory, fileName)
+
   try {
     await stat(filePath)
     return fs.createReadStream(filePath)

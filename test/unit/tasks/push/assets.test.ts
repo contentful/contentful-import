@@ -19,7 +19,10 @@ jest.mock('fs')
 
 const assetPaths = [
   'assets/images/contentful-en.jpg',
-  'assets/images/contentful-de.jpg'
+  'assets/images/contentful-de.jpg',
+  'assets/images/测试文件.jpg',
+  `assets/images.ctfassets.net/${'测试文件'.repeat(10)}.jpg`,
+  'assets/images/different filename.jpg'
 ]
 
 let requestQueue
@@ -33,6 +36,8 @@ beforeEach(() => {
   })
   logEmitter.emit.mockClear();
   (fs as unknown as MockedFs).__setMockFiles(assetPaths)
+  // Clear all spy calls from previous tests
+  jest.clearAllMocks()
 })
 
 test('Process assets', async () => {
@@ -154,7 +159,7 @@ test('Process assets fails', async () => {
 
 test('Get asset stream for url: Throw error if filePath does not exist', async () => {
   const fileUrl = 'https://images/nonexistentfile.jpg'
-  await expect(getAssetStreamForURL(fileUrl, 'assets')).rejects.toThrow(
+  await expect(getAssetStreamForURL(fileUrl, 'assets', 'nonexistentfile.jpg')).rejects.toThrow(
     'Cannot open asset from filesystem'
   )
 })
@@ -162,8 +167,51 @@ test('Get asset stream for url: Throw error if filePath does not exist', async (
 test('Get asset stream for url: Create stream if filepath exists', async () => {
   const createReadStreamSpy = jest.spyOn(fs, 'createReadStream')
   const fileUrl = 'https://images/contentful-en.jpg'
-  const stream = await getAssetStreamForURL(fileUrl, 'assets')
+  const stream = await getAssetStreamForURL(fileUrl, 'assets', 'contentful-en.jpg')
 
   expect(createReadStreamSpy).toHaveBeenCalledTimes(1)
+  expect(stream instanceof Stream).toBe(true)
+})
+
+test('Get asset stream for url: Handle Unicode filename', async () => {
+  const createReadStreamSpy = jest.spyOn(fs, 'createReadStream')
+  const fileUrl = 'https://images/测试文件.jpg'
+  const fileName = '测试文件.jpg'
+  const stream = await getAssetStreamForURL(fileUrl, 'assets', fileName)
+
+  expect(createReadStreamSpy).toHaveBeenCalledTimes(1)
+  expect(createReadStreamSpy).toHaveBeenCalledWith('assets/images/测试文件.jpg')
+  expect(stream instanceof Stream).toBe(true)
+})
+
+test('Get asset stream for url: Handle long Unicode filename', async () => {
+  const createReadStreamSpy = jest.spyOn(fs, 'createReadStream')
+  const fileUrl = `//images.ctfassets.net/${'测试文件'.repeat(10)}.jpg`
+  const fileName = `${'测试文件'.repeat(10)}.jpg`
+  const stream = await getAssetStreamForURL(fileUrl, 'assets', fileName)
+
+  expect(createReadStreamSpy).toHaveBeenCalledTimes(1)
+  expect(createReadStreamSpy).toHaveBeenCalledWith(`assets/images.ctfassets.net/${'测试文件'.repeat(10)}.jpg`)
+  expect(stream instanceof Stream).toBe(true)
+})
+
+test('Get asset stream for url: Handle different filename than URL path', async () => {
+  const createReadStreamSpy = jest.spyOn(fs, 'createReadStream')
+  const fileUrl = '//images/encoded_filename.jpg'
+  const fileName = 'different filename.jpg'
+  const stream = await getAssetStreamForURL(fileUrl, 'assets', fileName)
+
+  expect(createReadStreamSpy).toHaveBeenCalledTimes(1)
+  expect(createReadStreamSpy).toHaveBeenCalledWith('assets/images/different filename.jpg')
+  expect(stream instanceof Stream).toBe(true)
+})
+
+test('Get asset stream for url: Fallback to URL path when fileName is undefined', async () => {
+  const createReadStreamSpy = jest.spyOn(fs, 'createReadStream')
+  const fileUrl = '//images/contentful-de.jpg'
+  const stream = await getAssetStreamForURL(fileUrl, 'assets', undefined)
+
+  expect(createReadStreamSpy).toHaveBeenCalledTimes(1)
+  expect(createReadStreamSpy).toHaveBeenCalledWith('assets/images/contentful-de.jpg')
   expect(stream instanceof Stream).toBe(true)
 })
