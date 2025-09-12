@@ -18,7 +18,7 @@ const app = () => {
  * integration test suite.
  */
 describe('contentful-import yargs', () => {
-  test('prints helpful information', done => {
+  test('prints helpful information', () => new Promise(resolve => {
     app()
       .run('--help')
       .code(0)
@@ -42,10 +42,10 @@ describe('contentful-import yargs', () => {
       .stdout(/--rate-limit/)
       .stdout(/-H, --header/)
       .stdout(/--config/)
-      .end(done)
-  })
+      .end(resolve)
+  }))
 
-  test("throws an error about missing dependent arguments, when passing '--upload-assets' but NOT '--assets-directory'", done => {
+  test("throws an error about missing dependent arguments, when passing '--upload-assets' but NOT '--assets-directory'", () => new Promise(resolve => {
     app()
       // omit --assets directory
       .run(
@@ -59,6 +59,6 @@ describe('contentful-import yargs', () => {
       .code(1) // Ensure the process exits with an error
       .stderr(/Missing dependent arguments/)
       .stderr(/upload-assets -> assets-directory/g)
-      .end(done)
-  })
+      .end(resolve)
+  }))
 })
