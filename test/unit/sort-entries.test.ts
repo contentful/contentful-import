@@ -1,3 +1,4 @@
+import { expect, test } from 'vitest'
 import sortEntries from '../../lib/utils/sort-entries'
 
 const entries = [

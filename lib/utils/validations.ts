@@ -1,5 +1,5 @@
 import { payloadSchema } from './schema'
-import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
+import { getEntityName } from 'contentful-batch-libs'
 
 const attachEntityName = (details, payload) => {
   details.map((detail) => {

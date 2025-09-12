@@ -1,6 +1,10 @@
+import { vi, afterEach, expect, test } from 'vitest'
+import type { Mock } from 'vitest'
+
 import { resolve } from 'path'
 
 import TableStub from 'cli-table3'
+import Listr from 'listr'
 
 import pushToSpaceStub from '../../lib/tasks/push-to-space/push-to-space'
 import transformSpaceStub from '../../lib/transform/transform-space'
@@ -9,72 +13,73 @@ import getDestinationResponseStub from '../../lib/tasks/get-destination-data'
 import contentfulImport from '../../lib/index'
 import * as validations from '../../lib/utils/validations'
 
-jest.mock('cli-table3')
-jest.mock('../../lib/utils/validations', () => {
+// cli-table3
+vi.mock('cli-table3', () => {
+  const fn = vi.fn(() => ({ push: vi.fn() }))
+  return { default: fn }
+})
+
+// validations
+vi.mock('../../lib/utils/validations', () => ({
+  assertPayload: vi.fn(),
+  assertDefaultLocale: vi.fn()
+}))
+
+vi.mock('../../lib/tasks/get-destination-data', () => ({
+  default: vi.fn(() =>
+    Promise.resolve({
+      entries: [{ sys: { id: 'entry1' } }, { sys: { id: 'entry2' } }],
+      assets: [{ sys: { id: 'asset1' } }, { sys: { id: 'asset2' } }],
+      contentTypes: [
+        { sys: { id: 'contentType1' } },
+        { sys: { id: 'contentType2' } }
+      ],
+      editorInterfaces: [
+        { sys: { id: 'editorInterface1' } },
+        { sys: { id: 'editorInterface2' } }
+      ],
+      locales: [{ name: 'German (Germany)', code: 'de-DE', default: true }]
+    })
+  )
+}))
+
+vi.mock('../../lib/tasks/push-to-space/push-to-space', () => {
   return {
-    assertPayload: jest.fn(),
-    assertDefaultLocale: jest.fn()
+    default: vi.fn(
+      () =>
+        new Listr([
+          {
+            title: 'Fake push to space',
+            task: (ctx: any) => {
+              ctx.data = ctx.sourceData
+            }
+          }
+        ])
+    )
   }
 })
 
-jest.mock('../../lib/tasks/get-destination-data', () => {
-  return jest.fn(() => Promise.resolve({
-    entries: [
-      { sys: { id: 'entry1' } },
-      { sys: { id: 'entry2' } }
-    ],
-    assets: [
-      { sys: { id: 'asset1' } },
-      { sys: { id: 'asset2' } }
-    ],
-    contentTypes: [
-      { sys: { id: 'contentType1' } },
-      { sys: { id: 'contentType2' } }
-    ],
-    editorInterfaces: [
-      { sys: { id: 'editorInterface1' } },
-      { sys: { id: 'editorInterface2' } }
-    ],
-    locales: [{
-      name: 'German (Germany)',
-      code: 'de-DE',
-      default: true
-    }]
-  }))
-})
-jest.mock('../../lib/tasks/push-to-space/push-to-space', () => {
-  const Listr = require('listr')
-  return jest.fn(() => {
-    return new Listr([
-      {
-        title: 'Fake push to space',
-        task: (ctx) => {
-          ctx.data = ctx.sourceData
-        }
-      }
-    ])
-  })
-})
-jest.mock('../../lib/transform/transform-space', () => {
-  return jest.fn((data) => data)
-})
-jest.mock('../../lib/tasks/init-client', () => {
-  return jest.fn(() => (
-    { source: { delivery: {} }, destination: { management: {} } }
-  ))
-})
+vi.mock('../../lib/transform/transform-space', () => ({
+  default: vi.fn((data: any) => data)
+}))
 
+vi.mock('../../lib/tasks/init-client', () => ({
+  default: vi.fn(() => ({
+    source: { delivery: {} },
+    destination: { management: {} }
+  }))
+}))
+
+// clear mocks
 afterEach(() => {
-  (initClientStub as jest.Mock).mockClear();
-  (getDestinationResponseStub as jest.Mock).mockClear();
-  (transformSpaceStub as jest.Mock).mockClear();
-  (pushToSpaceStub as jest.Mock).mockClear();
-  (TableStub as jest.Mock).mockClear()
+  vi.clearAllMocks()
 })
 
 test('Stops import when default locales does not match', async () => {
-  const errorLogFile = 'errorlogfile.json';
-  (validations.assertDefaultLocale as jest.Mock).mockImplementationOnce(() => { throw new Error('Invalid locale error') })
+  const errorLogFile = 'errorlogfile.json'
+  ;(validations.assertDefaultLocale as Mock).mockImplementationOnce(() => {
+    throw new Error('Invalid locale error')
+  })
   expect.assertions(1)
 
   const wrappedFunc = () => {
@@ -101,22 +106,17 @@ test('Stops import when default locales does not match', async () => {
   }
 
   let err
-  await wrappedFunc()
-    .catch(e => { err = e })
+  await wrappedFunc().catch(e => {
+    err = e
+  })
 
   expect(err.name).toBe('ContentfulMultiError')
 })
 test('Runs Contentful Import', () => {
   return contentfulImport({
     content: {
-      entries: [
-        { sys: { id: 'entry1' } },
-        { sys: { id: 'entry2' } }
-      ],
-      assets: [
-        { sys: { id: 'asset1' } },
-        { sys: { id: 'asset2' } }
-      ],
+      entries: [{ sys: { id: 'entry1' } }, { sys: { id: 'entry2' } }],
+      assets: [{ sys: { id: 'asset1' } }, { sys: { id: 'asset2' } }],
       tags: [
         { sys: { id: 'tag1' }, name: 'tag1' },
         { sys: { id: 'tag2' }, name: 'tag2' }
@@ -145,35 +145,41 @@ test('Runs Contentful Import', () => {
     spaceId: 'someSpaceId',
     managementToken: 'someManagementToken',
     errorLogFile: 'errorlogfile'
+  }).then(() => {
+    expect((initClientStub as Mock).mock.calls).toHaveLength(1)
+    expect((getDestinationResponseStub as Mock).mock.calls).toHaveLength(1)
+    expect((transformSpaceStub as Mock).mock.calls).toHaveLength(1)
+    expect((pushToSpaceStub as Mock).mock.calls).toHaveLength(1)
+
+    const introTable = (TableStub as Mock).mock.results[0].value
+    expect(introTable.push.mock.calls[0][0]).toEqual([
+      {
+        colSpan: 2,
+        content: 'The following entities are going to be imported:'
+      }
+    ])
+    expect(introTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
+    expect(introTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
+    expect(introTable.push.mock.calls[3][0]).toEqual(['Tags', 2])
+    expect(introTable.push.mock.calls[4][0]).toEqual(['Content Types', 2])
+    expect(introTable.push.mock.calls[5][0]).toEqual(['Editor Interfaces', 2])
+    expect(introTable.push.mock.calls[6][0]).toEqual(['Locales', 2])
+    expect(introTable.push.mock.calls[7][0]).toEqual(['Webhooks', 0])
+    expect(introTable.push.mock.calls).toHaveLength(8)
+
+    const resultTable = (TableStub as Mock).mock.results[1].value
+    expect(resultTable.push.mock.calls[0][0]).toEqual([
+      { colSpan: 2, content: 'Imported entities' }
+    ])
+    expect(resultTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
+    expect(resultTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
+    expect(resultTable.push.mock.calls[3][0]).toEqual(['Tags', 2])
+    expect(resultTable.push.mock.calls[4][0]).toEqual(['Content Types', 2])
+    expect(resultTable.push.mock.calls[5][0]).toEqual(['Editor Interfaces', 2])
+    expect(resultTable.push.mock.calls[6][0]).toEqual(['Locales', 2])
+    expect(resultTable.push.mock.calls[7][0]).toEqual(['Webhooks', 0])
+    expect(resultTable.push.mock.calls).toHaveLength(8)
   })
-    .then(() => {
-      expect((initClientStub as jest.Mock).mock.calls).toHaveLength(1)
-      expect((getDestinationResponseStub as jest.Mock).mock.calls).toHaveLength(1)
-      expect((transformSpaceStub as jest.Mock).mock.calls).toHaveLength(1)
-      expect((pushToSpaceStub as jest.Mock).mock.calls).toHaveLength(1)
-
-      const introTable = (TableStub as jest.Mock).mock.instances[0]
-      expect(introTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'The following entities are going to be imported:' }])
-      expect(introTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
-      expect(introTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
-      expect(introTable.push.mock.calls[3][0]).toEqual(['Tags', 2])
-      expect(introTable.push.mock.calls[4][0]).toEqual(['Content Types', 2])
-      expect(introTable.push.mock.calls[5][0]).toEqual(['Editor Interfaces', 2])
-      expect(introTable.push.mock.calls[6][0]).toEqual(['Locales', 2])
-      expect(introTable.push.mock.calls[7][0]).toEqual(['Webhooks', 0])
-      expect(introTable.push.mock.calls).toHaveLength(8)
-
-      const resultTable = (TableStub as jest.Mock).mock.instances[1]
-      expect(resultTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'Imported entities' }])
-      expect(resultTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
-      expect(resultTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
-      expect(resultTable.push.mock.calls[3][0]).toEqual(['Tags', 2])
-      expect(resultTable.push.mock.calls[4][0]).toEqual(['Content Types', 2])
-      expect(resultTable.push.mock.calls[5][0]).toEqual(['Editor Interfaces', 2])
-      expect(resultTable.push.mock.calls[6][0]).toEqual(['Locales', 2])
-      expect(resultTable.push.mock.calls[7][0]).toEqual(['Webhooks', 0])
-      expect(resultTable.push.mock.calls).toHaveLength(8)
-    })
 })
 
 test('Creates a valid and correct opts object', () => {
@@ -188,28 +194,21 @@ test('Creates a valid and correct opts object', () => {
     retryLimit: 2,
     spaceId: 'SPACE_ID',
     managementToken: 'MANAGEMENT_TOKEN'
+  }).then(() => {
+    const opts = (initClientStub as Mock).mock.calls[0][0]
+    expect(opts.skipContentModel).toBeFalsy()
+    expect(opts.errorLogFile).toBe(resolve(process.cwd(), errorLogFile))
+    expect(opts.spaceId).toBe(exampleConfig.spaceId)
+    expect(opts.timeout).toBe(500)
+    expect(opts.retryLimit).toBe(2)
   })
-    .then(() => {
-      const opts = (initClientStub as jest.Mock).mock.calls[0][0]
-      expect(opts.skipContentModel).toBeFalsy()
-      expect(opts.errorLogFile).toBe(resolve(process.cwd(), errorLogFile))
-      expect(opts.spaceId).toBe(exampleConfig.spaceId)
-      expect(opts.timeout).toBe(500)
-      expect(opts.retryLimit).toBe(2)
-    })
 })
 
 test('Intro CLI table respects skipContentModel', () => {
   return contentfulImport({
     content: {
-      entries: [
-        { sys: { id: 'entry1' } },
-        { sys: { id: 'entry2' } }
-      ],
-      assets: [
-        { sys: { id: 'asset1' } },
-        { sys: { id: 'asset2' } }
-      ],
+      entries: [{ sys: { id: 'entry1' } }, { sys: { id: 'entry2' } }],
+      assets: [{ sys: { id: 'asset1' } }, { sys: { id: 'asset2' } }],
       contentTypes: [
         { sys: { id: 'contentType1' } },
         { sys: { id: 'contentType2' } }
@@ -235,30 +234,28 @@ test('Intro CLI table respects skipContentModel', () => {
     managementToken: 'someManagementToken',
     errorLogFile: 'errorlogfile',
     skipContentModel: true
+  }).then(() => {
+    const introTable = (TableStub as Mock).mock.results[0].value
+    expect(introTable.push.mock.calls[0][0]).toEqual([
+      {
+        colSpan: 2,
+        content: 'The following entities are going to be imported:'
+      }
+    ])
+    expect(introTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
+    expect(introTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
+    expect(introTable.push.mock.calls[3][0]).toEqual(['Locales', 2])
+    expect(introTable.push.mock.calls[4][0]).toEqual(['Tags', 0])
+    expect(introTable.push.mock.calls[5][0]).toEqual(['Webhooks', 0])
+    expect(introTable.push.mock.calls).toHaveLength(6)
   })
-    .then(() => {
-      const introTable = (TableStub as jest.Mock).mock.instances[0]
-      expect(introTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'The following entities are going to be imported:' }])
-      expect(introTable.push.mock.calls[1][0]).toEqual(['Entries', 2])
-      expect(introTable.push.mock.calls[2][0]).toEqual(['Assets', 2])
-      expect(introTable.push.mock.calls[3][0]).toEqual(['Locales', 2])
-      expect(introTable.push.mock.calls[4][0]).toEqual(['Tags', 0])
-      expect(introTable.push.mock.calls[5][0]).toEqual(['Webhooks', 0])
-      expect(introTable.push.mock.calls).toHaveLength(6)
-    })
 })
 
 test('Intro CLI table respects contentModelOnly and skipLocales', () => {
   return contentfulImport({
     content: {
-      entries: [
-        { sys: { id: 'entry1' } },
-        { sys: { id: 'entry2' } }
-      ],
-      assets: [
-        { sys: { id: 'asset1' } },
-        { sys: { id: 'asset2' } }
-      ],
+      entries: [{ sys: { id: 'entry1' } }, { sys: { id: 'entry2' } }],
+      assets: [{ sys: { id: 'asset1' } }, { sys: { id: 'asset2' } }],
       contentTypes: [
         { sys: { id: 'contentType1' } },
         { sys: { id: 'contentType2' } }
@@ -285,26 +282,24 @@ test('Intro CLI table respects contentModelOnly and skipLocales', () => {
     errorLogFile: 'errorlogfile',
     contentModelOnly: true,
     skipLocales: true
+  }).then(() => {
+    const introTable = (TableStub as Mock).mock.results[0].value
+    expect(introTable.push.mock.calls[0][0]).toEqual([
+      {
+        colSpan: 2,
+        content: 'The following entities are going to be imported:'
+      }
+    ])
+    expect(introTable.push.mock.calls[1][0]).toEqual(['Content Types', 2])
+    expect(introTable.push.mock.calls[2][0]).toEqual(['Editor Interfaces', 2])
+    expect(introTable.push.mock.calls).toHaveLength(3)
   })
-    .then(() => {
-      const introTable = (TableStub as jest.Mock).mock.instances[0]
-      expect(introTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'The following entities are going to be imported:' }])
-      expect(introTable.push.mock.calls[1][0]).toEqual(['Content Types', 2])
-      expect(introTable.push.mock.calls[2][0]).toEqual(['Editor Interfaces', 2])
-      expect(introTable.push.mock.calls).toHaveLength(3)
-    })
 })
 test('Intro CLI table respects contentModelOnly', () => {
   return contentfulImport({
     content: {
-      entries: [
-        { sys: { id: 'entry1' } },
-        { sys: { id: 'entry2' } }
-      ],
-      assets: [
-        { sys: { id: 'asset1' } },
-        { sys: { id: 'asset2' } }
-      ],
+      entries: [{ sys: { id: 'entry1' } }, { sys: { id: 'entry2' } }],
+      assets: [{ sys: { id: 'asset1' } }, { sys: { id: 'asset2' } }],
       tags: [],
       contentTypes: [
         { sys: { id: 'contentType1' } },
@@ -331,13 +326,17 @@ test('Intro CLI table respects contentModelOnly', () => {
     managementToken: 'someManagementToken',
     errorLogFile: 'errorlogfile',
     contentModelOnly: true
+  }).then(() => {
+    const introTable = (TableStub as Mock).mock.results[0].value
+    expect(introTable.push.mock.calls[0][0]).toEqual([
+      {
+        colSpan: 2,
+        content: 'The following entities are going to be imported:'
+      }
+    ])
+    expect(introTable.push.mock.calls[1][0]).toEqual(['Content Types', 2])
+    expect(introTable.push.mock.calls[2][0]).toEqual(['Editor Interfaces', 2])
+    expect(introTable.push.mock.calls[3][0]).toEqual(['Locales', 2])
+    expect(introTable.push.mock.calls).toHaveLength(4)
   })
-    .then(() => {
-      const introTable = (TableStub as jest.Mock).mock.instances[0]
-      expect(introTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'The following entities are going to be imported:' }])
-      expect(introTable.push.mock.calls[1][0]).toEqual(['Content Types', 2])
-      expect(introTable.push.mock.calls[2][0]).toEqual(['Editor Interfaces', 2])
-      expect(introTable.push.mock.calls[3][0]).toEqual(['Locales', 2])
-      expect(introTable.push.mock.calls).toHaveLength(4)
-    })
 })

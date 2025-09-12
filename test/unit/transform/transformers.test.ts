@@ -1,4 +1,5 @@
-import { cloneMock } from 'contentful-batch-libs/test/mocks/'
+import { expect, test } from 'vitest'
+import { cloneMock } from 'contentful-batch-libs/test/mocks/index.js'
 
 import * as transformers from '../../../lib/transform/transformers'
 

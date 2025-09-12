@@ -1,4 +1,5 @@
-const { getHeadersConfig } = require('../../../lib/utils/headers')
+import { expect, test } from 'vitest'
+import { getHeadersConfig } from '../../../lib/utils/headers'
 
 test('getHeadersConfig returns empty object when value is undefined', () => {
   expect(getHeadersConfig(undefined)).toEqual({})

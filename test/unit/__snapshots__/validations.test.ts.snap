@@ -1,5 +1,5 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`payload validation fails if given invalid tag 1`] = `"tags:1 - Get further details in the error log file"`;
+exports[`payload validation fails if given invalid tag 1`] = `[ValidationError: tags:1 - Get further details in the error log file]`;
 
-exports[`payload validation should fail when given an invalid data 1`] = `"assets:2 - Get further details in the error log file"`;
+exports[`payload validation should fail when given an invalid data 1`] = `[ValidationError: assets:2 - Get further details in the error log file]`;

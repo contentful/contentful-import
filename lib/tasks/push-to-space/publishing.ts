@@ -1,5 +1,4 @@
-import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
-import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { logEmitter, getEntityName } from 'contentful-batch-libs'
 import { ContentfulEntityError } from '../../utils/errors'
 import { ResourcesUnion } from '../../types'
 import PQueue from 'p-queue'

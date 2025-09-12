@@ -1,3 +1,4 @@
+import { expect, test } from 'vitest'
 import sortLocales from '../../lib/utils/sort-locales'
 
 /*

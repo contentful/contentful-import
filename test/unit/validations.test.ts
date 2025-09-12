@@ -1,3 +1,4 @@
+import { expect, test } from 'vitest'
 import { assertPayload } from '../../lib/utils/validations'
 
 test('payload validation should succeed when given an empty payload', () => {

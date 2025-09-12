@@ -1,8 +1,7 @@
 import Listr from 'listr'
 import verboseRenderer from 'listr-verbose-renderer'
 
-import { logEmitter } from 'contentful-batch-libs/dist/logging'
-import { wrapTask } from 'contentful-batch-libs/dist/listr'
+import { logEmitter, wrapTask } from 'contentful-batch-libs'
 
 import * as assets from './assets'
 import * as creation from './creation'
@@ -282,7 +281,7 @@ export default function pushToSpace ({
           return
         }
         const assetsToProcess = await creation.createEntities({
-          context: { target: ctx.environment, type: 'Asset'},
+          context: { target: ctx.environment, type: 'Asset' },
           entities: sourceData.assets,
           destinationEntitiesById: destinationDataById.assets,
           skipUpdates: skipAssetUpdates,
