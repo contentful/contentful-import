@@ -6,22 +6,22 @@ orbs:
 jobs:
   unit:
     docker:
-      - image: cimg/node:18.18.0
+      - image: cimg/node:20.19.4
     steps:
       - checkout
       - restore_cache:
-          key: dependency-cache-{{ checksum "package.json" }}
-      - run: npm install
+          key: dependency-cache-{{ checksum "package-lock.json" }}
+      - run: npm ci --prefer-offline
       - run: npm run build
       - run: npm run test:unit
   integration:
     docker:
-      - image: cimg/node:18.18.0
+      - image: cimg/node:20.19.4
     steps:
       - checkout
       - restore_cache:
-          key: dependency-cache-{{ checksum "package.json" }}
-      - run: npm install
+          key: dependency-cache-{{ checksum "package-lock.json" }}
+      - run: npm ci --prefer-offline
       - run: npm run build
       - run: npm run test:integration
   release:
@@ -31,7 +31,7 @@ jobs:
       - checkout
       - vault/get-secrets: # Loads vault secrets
           template-preset: "semantic-release-ecosystem"
-      - run: npm install
+      - run: npm ci --prefer-offline
       - run: npm run build
       - run: npm run semantic-release
 workflows:

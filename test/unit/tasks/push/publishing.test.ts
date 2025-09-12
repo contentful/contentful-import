@@ -1,16 +1,20 @@
+import { vi, beforeEach, afterEach, expect, test } from 'vitest'
+
 import PQueue from 'p-queue'
 import {
   publishEntities,
   archiveEntities
 } from '../../../../lib/tasks/push-to-space/publishing'
 
-import { logEmitter } from 'contentful-batch-libs/dist/logging'
-import { AssetProps } from 'contentful-management'
+import { logEmitter } from 'contentful-batch-libs'
+import { AssetProps, Entry } from 'contentful-management'
 
-jest.mock('contentful-batch-libs/dist/logging', () => ({
+vi.mock('contentful-batch-libs', () => ({
   logEmitter: {
-    emit: jest.fn()
-  }
+    emit: vi.fn()
+  },
+  getEntityName: (entity?: Entry) =>
+    entity && entity.sys ? entity.sys.id : 'unknown'
 }))
 
 let requestQueue
@@ -29,7 +33,7 @@ afterEach(() => {
 })
 
 test('Publish entities', () => {
-  const publishStub = jest.fn()
+  const publishStub = vi.fn()
   publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '123', publishedVersion: 2 } }))
   publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '456', publishedVersion: 3 } }))
   return publishEntities({
@@ -52,7 +56,7 @@ test('Publish entities', () => {
 
 test('Only publishes valid entities and does not fail when api error occur', () => {
   const errorValidation = new Error('failed to publish')
-  const publishStub = jest.fn()
+  const publishStub = vi.fn()
   publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '123', publishedVersion: 2 } }))
   publishStub.mockImplementationOnce(() => Promise.reject(errorValidation))
   publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '456', publishedVersion: 3 } }))
@@ -85,7 +89,7 @@ test('Only publishes valid entities and does not fail when api error occur', () 
 
 test('Aborts publishing queue when all publishes fail', () => {
   const errorValidation = new Error('failed to publish')
-  const publishStub = jest.fn(() => Promise.reject(errorValidation))
+  const publishStub = vi.fn(() => Promise.reject(errorValidation))
 
   return publishEntities({
     entities: [
@@ -112,7 +116,7 @@ test('Aborts publishing queue when all publishes fail', () => {
 
 test('Aborts publishing queue when some publishes fail', () => {
   const errorValidation = new Error('failed to publish')
-  const publishStub = jest.fn()
+  const publishStub = vi.fn()
   publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '123', publishedVersion: 2 } }))
   publishStub.mockImplementationOnce(() => Promise.reject(errorValidation))
   publishStub.mockImplementationOnce(() => Promise.reject(errorValidation))
@@ -174,7 +178,7 @@ test('Archiving detects entities that can not be archived', () => {
 })
 
 test('Skips archiving when no entities are given', () => {
-  const archiveMock = jest.fn()
+  const archiveMock = vi.fn()
   const errorArchiving = new Error('failed to archive')
   archiveMock.mockImplementationOnce(() => Promise.resolve({ archived: true }))
   archiveMock.mockImplementationOnce(() => Promise.reject(errorArchiving))

@@ -1,3 +1,4 @@
+import { afterEach, beforeEach, expect, test } from 'vitest'
 import { join } from 'path'
 
 import { createClient } from 'contentful-management'
@@ -20,8 +21,6 @@ type Error = {
         }
     }[]
 }
-
-jest.setTimeout(1.5 * 60 * 1000) // 1.5min timeout
 
 beforeEach(async () => {
   const client = createClient({ accessToken: managementToken })

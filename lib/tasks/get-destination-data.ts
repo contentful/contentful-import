@@ -1,6 +1,6 @@
 import Promise from 'bluebird'
 
-import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { logEmitter } from 'contentful-batch-libs'
 import type { AssetProps, ContentTypeProps, EntryProps, LocaleProps, TagProps, WebhookProps } from 'contentful-management'
 import { OriginalSourceData } from '../types'
 import PQueue from 'p-queue'

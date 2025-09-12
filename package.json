@@ -3,6 +3,7 @@
   "version": "0.0.0-determined-by-semantic-release",
   "description": "this tool allows you to import JSON dump exported by contentful-export",
   "main": "dist/index.mjs",
+  "type": "module",
   "typings": "dist/index.d.ts",
   "module": "dist/index.mjs",
   "engines": {
@@ -23,12 +24,10 @@
     "lint:tests": "eslint test && tsc --project tsconfig.test.json",
     "pretest": "npm run lint && npm run build",
     "test": "npm run test:unit && npm run test:integration",
-    "test:unit": "jest --testPathPattern=test/unit --runInBand --coverage",
-    "test:unit:debug": "node --inspect-brk ./node_modules/.bin/jest --runInBand --watch --testPathPattern=test/unit",
-    "test:unit:watch": "npm run test:unit -- --watch",
-    "test:integration": "jest --testPathPattern=test/integration",
-    "test:integration:debug": "node --inspect-brk ./node_modules/.bin/jest --runInBand --watch --testPathPattern=test/integration",
-    "test:integration:watch": "npm run test:integration -- --watch",
+    "test:unit": "vitest run --project unit --coverage",
+    "test:unit:watch": "vitest --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:integration:watch": "vitest --project integration",
     "semantic-release": "semantic-release",
     "prepush": "npm run test:unit"
   },
@@ -75,23 +74,21 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.14",
     "@types/lodash": "^4.17.16",
     "@types/node": "^20.6.3",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^6.21.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "cz-conventional-changelog": "^3.1.0",
     "eslint-plugin-import": "^2.31.0",
-    "eslint-plugin-jest": "^28.11.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^6.1.1",
     "eslint-plugin-standard": "^5.0.0",
-    "jest": "^29.7.0",
     "rimraf": "^5.0.7",
     "semantic-release": "^24.2.3",
-    "ts-jest": "^29.3.2",
     "tsup": "^8.4.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
   },
   "files": [
     "bin",

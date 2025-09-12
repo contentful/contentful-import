@@ -1,21 +1,54 @@
+import { vi, beforeEach, expect, test } from 'vitest'
+
 import PQueue from 'p-queue'
 import fs from 'fs'
-import { Stream } from 'stream'
+import { Readable, Stream } from 'stream'
 import {
   processAssets,
   getAssetStreamForURL
 } from '../../../../lib/tasks/push-to-space/assets'
 
-import { logEmitter } from 'contentful-batch-libs/dist/logging'
-import { MockedFs } from '../../../types'
+import { logEmitter } from 'contentful-batch-libs'
+import { Asset } from 'contentful-management'
 
-jest.mock('contentful-batch-libs/dist/logging', () => ({
+vi.mock('contentful-batch-libs', () => ({
   logEmitter: {
-    emit: jest.fn()
-  }
+    emit: vi.fn()
+  },
+  getEntityName: (entity?: Asset) =>
+    entity && entity.sys ? entity.sys.id : 'unknown'
 }))
 
-jest.mock('fs')
+type MockedFs = typeof import('fs') & {
+  __setMockFiles: (files: string[]) => void
+}
+
+vi.mock('fs', () => {
+  const fs = {} as MockedFs
+  let mockFiles: string[] = []
+
+  function __setMockFiles (newMockFiles: string[]) {
+    mockFiles = newMockFiles
+  }
+
+  function stat (
+    filePath: string,
+    cb: (err: NodeJS.ErrnoException | null, filePath?: string) => void
+  ): void {
+    if (mockFiles.includes(filePath)) cb(null, filePath)
+    else cb(new Error())
+  }
+
+  function createReadStream (): NodeJS.ReadableStream {
+    return new Readable({ read () {} })
+  }
+
+  fs.__setMockFiles = __setMockFiles
+  fs.stat = stat as unknown as typeof import('fs').stat
+  fs.createReadStream = createReadStream as unknown as typeof fs.createReadStream
+
+  return { ...fs, default: fs }
+})
 
 const assetPaths = [
   'assets/images/contentful-en.jpg',
@@ -31,12 +64,12 @@ beforeEach(() => {
     interval: 1000,
     intervalCap: 1000
   })
-  logEmitter.emit.mockClear();
-  (fs as unknown as MockedFs).__setMockFiles(assetPaths)
+  logEmitter.emit.mockClear()
+  ;(fs as unknown as MockedFs).__setMockFiles(assetPaths)
 })
 
 test('Process assets', async () => {
-  const processStub = jest
+  const processStub = vi
     .fn()
     .mockReturnValue(Promise.resolve({ sys: { type: 'Asset' } }))
 
@@ -69,32 +102,50 @@ test('Process assets', async () => {
 })
 
 test('Return most up to date processed asset version', async () => {
-  const processStub = jest
+  const processStub = vi
     .fn()
-    .mockImplementationOnce(() => new Promise(resolve => setTimeout(() => resolve({
-      sys: { id: '123' },
-      fields: {
-        file: {
-          'en-US': {
-            url: 'updated-url-which-show-this-process-was-succesful'
-          },
-          'en-GB': {
-            url: 'updated-url-which-show-this-process-was-succesful'
-          }
-        }
-      }
-    }), 100))) // This call takes longer and therefore should be the
+    .mockImplementationOnce(
+      () =>
+        new Promise(resolve =>
+          setTimeout(
+            () =>
+              resolve({
+                sys: { id: '123' },
+                fields: {
+                  file: {
+                    'en-US': {
+                      url: 'updated-url-which-show-this-process-was-succesful'
+                    },
+                    'en-GB': {
+                      url: 'updated-url-which-show-this-process-was-succesful'
+                    }
+                  }
+                }
+              }),
+            100
+          )
+        )
+    ) // This call takes longer and therefore should be the
     // one to inform the final asset shape
-    .mockImplementationOnce(() => new Promise(resolve => setTimeout(() => resolve({
-      sys: { id: '123' },
-      fields: {
-        file: {
-          'en-US': {
-            url: 'updated-url-which-show-this-process-was-succesful'
-          }
-        }
-      }
-    }), 50)))
+    .mockImplementationOnce(
+      () =>
+        new Promise(resolve =>
+          setTimeout(
+            () =>
+              resolve({
+                sys: { id: '123' },
+                fields: {
+                  file: {
+                    'en-US': {
+                      url: 'updated-url-which-show-this-process-was-succesful'
+                    }
+                  }
+                }
+              }),
+            50
+          )
+        )
+    )
 
   const assets = await processAssets({
     assets: [
@@ -118,7 +169,7 @@ test('Return most up to date processed asset version', async () => {
 test('Process assets fails', async () => {
   const failedError = new Error('processing failed')
 
-  const processStub = jest
+  const processStub = vi
     .fn()
     .mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset' } }))
     .mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset' } }))
@@ -160,7 +211,7 @@ test('Get asset stream for url: Throw error if filePath does not exist', async (
 })
 
 test('Get asset stream for url: Create stream if filepath exists', async () => {
-  const createReadStreamSpy = jest.spyOn(fs, 'createReadStream')
+  const createReadStreamSpy = vi.spyOn(fs, 'createReadStream')
   const fileUrl = 'https://images/contentful-en.jpg'
   const stream = await getAssetStreamForURL(fileUrl, 'assets')
 

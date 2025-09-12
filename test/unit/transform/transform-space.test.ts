@@ -1,3 +1,4 @@
+import { expect, test } from 'vitest'
 import { cloneDeep } from 'lodash'
 
 import {
@@ -6,7 +7,7 @@ import {
   assetMock,
   localeMock,
   webhookMock
-} from 'contentful-batch-libs/test/mocks/'
+} from 'contentful-batch-libs/test/mocks/index.js'
 
 import transformSpace from '../../../lib/transform/transform-space'
 import { Resources, TransformedSourceData } from '../../../lib/types'
