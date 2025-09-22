@@ -90,7 +90,7 @@
     "eslint-plugin-standard": "^5.0.0",
     "jest": "^29.7.0",
     "rimraf": "^5.0.7",
-    "semantic-release": "^24.2.8",
+    "semantic-release": "^24.2.9",
     "ts-jest": "^29.4.3",
     "tsup": "^8.5.0",
     "typescript": "^5.9.2",
