@@ -3,16 +3,15 @@
   "version": "0.0.0-determined-by-semantic-release",
   "description": "this tool allows you to import JSON dump exported by contentful-export",
   "main": "dist/index.mjs",
+  "type": "module",
   "typings": "dist/index.d.ts",
   "module": "dist/index.mjs",
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "exports": {
     "require": "./dist/index.js",
-    "import": "./dist/index.mjs",
-    "node": "./dist/index.js",
-    "default": "./dist/index.js"
+    "import": "./dist/index.mjs"
   },
   "bin": {
     "contentful-import": "./bin/contentful-import"
@@ -25,12 +24,10 @@
     "lint:tests": "eslint test && tsc --project tsconfig.test.json",
     "pretest": "npm run lint && npm run build",
     "test": "npm run test:unit && npm run test:integration",
-    "test:unit": "jest --testPathPattern=test/unit --runInBand --coverage",
-    "test:unit:debug": "node --inspect-brk ./node_modules/.bin/jest --runInBand --watch --testPathPattern=test/unit",
-    "test:unit:watch": "npm run test:unit -- --watch",
-    "test:integration": "jest --testPathPattern=test/integration",
-    "test:integration:debug": "node --inspect-brk ./node_modules/.bin/jest --runInBand --watch --testPathPattern=test/integration",
-    "test:integration:watch": "npm run test:integration -- --watch",
+    "test:unit": "vitest run --project unit --coverage",
+    "test:unit:watch": "vitest --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:integration:watch": "vitest --project integration",
     "semantic-release": "semantic-release",
     "prepush": "npm run test:unit"
   },
@@ -63,8 +60,8 @@
     "@discoveryjs/json-ext": "^0.6.3",
     "bluebird": "^3.7.2",
     "cli-table3": "^0.6.5",
-    "contentful-batch-libs": "^9.6.0",
-    "contentful-management": "^11.60.1",
+    "contentful-batch-libs": "^10.2.0-beta.2",
+    "contentful-management": "v12.0.0-beta.9",
     "date-fns": "^2.30.0",
     "eslint": "^8.57.1",
     "eslint-config-standard": "^17.1.0",
@@ -77,24 +74,22 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.14",
     "@types/lodash": "^4.17.20",
-    "@types/node": "^20.6.3",
+    "@types/node": "^20.19.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^6.21.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "cz-conventional-changelog": "^3.1.0",
     "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-jest": "^28.14.0",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^6.1.1",
     "eslint-plugin-standard": "^5.0.0",
-    "jest": "^29.7.0",
+    "nixt": "^0.5.1",
     "rimraf": "^5.0.7",
     "semantic-release": "^24.2.8",
-    "ts-jest": "^29.4.4",
     "tsup": "^8.5.0",
     "typescript": "^5.9.2",
-    "nixt": "^0.5.1"
+    "vitest": "^3.2.4"
   },
   "files": [
     "bin",

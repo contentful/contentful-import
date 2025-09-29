@@ -1,6 +1,7 @@
+import { expect, test } from 'vitest'
 import { basename, isAbsolute, join, resolve, sep } from 'path'
 
-import {HttpsProxyAgent} from 'https-proxy-agent'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 
 import parseOptions from '../../lib/parseOptions'
 

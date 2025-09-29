@@ -4,8 +4,11 @@ import format from 'date-fns/format'
 
 import { version } from '../package.json'
 import { getHeadersConfig } from './utils/headers'
-import { proxyStringToObject, agentFromProxy } from 'contentful-batch-libs/dist/proxy'
-import addSequenceHeader from 'contentful-batch-libs/dist/add-sequence-header'
+import {
+  proxyStringToObject,
+  agentFromProxy,
+  addSequenceHeader
+} from 'contentful-batch-libs'
 import { parseChunked } from '@discoveryjs/json-ext'
 
 const SUPPORTED_ENTITY_TYPES = [

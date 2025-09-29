@@ -1,8 +1,7 @@
 import { find } from 'lodash/collection'
 import { assign, get, omitBy, omit } from 'lodash/object'
 
-import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
-import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { logEmitter, getEntityName } from 'contentful-batch-libs'
 import { ContentfulEntityError } from '../../utils/errors'
 import { TransformedSourceData, TransformedSourceDataUnion } from '../../types'
 import PQueue from 'p-queue'
@@ -47,7 +46,7 @@ async function createEntitiesWithConcurrency ({ context, entities, destinationEn
 
     if (destinationEntity && skipUpdates) {
       creationSuccessNotifier(operation, entity.transformed)
-      return
+      return null
     }
 
     return requestQueue.add(async () => {
@@ -125,8 +124,8 @@ async function createEntry ({ entry, target, skipContentModel, destinationEntiti
   }
   try {
     const createdOrUpdatedEntry = await requestQueue.add(() => {
-      return destinationEntry 
-        ? updateDestinationWithSourceData(destinationEntry, entry.transformed) 
+      return destinationEntry
+        ? updateDestinationWithSourceData(destinationEntry, entry.transformed)
         : createEntryInDestination(target, contentTypeId, entry.transformed)
     })
 
