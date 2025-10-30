@@ -77,6 +77,7 @@
     "yargs": "^17.7.2"
   },
   "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
     "@types/jest": "^29.5.14",
     "@types/lodash": "^4.17.20",
     "@types/node": "^20.6.3",
@@ -113,6 +114,11 @@
         "name": "beta",
         "channel": "beta",
         "prerelease": true
+      },
+      {
+        "name": "testing_publishing_to_github_packages",
+        "channel": "testing_publishing_to_github_packages",
+        "prerelease": true
       }
     ],
     "plugins": [
@@ -129,6 +135,7 @@
         }
       ],
       "@semantic-release/release-notes-generator",
+      "@semantic-release/changelog",
       "@semantic-release/npm",
       "@semantic-release/github"
     ]
