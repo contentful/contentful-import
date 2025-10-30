@@ -3,6 +3,26 @@ version: 2.1
 orbs:
   vault: contentful/vault@1
 
+commands:
+  install-dependencies:
+    steps:
+      - restore_cache:
+          keys:
+            - npm-cache-{{ arch }}-{{ checksum ".nvmrc" }}-{{ checksum "package-lock.json" }}
+            - npm-cache
+      - vault/get-secrets:
+          template-preset: "packages-read"
+      - run: echo "//npm.pkg.github.com/:_authToken=${GITHUB_PACKAGES_READ_TOKEN}" > ~/.npmrc
+      - run: echo "@contentful:registry=https://npm.pkg.github.com" >> ~/.npmrc
+      - run: npm ci --prefer-offline
+
+  use-vault:
+    steps:
+      - vault/get-secrets:
+          template-preset: "semantic-release-ecosystem"
+      - run: echo "//npm.pkg.github.com/:_authToken=${GITHUB_PACKAGES_WRITE_TOKEN}" > ~/.npmrc
+      - run: echo "@contentful:registry=https://npm.pkg.github.com" >> ~/.npmrc
+
 jobs:
   unit:
     docker:
@@ -29,8 +49,8 @@ jobs:
       - image: cimg/node:lts # semantic-release requires node 20 or higher
     steps:
       - checkout
-      - vault/get-secrets: # Loads vault secrets
-          template-preset: "semantic-release-ecosystem"
+      - install-dependencies
+      - use-vault
       - run: npm install
       - run: npm run build
       - run: npm run semantic-release
@@ -50,3 +70,4 @@ workflows:
               only:
                 - main
                 - beta
+                - testing_publishing_to_github_packages
