@@ -3,6 +3,14 @@ version: 2.1
 orbs:
   vault: contentful/vault@1
 
+commands:
+  use-vault:
+    steps:
+      - vault/get-secrets:
+          template-preset: "semantic-release-ecosystem"
+      - run: echo "//npm.pkg.github.com/:_authToken=${GITHUB_PACKAGES_WRITE_TOKEN}" > ~/.npmrc
+      - run: echo "@contentful:registry=https://npm.pkg.github.com" >> ~/.npmrc
+
 jobs:
   unit:
     docker:
@@ -31,6 +39,7 @@ jobs:
       - checkout
       - vault/get-secrets: # Loads vault secrets
           template-preset: "semantic-release-ecosystem"
+      - use-vault
       - run: npm install
       - run: npm run build
       - run: npm run semantic-release
@@ -50,3 +59,4 @@ workflows:
               only:
                 - main
                 - beta
+                - testing_publishing_to_github_packages
