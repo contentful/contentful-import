@@ -70,4 +70,4 @@ workflows:
               only:
                 - main
                 - beta
-                - testing_publishing_to_github_packages
+                - testing-publishing-to-github-packages
