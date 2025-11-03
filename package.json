@@ -139,5 +139,8 @@
       "@semantic-release/npm",
       "@semantic-release/github"
     ]
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   }
 }
