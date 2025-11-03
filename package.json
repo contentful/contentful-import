@@ -116,8 +116,8 @@
         "prerelease": true
       },
       {
-        "name": "testing_publishing_to_github_packages",
-        "channel": "testing_publishing_to_github_packages",
+        "name": "testing-publishing-to-github-packages",
+        "channel": "testing-publishing-to-github-packages",
         "prerelease": true
       }
     ],
