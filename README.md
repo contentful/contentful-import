@@ -229,7 +229,7 @@ contentfulImport({
 
 ### Embargoed Assets
 
-If a space is configured to use the [embargoed assets feature](https://www.contentful.com/help/media/embargoed-assets/), certain options will need to be set to use the export/import tooling. When exporting content ([using `contentful-export`](https://github.com/contentful/contentful-export)), the `downloadAssets` option must be set to `true`. This will download the asset files to your local machine. Then, when importing content, the `uploadAssets` option must be set to `true` and the `assetsDirectory` must be set to the directory that contains all of the exported asset folders.
+If a space is configured to use the [embargoed assets feature](https://www.contentful.com/help/media/embargoed-assets/), certain options will need to be set to use the export/import tooling. When exporting content ([using `contentful-export`](https://github.com/contentful/contentful-export)), the `downloadAssets` option must be set to `true`. This will download the asset files to your local machine. Then when importing content, the `uploadAssets` option must be set to `true` and the `assetsDirectory` must be set to the directory that contains all of the exported asset folders.
 
 ```javascript
 const contentfulImport = require('contentful-import')
