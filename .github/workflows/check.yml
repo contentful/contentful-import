@@ -24,7 +24,7 @@ jobs:
         run: npm run build
 
       - name: Yargs version
-        run: npm yargs --version
+        run: node -e "console.log('Project yargs version:', require('yargs/package.json').version)"
 
       # TODO: Uncomment this when we have lint errors fixed
       # - name: Run linter
