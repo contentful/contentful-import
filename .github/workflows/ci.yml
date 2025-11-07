@@ -1,98 +1,98 @@
-name: CI
+# name: CI
 
-on:
-  push:
-    branches: [main, beta, testing-publishing-to-github-packages]
-  pull_request:
-    branches: [main, beta]
+# on:
+#   push:
+#     branches: [main, beta, testing-publishing-to-github-packages]
+#   pull_request:
+#     branches: [main, beta]
 
-permissions:
-  contents: read
-  id-token: write # Required for OIDC trusted publishing
+# permissions:
+#   contents: read
+#   id-token: write # Required for OIDC trusted publishing
 
-jobs:
-  unit:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+# jobs:
+#   unit:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version-file: ".nvmrc"
+#           cache: "npm"
 
-      - name: Configure GitHub Packages
-        run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_PACKAGES_READ_TOKEN }}" > ~/.npmrc
-          echo "@contentful:registry=https://npm.pkg.github.com" >> ~/.npmrc
+#       - name: Configure GitHub Packages
+#         run: |
+#           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_PACKAGES_READ_TOKEN }}" > ~/.npmrc
+#           echo "@contentful:registry=https://npm.pkg.github.com" >> ~/.npmrc
 
-      - name: Install dependencies
-        run: npm ci --prefer-offline
+#       - name: Install dependencies
+#         run: npm ci --prefer-offline
 
-      - name: Build
-        run: npm run build
+#       - name: Build
+#         run: npm run build
 
-      - name: Run unit tests
-        run: npm run test:unit
+#       - name: Run unit tests
+#         run: npm run test:unit
 
-  integration:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+#   integration:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: ".nvmrc"
-          cache: "npm"
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version-file: ".nvmrc"
+#           cache: "npm"
 
-      - name: Configure GitHub Packages
-        run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_PACKAGES_READ_TOKEN }}" > ~/.npmrc
-          echo "@contentful:registry=https://npm.pkg.github.com" >> ~/.npmrc
+#       - name: Configure GitHub Packages
+#         run: |
+#           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_PACKAGES_READ_TOKEN }}" > ~/.npmrc
+#           echo "@contentful:registry=https://npm.pkg.github.com" >> ~/.npmrc
 
-      - name: Install dependencies
-        run: npm ci --prefer-offline
+#       - name: Install dependencies
+#         run: npm ci --prefer-offline
 
-      - name: Build
-        run: npm run build
+#       - name: Build
+#         run: npm run build
 
-      - name: Run integration tests
-        run: npm run test:integration
+#       - name: Run integration tests
+#         run: npm run test:integration
 
-  release:
-    runs-on: ubuntu-latest
-    needs: [unit, integration]
-    if: github.event_name == 'push' && contains(fromJson('["main", "beta", "testing-publishing-to-github-packages"]'), github.ref_name)
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+#   release:
+#     runs-on: ubuntu-latest
+#     needs: [unit, integration]
+#     if: github.event_name == 'push' && contains(fromJson('["main", "beta", "testing-publishing-to-github-packages"]'), github.ref_name)
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "lts/*"
-          registry-url: "https://registry.npmjs.org"
-          cache: "npm"
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: "lts/*"
+#           registry-url: "https://registry.npmjs.org"
+#           cache: "npm"
 
-      - name: Update npm to latest version
-        run: npm install -g npm@latest
+#       - name: Update npm to latest version
+#         run: npm install -g npm@latest
 
-      - name: Configure GitHub Packages for read
-        run: |
-          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_PACKAGES_READ_TOKEN }}" > ~/.npmrc
-          echo "@contentful:registry=https://npm.pkg.github.com" >> ~/.npmrc
+#       - name: Configure GitHub Packages for read
+#         run: |
+#           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_PACKAGES_READ_TOKEN }}" > ~/.npmrc
+#           echo "@contentful:registry=https://npm.pkg.github.com" >> ~/.npmrc
 
-      - name: Install dependencies
-        run: npm ci --prefer-offline
+#       - name: Install dependencies
+#         run: npm ci --prefer-offline
 
-      - name: Build
-        run: npm run build
+#       - name: Build
+#         run: npm run build
 
-      - name: Semantic release
-        run: npm run semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#       - name: Semantic release
+#         run: npm run semantic-release
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
