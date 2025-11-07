@@ -1,5 +1,5 @@
 {
-  "name": "@contentful/contentful-import",
+  "name": "contentful-import",
   "version": "0.0.0-determined-by-semantic-release",
   "description": "this tool allows you to import JSON dump exported by contentful-export",
   "main": "dist/index.mjs",
@@ -139,8 +139,5 @@
       "@semantic-release/npm",
       "@semantic-release/github"
     ]
-  },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
   }
 }
