@@ -49,12 +49,19 @@ export default yargs
     describe: 'Uses local asset files and uploads them instead of pointing to the URLs of previously uploaded assets. Requires assets-directory',
     type: 'boolean',
   })
-  .implies('upload-assets', 'assets-directory')
   .option('assets-directory', {
     describe: 'Path to a directory with an asset export made using the downloadAssets option to upload those files instead of pointing to the URLs of previously uploaded assets. Requires upload-assets',
     type: 'string'
   })
-  .implies('assets-directory', 'upload-assets')
+  .check((argv) => {
+    if (argv['upload-assets'] && !argv['assets-directory']) {
+      throw new Error('Missing dependent arguments:\n upload-assets -> assets-directory')
+    }
+    if (argv['assets-directory'] && !argv['upload-assets']) {
+      throw new Error('Missing dependent arguments:\n assets-directory -> upload-assets')
+    }
+    return true
+  })
   .option('error-log-file', {
     describe: 'Full path to the error log file',
     type: 'string'
