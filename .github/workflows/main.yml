@@ -15,6 +15,9 @@ jobs:
   check:
     needs: build
     uses: ./.github/workflows/check.yml
+    secrets:
+      MANAGEMENT_TOKEN: ${{ secrets.CONTENTFUL_INTEGRATION_TEST_CMA_TOKEN }}
+      ORG_ID: ${{ secrets.CONTENTFUL_ORGANIZATION_ID }}
 
   # ⚠️ TEMPLATE NOTE: The release job is commented out for template repos.
   # Uncomment this section when setting up your actual project to enable automated releases.

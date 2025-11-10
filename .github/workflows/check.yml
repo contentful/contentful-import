@@ -72,3 +72,6 @@ jobs:
 
       - name: Run integration tests
         run: npm run test:integration
+        env:
+          MANAGEMENT_TOKEN: ${{ secrets.MANAGEMENT_TOKEN }}
+          ORG_ID: ${{ secrets.ORG_ID }}
