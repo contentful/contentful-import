@@ -9,31 +9,37 @@ on:
         required: true
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
+  # lint:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version-file: '.nvmrc'
+  #         cache: 'npm'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18.18.0'
+  #     - name: Configure GitHub Packages
+  #       run: |
+  #         echo "//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_PACKAGES_READ_TOKEN }}" > ~/.npmrc
+  #         echo "@contentful:registry=https://npm.pkg.github.com" >> ~/.npmrc
 
-      - name: Install dependencies
-        run: npm install
+  #     - name: Install dependencies
+  #       run: npm ci
 
-      - name: Build
-        run: npm run build
+  #     - name: Download build artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: build-artifacts
+  #         path: dist
 
-      # TODO: Uncomment this when we have lint errors fixed
-      # - name: Run linter
-      #   run: npm run lint
+  #     - name: Run linter
+  #       run: npm run lint
 
-      # TODO: Uncomment this when we have a format:check command
-      # - name: Check formatting
-      #   run: npm run format:check
+  #     - name: Check formatting
+  #       run: npm run format:check
 
   unit:
     runs-on: ubuntu-latest
@@ -44,16 +50,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18.18.0'
+          node-version-file: '.nvmrc'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Build
-        run: npm run build
-
-      - name: Yargs version
-        run: node -e "console.log('Project yargs version:', require('yargs/package.json').version)"
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist
 
       - name: Run unit tests
         run: npm run test:unit
@@ -67,13 +74,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18.18.0'
+          node-version-file: '.nvmrc'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Build
-        run: npm run build
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist
 
       - name: Run integration tests
         run: npm run test:integration
