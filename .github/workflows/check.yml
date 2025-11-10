@@ -2,6 +2,11 @@ name: Run Checks
 
 on:
   workflow_call:
+    secrets:
+      MANAGEMENT_TOKEN:
+        required: true
+      ORG_ID:
+        required: true
 
 jobs:
   lint:
