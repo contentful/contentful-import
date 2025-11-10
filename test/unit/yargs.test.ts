@@ -55,7 +55,7 @@ describe("contentful-import yargs", () => {
         --content-file __mocks__/mock-content-file.json`
       )
       .code(1) // Ensure the process exits with an error
-      .stderr(/Missing dependent arguments/)
+      .stderr(/(Missing dependent arguments|Implications failed)/)
       .stderr(/upload-assets -> assets-directory/g)
       .end(done);
   });
