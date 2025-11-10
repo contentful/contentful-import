@@ -15,7 +15,31 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18.18.0'
-          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      # TODO: Uncomment this when we have lint errors fixed
+      # - name: Run linter
+      #   run: npm run lint
+
+      # TODO: Uncomment this when we have a format:check command
+      # - name: Check formatting
+      #   run: npm run format:check
+
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.18.0'
 
       - name: Install dependencies
         run: npm install
@@ -26,16 +50,25 @@ jobs:
       - name: Yargs version
         run: node -e "console.log('Project yargs version:', require('yargs/package.json').version)"
 
-      # TODO: Uncomment this when we have lint errors fixed
-      # - name: Run linter
-      #   run: npm run lint
-
-      # TODO: Uncomment this when we have a format:check command
-      # - name: Check formatting
-      #   run: npm run format:check
-
       - name: Run unit tests
         run: npm run test:unit
 
-      # - name: Run integration tests
-      #   run: npm run test:integration
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.18.0'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Run integration tests
+        run: npm run test:integration
