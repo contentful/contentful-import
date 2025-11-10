@@ -23,19 +23,11 @@ jobs:
       MANAGEMENT_TOKEN: ${{ secrets.CONTENTFUL_INTEGRATION_TEST_CMA_TOKEN }}
       ORG_ID: ${{ secrets.CONTENTFUL_ORGANIZATION_ID }}
 
-  # ⚠️ TEMPLATE NOTE: The release job is commented out for template repos.
-  # Uncomment this section when setting up your actual project to enable automated releases.
-  # If you are in the Contentful Org, then the VAULT_URL is available as an org secret.
-  # If not, ensure you have configured the required VAULT_URL secret in your repository settings.
-  #
-  # release:
-  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-  #   needs: [build, check]
-  #   permissions:
-  #     contents: write
-  #     id-token: write
-  #     actions: read
-  #   uses: ./.github/workflows/release.yml
-  #   secrets:
-  #     VAULT_URL: ${{ secrets.VAULT_URL }}
+  release:
+    if: github.event_name == 'push' && contains(fromJson('["refs/heads/main", "refs/heads/beta", "refs/heads/testing-publishing-to-github-packages"]'), github.ref)
+    needs: [build, check]
+    permissions:
+      contents: read
+      id-token: write   # Required for OIDC trusted publishing to npm
+    uses: ./.github/workflows/release.yml
 
