@@ -1,0 +1,32 @@
+name: CI
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: ['**']
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yaml
+
+  check:
+    needs: build
+    uses: ./.github/workflows/check.yaml
+
+  test-integration:
+    needs: [build, check]
+    uses: ./.github/workflows/test-integration.yaml
+    secrets: inherit
+
+  release:
+    if: github.event_name == 'push' && contains(fromJson('["refs/heads/main", "refs/heads/beta", "refs/heads/testing-publishing-to-github-packages"]'), github.ref)
+    needs: [build, check, test-integration]
+    permissions:
+      contents: write   # Required for semantic-release to push commits and tags
+      id-token: write   # Required for OIDC trusted publishing to npm
+      actions: read
+    uses: ./.github/workflows/release.yaml
+    secrets:
+      VAULT_URL: ${{ secrets.VAULT_URL }}
+
