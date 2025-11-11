@@ -3,12 +3,10 @@ name: Run Integration Tests
 on:
   workflow_call:
     secrets:
-      MANAGEMENT_TOKEN:
+      CONTENTFUL_INTEGRATION_TEST_CMA_TOKEN:
         required: true
-      ORG_ID:
+      CONTENTFUL_ORGANIZATION_ID:
         required: true
-      # MANAGEMENT_TOKEN: ${{ secrets.CONTENTFUL_INTEGRATION_TEST_CMA_TOKEN }}
-      # ORG_ID: ${{ secrets.CONTENTFUL_ORGANIZATION_ID }}
 
 jobs:
   test-integration:
