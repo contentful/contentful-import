@@ -23,11 +23,11 @@ jobs:
       MANAGEMENT_TOKEN: ${{ secrets.CONTENTFUL_INTEGRATION_TEST_CMA_TOKEN }}
       ORG_ID: ${{ secrets.CONTENTFUL_ORGANIZATION_ID }}
 
-  # release:
-  #   if: github.event_name == 'push' && contains(fromJson('["refs/heads/main", "refs/heads/beta", "refs/heads/testing-publishing-to-github-packages"]'), github.ref)
-  #   needs: [build, check]
-  #   permissions:
-  #     contents: read
-  #     id-token: write   # Required for OIDC trusted publishing to npm
-  #   uses: ./.github/workflows/release.yml
+  release:
+    if: github.event_name == 'push' && contains(fromJson('["refs/heads/main", "refs/heads/beta", "refs/heads/testing-publishing-to-github-packages"]'), github.ref)
+    needs: [build, check]
+    permissions:
+      contents: read
+      id-token: write   # Required for OIDC trusted publishing to npm
+    uses: ./.github/workflows/release.yml
 
