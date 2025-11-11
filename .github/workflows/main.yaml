@@ -15,12 +15,12 @@ jobs:
     uses: ./.github/workflows/check.yaml
 
   test-integration:
-    needs: [build, check]
+    needs: build
     uses: ./.github/workflows/test-integration.yaml
     secrets: inherit
 
   release:
-    if: github.event_name == 'push' && contains(fromJson('["refs/heads/main", "refs/heads/beta", "refs/heads/testing-publishing-to-github-packages"]'), github.ref)
+    if: github.event_name == 'push' && contains(fromJson('["refs/heads/main", "refs/heads/beta"]'), github.ref)
     needs: [build, check, test-integration]
     permissions:
       contents: write   # Required for semantic-release to push commits and tags
