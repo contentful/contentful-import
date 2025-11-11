@@ -6,13 +6,15 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required for semantic-release to push commits and tags
+      id-token: write # Required for OIDC trusted publishing to npm
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
           fetch-depth: 0  # Required for semantic-release to analyze commit history
-          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
