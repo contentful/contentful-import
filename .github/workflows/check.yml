@@ -13,10 +13,10 @@ jobs:
   #   runs-on: ubuntu-latest
   #   steps:
   #     - name: Checkout code
-  #       uses: actions/checkout@v4
+  #       uses: actions/checkout@v5
 
   #     - name: Setup Node.js
-  #       uses: actions/setup-node@v4
+  #       uses: actions/setup-node@v6
   #       with:
   #         node-version-file: '.nvmrc'
   #         cache: 'npm'
@@ -29,11 +29,12 @@ jobs:
   #     - name: Install dependencies
   #       run: npm ci
 
-  #     - name: Download build artifacts
-  #       uses: actions/download-artifact@v4
+  #     - name: Restore the build folders
+  #       uses: actions/cache/restore@v4
   #       with:
-  #         name: build-artifacts
-  #         path: dist
+  #         path: |
+  #           dist
+  #         key: build-cache-${{ github.run_id }}-${{ github.run_attempt }}
 
   #     - name: Run linter
   #       run: npm run lint
@@ -45,10 +46,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -56,11 +57,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
+      - name: Restore the build folders
+        uses: actions/cache/restore@v4
         with:
-          name: build-artifacts
-          path: dist
+          path: |
+            dist
+          key: build-cache-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Run unit tests
         run: npm run test:unit
@@ -69,10 +71,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -80,11 +82,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
+      - name: Restore the build folders
+        uses: actions/cache/restore@v4
         with:
-          name: build-artifacts
-          path: dist
+          path: |
+            dist
+          key: build-cache-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Run integration tests
         run: npm run test:integration
