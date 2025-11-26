@@ -22,6 +22,8 @@ updates:
     include: scope
   registries:
   - npm-registry-registry-npmjs-org
+  cooldown:
+    default-days: 15
 - package-ecosystem: github-actions
   directory: "/"
   schedule:
