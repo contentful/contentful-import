@@ -8,6 +8,6 @@ module.exports = {
     '^.+\\.(ts|tsx|js|jsx)$': 'ts-jest',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(contentful-batch-libs|contentful-sdk-core|contentful-management|p-throttle)/)',
+    'node_modules/(?!(contentful-batch-libs|contentful-sdk-core|p-throttle)/)',
   ],
 };
