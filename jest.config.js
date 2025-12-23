@@ -5,7 +5,9 @@ module.exports = {
   verbose: true,
   collectCoverageFrom: ['lib/**/*.{ts,tsx,js,jsx}'],
   transform: {
-    '^.+\\.(ts|tsx|js|jsx)$': 'ts-jest'
+    '^.+\\.(ts|tsx|js|jsx)$': 'ts-jest',
   },
-  transformIgnorePatterns: ['node_modules/(?!(contentful-batch-libs)/)']
-}
+  transformIgnorePatterns: [
+    'node_modules/(?!(contentful-batch-libs)/)',
+  ],
+};
