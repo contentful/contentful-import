@@ -19,7 +19,7 @@ jobs:
       # After merge, explicitly trigger CI workflow.
       # The auto-merge action uses the auto-generated workflow token for the merge,
       # which by design doesn't trigger push-based workflows (prevents infinite loops).
-      - name: 'Retrieve token to trigger CI'
+      - name: 'Retrieve Secrets from Vault'
         id: vault
         uses: hashicorp/vault-action@v3.4.0
         with:
