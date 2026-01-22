@@ -7,10 +7,31 @@ jobs:
     permissions:
       contents: write
       id-token: write
-      pull-requests: write
+      actions: write  # Required to dispatch workflows
     runs-on: ubuntu-latest
     if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == github.event.pull_request.head.repo.full_name
     steps:
       - uses: contentful/github-auto-merge@v2
+        id: auto-merge
         with:
           VAULT_URL: ${{ secrets.VAULT_URL }}
+
+      # After merge, explicitly trigger CI workflow.
+      # The auto-merge action uses the auto-generated workflow token for the merge,
+      # which by design doesn't trigger push-based workflows (prevents infinite loops).
+      - name: 'Retrieve token to trigger CI'
+        id: vault
+        uses: hashicorp/vault-action@v3.4.0
+        with:
+          url: ${{ secrets.VAULT_URL }}
+          role: ${{ github.event.repository.name }}-github-action
+          method: jwt
+          path: github-actions
+          exportEnv: false
+          secrets: |
+            github/token/${{ github.event.repository.name }}-semantic-release token | GITHUB_TOKEN;
+
+      - name: Trigger CI workflow on main
+        run: gh workflow run main.yaml --ref main
+        env:
+          GITHUB_TOKEN: ${{ steps.vault.outputs.GITHUB_TOKEN }}
