@@ -92,7 +92,7 @@
     "jest": "^29.7.0",
     "rimraf": "^6.1.0",
     "semantic-release": "^25.0.2",
-    "ts-jest": "^29.4.5",
+    "ts-jest": "^29.4.6",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "nixt": "^0.5.1"
