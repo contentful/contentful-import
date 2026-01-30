@@ -7,18 +7,19 @@ jobs:
     permissions:
       contents: write
       id-token: write
+      pull-requests: write
     runs-on: ubuntu-latest
     if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == github.event.pull_request.head.repo.full_name
     steps:
-      - uses: contentful/github-auto-merge@b995e4ecd10bed72105998808b1fe666d6b0892d # v2
-        id: auto-merge
-        with:
-          VAULT_URL: ${{ secrets.VAULT_URL }}
+      - name: Check if PR is from fork
+        shell: bash
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.fork }}" == "true" ]; then
+            echo "Skipping action on fork PR"
+            exit 1
+          fi
 
-      # After merge, explicitly trigger CI workflow.
-      # The auto-merge action uses the auto-generated workflow token for the merge,
-      # which by design doesn't trigger push-based workflows (prevents infinite loops).
-      - name: 'Retrieve Secrets from Vault'
+      - name: Retrieve Github Token
         id: vault
         uses: hashicorp/vault-action@4c06c5ccf5c0761b6029f56cfb1dcf5565918a3b # v3.4.0
         with:
@@ -28,9 +29,79 @@ jobs:
           path: github-actions
           exportEnv: false
           secrets: |
-            github/token/${{ github.event.repository.name }}-semantic-release token | GITHUB_TOKEN;
+            github/token/${{ github.event.repository.name }}-dependabot token | GITHUB_MERGE_TOKEN ;
 
-      - name: Trigger CI workflow on main
-        run: gh workflow run main.yaml --ref main
+      - name: approve PR
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ steps.vault.outputs.GITHUB_MERGE_TOKEN }}
+          script: |
+            const opts = github.rest.pulls.listReviews.endpoint.merge({
+              pull_number: context.payload.pull_request.number,
+              owner: context.payload.repository.owner.login,
+              repo: context.payload.repository.name,
+            });
+
+            const reviews = await github.paginate(opts);
+
+            const ourReview = reviews.find(
+              (review) =>
+                review.state === "APPROVED" && review.user && review.user.login === "contentful-automation[bot]"
+            );
+
+            if (ourReview) {
+              console.log(
+                `The user "${ourReview.user.login}" has already approved and requested this PR is merged, exiting`
+              );
+            } else {
+              github.rest.pulls.createReview({
+                owner: context.payload.repository.owner.login,
+                repo: context.payload.repository.name,
+                pull_number: context.payload.pull_request.number,
+                event: 'APPROVE',
+                body: ''
+              })
+            }
+
+      - name: Get merge type
+        id: merge-type
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          github-token: ${{ steps.vault.outputs.GITHUB_MERGE_TOKEN }}
+          script: |
+            const repo = await github.rest.repos.get({
+              owner: context.payload.repository.owner.login,
+              repo: context.payload.repository.name,
+            });
+
+            const methods = new Map([
+              ['squash', repo.data.allow_squash_merge],
+              ['merge', repo.data.allow_merge_commit],
+              ['rebase', repo.data.allow_rebase_merge],
+            ]);
+
+            console.log(methods)
+
+            const allowedMethods = [...methods.entries()]
+              .filter(([_, allowed]) => allowed)
+              .map(([method]) => method);
+
+            // just pick the first one
+            const mergeMethod = allowedMethods[0];
+
+            if (!mergeMethod) {
+              throw new Error("No allowed merge method found");
+            }
+
+            return mergeMethod;
+
+      - name: Enable auto merge
+        shell: bash
+        run: |
+          merge_method="$(echo ${{ steps.merge-type.outputs.result }} | tr -d '"')"
+          echo "Auto merging PR using method $merge_method"
+          gh pr merge --delete-branch "--$merge_method" --auto ${{ github.event.pull_request.html_url }}
         env:
-          GITHUB_TOKEN: ${{ steps.vault.outputs.GITHUB_TOKEN }}
+          # Using Vault token instead of github.token ensures the merge triggers push-based workflows.
+          # The default github.token is github-actions[bot] which by design doesn't trigger workflows.
+          GH_TOKEN: ${{ steps.vault.outputs.GITHUB_MERGE_TOKEN }}
