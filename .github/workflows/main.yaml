@@ -1,6 +1,7 @@
 name: CI
 permissions:
   contents: read
+  statuses: write
 
 on:
   workflow_dispatch:
@@ -31,3 +32,12 @@ jobs:
     secrets:
       VAULT_URL: ${{ secrets.VAULT_URL }}
 
+  # Report commit status when triggered via workflow_dispatch (e.g., after dependabot merge)
+  report-status:
+    if: always() && github.event_name == 'workflow_dispatch'
+    needs: [build, check, test-integration]
+    uses: ./.github/workflows/report-status.yaml
+    with:
+      build-result: ${{ needs.build.result }}
+      check-result: ${{ needs.check.result }}
+      test-result: ${{ needs.test-integration.result }}

@@ -15,6 +15,44 @@ jobs:
         with:
           VAULT_URL: ${{ secrets.VAULT_URL }}
 
+      # Wait for the PR to actually be merged before triggering CI.
+      # The auto-merge action only enables auto-merge; the actual merge happens
+      # after required status checks pass.
+      - name: Wait for merge to complete
+        run: |
+          echo "Waiting for PR #${{ github.event.pull_request.number }} to be merged..."
+          for i in {1..60}; do
+            # Fetch PR state in one API call
+            pr_data=$(gh pr view ${{ github.event.pull_request.number }} --json merged,state,autoMergeRequest)
+            merged=$(echo "$pr_data" | jq -r '.merged')
+            state=$(echo "$pr_data" | jq -r '.state')
+            auto_merge=$(echo "$pr_data" | jq -r '.autoMergeRequest')
+
+            if [ "$merged" == "true" ]; then
+              echo "PR merged successfully"
+              exit 0
+            fi
+
+            # Fail fast if PR was closed without merging
+            if [ "$state" == "CLOSED" ]; then
+              echo "PR was closed without merging"
+              exit 1
+            fi
+
+            # Fail fast if auto-merge was disabled
+            if [ "$auto_merge" == "null" ]; then
+              echo "Auto-merge is not enabled on this PR"
+              exit 1
+            fi
+
+            echo "Attempt $i/60: PR is $state, auto-merge enabled, waiting 10s..."
+            sleep 10
+          done
+          echo "✗ Timeout waiting for merge after 10 minutes"
+          exit 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       # After merge, explicitly trigger CI workflow.
       # The auto-merge action uses the auto-generated workflow token for the merge,
       # which by design doesn't trigger push-based workflows (prevents infinite loops).
@@ -31,6 +69,6 @@ jobs:
             github/token/${{ github.event.repository.name }}-semantic-release token | GITHUB_TOKEN;
 
       - name: Trigger CI workflow on main
-        run: gh workflow run main.yaml --ref main
+        run: gh workflow run main.yaml --ref main --repo ${{ github.repository }}
         env:
           GITHUB_TOKEN: ${{ steps.vault.outputs.GITHUB_TOKEN }}

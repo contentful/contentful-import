@@ -1,0 +1,42 @@
+name: Report CI Status
+
+on:
+  workflow_call:
+    inputs:
+      build-result:
+        required: true
+        type: string
+      check-result:
+        required: true
+        type: string
+      test-result:
+        required: true
+        type: string
+
+jobs:
+  report-status:
+    runs-on: ubuntu-latest
+
+    permissions:
+      statuses: write
+
+    steps:
+      - name: Report CI status to commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ "${{ inputs.build-result }}" == "success" && \
+                "${{ inputs.check-result }}" == "success" && \
+                "${{ inputs.test-result }}" == "success" ]]; then
+            STATE="success"
+            DESC="Build, check, and integration tests passed"
+          else
+            STATE="failure"
+            DESC="CI failed (build: ${{ inputs.build-result }}, check: ${{ inputs.check-result }}, test: ${{ inputs.test-result }})"
+          fi
+
+          gh api repos/${{ github.repository }}/statuses/${{ github.sha }} \
+            -f state="$STATE" \
+            -f context="CI / main" \
+            -f description="$DESC" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
