@@ -14,20 +14,23 @@
       "enabled": true
     },
     {
-      "description": "Production dependencies use deps scope",
+      "description": "Group production dependencies, use deps scope",
       "matchDepTypes": ["dependencies"],
-      "semanticCommitScope": "deps"
+      "semanticCommitScope": "deps",
+      "groupName": "production dependencies"
     },
     {
-      "description": "Dev dependencies use deps-dev scope",
+      "description": "Group dev dependencies, use deps-dev scope",
       "matchDepTypes": ["devDependencies"],
-      "semanticCommitScope": "deps-dev"
+      "semanticCommitScope": "deps-dev",
+      "groupName": "dev dependencies"
     },
     {
-      "description": "GitHub Actions use gha scope and pin to SHA",
+      "description": "Group GitHub Actions, use gha scope and pin to SHA",
       "matchManagers": ["github-actions"],
       "semanticCommitScope": "gha",
-      "pinDigests": true
+      "pinDigests": true,
+      "groupName": "github-actions"
     }
   ]
 }
