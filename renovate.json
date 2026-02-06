@@ -3,8 +3,10 @@
   "extends": ["local>contentful/renovate-config"],
   "timezone": "UTC",
   "schedule": ["before 1am"],
+  "prConcurrentLimit": 15,
   "semanticCommitType": "build",
   "minimumReleaseAge": "15 days",
+  "rangeStrategy": "bump",
   "packageRules": [
     {
       "description": "Enable npm updates",
