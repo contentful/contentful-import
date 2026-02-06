@@ -1,14 +1,16 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ],
+  "extends": ["local>contentful/renovate-config"],
   "timezone": "UTC",
   "schedule": ["before 1am"],
-  "semanticCommits": "enabled",
   "semanticCommitType": "build",
   "minimumReleaseAge": "15 days",
   "packageRules": [
+    {
+      "description": "Enable npm updates",
+      "matchCategories": ["npm"],
+      "enabled": true
+    },
     {
       "description": "Production dependencies use deps scope",
       "matchDepTypes": ["dependencies"],
@@ -24,12 +26,6 @@
       "matchManagers": ["github-actions"],
       "semanticCommitScope": "gha",
       "pinDigests": true
-    },
-    {
-      "description": "Automerge non-major updates",
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true,
-      "platformAutomerge": true
     }
   ]
 }
