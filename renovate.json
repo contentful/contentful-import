@@ -1,0 +1,36 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["local>contentful/renovate-config"],
+  "timezone": "UTC",
+  "schedule": ["before 1am"],
+  "prConcurrentLimit": 15,
+  "semanticCommitType": "build",
+  "minimumReleaseAge": "15 days",
+  "rangeStrategy": "bump",
+  "packageRules": [
+    {
+      "description": "Enable npm updates",
+      "matchCategories": ["npm"],
+      "enabled": true
+    },
+    {
+      "description": "Group production dependencies, use deps scope",
+      "matchDepTypes": ["dependencies"],
+      "semanticCommitScope": "deps",
+      "groupName": "production dependencies"
+    },
+    {
+      "description": "Group dev dependencies, use deps-dev scope",
+      "matchDepTypes": ["devDependencies"],
+      "semanticCommitScope": "deps-dev",
+      "groupName": "dev dependencies"
+    },
+    {
+      "description": "Group GitHub Actions, use gha scope and pin to SHA",
+      "matchManagers": ["github-actions"],
+      "semanticCommitScope": "gha",
+      "pinDigests": true,
+      "groupName": "github-actions"
+    }
+  ]
+}
