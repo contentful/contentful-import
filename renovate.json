@@ -1,9 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["local>contentful/renovate-config"],
+  "extends": [
+    "config:recommended",
+    ":automergeRequireAllStatusChecks",
+    ":automergeAll"
+  ],
   "timezone": "UTC",
   "schedule": ["before 1am"],
   "prConcurrentLimit": 15,
+  "semanticCommits": "enabled",
   "semanticCommitType": "build",
   "minimumReleaseAge": "15 days",
   "rangeStrategy": "bump",
@@ -31,6 +36,12 @@
       "semanticCommitScope": "gha",
       "pinDigests": true,
       "groupName": "github-actions"
+    },
+    {
+      "description": "Cap Node.js to LTS and require manual approval",
+      "matchPackageNames": ["node", "@types/node"],
+      "allowedVersions": "<= 24",
+      "automerge": false
     }
   ]
 }
