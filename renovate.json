@@ -6,7 +6,7 @@
     ":automergeAll"
   ],
   "timezone": "UTC",
-  "schedule": ["before 1am"],
+  "schedule": ["before 5am"],
   "prConcurrentLimit": 15,
   "semanticCommits": "enabled",
   "semanticCommitType": "build",
@@ -38,9 +38,9 @@
       "groupName": "github-actions"
     },
     {
-      "description": "Cap Node.js to LTS and require manual approval",
+      "description": "Pin Node.js and @types/node to 18.x",
       "matchPackageNames": ["node", "@types/node"],
-      "allowedVersions": "<= 24",
+      "allowedVersions": "^18",
       "automerge": false
     }
   ]
