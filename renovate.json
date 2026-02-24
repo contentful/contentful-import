@@ -38,7 +38,7 @@
       "groupName": "github-actions"
     },
     {
-      "description": "Pin Node.js and @types/node to 18.x to match supported runtime",
+      "description": "Pin Node.js and @types/node to 18.x",
       "matchPackageNames": ["node", "@types/node"],
       "allowedVersions": "^18",
       "automerge": false
