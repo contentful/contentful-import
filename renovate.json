@@ -6,7 +6,6 @@
     ":automergeAll"
   ],
   "timezone": "UTC",
-  "schedule": ["before 5am"],
   "prConcurrentLimit": 15,
   "semanticCommits": "enabled",
   "semanticCommitType": "build",
@@ -17,6 +16,12 @@
       "description": "Enable npm updates",
       "matchCategories": ["npm"],
       "enabled": true
+    },
+    {
+      "description": "Pin Node.js and @types/node to 18.x",
+      "matchPackageNames": ["node", "@types/node"],
+      "allowedVersions": "^18",
+      "automerge": false
     },
     {
       "description": "Group production dependencies, use deps scope",
@@ -36,12 +41,6 @@
       "semanticCommitScope": "gha",
       "pinDigests": true,
       "groupName": "github-actions"
-    },
-    {
-      "description": "Pin Node.js and @types/node to 18.x",
-      "matchPackageNames": ["node", "@types/node"],
-      "allowedVersions": "^18",
-      "automerge": false
     }
   ]
 }
