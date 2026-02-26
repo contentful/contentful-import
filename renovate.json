@@ -3,12 +3,12 @@
   "extends": [
     "config:recommended",
     ":automergeRequireAllStatusChecks",
-    ":automergeAll"
+    ":automergeAll",
+    ":semanticCommitTypeAll(build)"
   ],
   "timezone": "UTC",
   "prConcurrentLimit": 15,
   "semanticCommits": "enabled",
-  "semanticCommitType": "build",
   "minimumReleaseAge": "15 days",
   "rangeStrategy": "bump",
   "packageRules": [
