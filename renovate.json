@@ -18,10 +18,9 @@
       "enabled": true
     },
     {
-      "description": "Pin Node.js and @types/node to 18.x",
+      "description": "Disable Node.js and @types/node updates (manual updates required)",
       "matchPackageNames": ["node", "@types/node"],
-      "allowedVersions": "^18",
-      "automerge": false
+      "enabled": false
     },
     {
       "description": "Group production dependencies, use deps scope",
