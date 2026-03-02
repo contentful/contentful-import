@@ -17,6 +17,8 @@ jest.mock('contentful-batch-libs/dist/logging', () => {
   }
 })
 
+const mockEmit = jest.mocked(logEmitter.emit)
+
 test('does create clients and passes custom logHandler', () => {
   const opts = {
     httpAgent: 'httpAgent',
@@ -53,6 +55,6 @@ test('does create clients and passes custom logHandler', () => {
   // Call passed log handler
   (contentfulManagement.createClient as jest.Mock).mock.calls[0][0].logHandler('level', 'logMessage')
 
-  expect(logEmitter.emit.mock.calls[0][0]).toBe('level')
-  expect(logEmitter.emit.mock.calls[0][1]).toBe('logMessage')
+  expect(mockEmit.mock.calls[0][0]).toBe('level')
+  expect(mockEmit.mock.calls[0][1]).toBe('logMessage')
 })

@@ -12,6 +12,8 @@ jest.mock('contentful-batch-libs/dist/logging', () => ({
   }
 }))
 
+const mockEmit = jest.mocked(logEmitter.emit)
+
 let requestQueue
 
 beforeEach(() => {
@@ -24,7 +26,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  logEmitter.emit.mockClear()
+  mockEmit.mockClear()
 })
 
 test('Create entities', () => {
@@ -46,8 +48,8 @@ test('Create entities', () => {
     .then(() => {
       expect(target.createAssetWithId.mock.calls).toHaveLength(1)
       expect(updateStub.mock.calls).toHaveLength(1)
-      expect(logEmitter.emit.mock.calls).toHaveLength(2)
-      const logLevels = logEmitter.emit.mock.calls.map((args) => args[0])
+      expect(mockEmit.mock.calls).toHaveLength(2)
+      const logLevels = mockEmit.mock.calls.map((args) => args[0])
       expect(logLevels.indexOf('error') !== -1).toBeFalsy()
     })
 })
@@ -72,8 +74,8 @@ test('Create entities and skip updates', () => {
     .then(() => {
       expect(target.createAssetWithId.mock.calls).toHaveLength(1)
       expect(updateStub.mock.calls).toHaveLength(0)
-      expect(logEmitter.emit.mock.calls).toHaveLength(2)
-      const logLevels = logEmitter.emit.mock.calls.map((args) => args[0])
+      expect(mockEmit.mock.calls).toHaveLength(2)
+      const logLevels = mockEmit.mock.calls.map((args) => args[0])
       expect(logLevels.indexOf('error') !== -1).toBeFalsy()
     })
 })
@@ -103,13 +105,13 @@ test('Create entities handle regular errors', () => {
   })
     .then((result) => {
       expect(updateStub.mock.calls).toHaveLength(1)
-      expect(logEmitter.emit.mock.calls).toHaveLength(1)
-      const warningCount = logEmitter.emit.mock.calls.filter((args) => args[0] === 'warning').length
-      const errorCount = logEmitter.emit.mock.calls.filter((args) => args[0] === 'error').length
+      expect(mockEmit.mock.calls).toHaveLength(1)
+      const warningCount = mockEmit.mock.calls.filter((args) => args[0] === 'warning').length
+      const errorCount = mockEmit.mock.calls.filter((args) => args[0] === 'error').length
       expect(warningCount).toBe(0)
       expect(errorCount).toBe(1)
-      expect(logEmitter.emit.mock.calls[0][0]).toBe('error')
-      expect(logEmitter.emit.mock.calls[0][1]).toBe(creationError)
+      expect(mockEmit.mock.calls[0][0]).toBe('error')
+      expect(mockEmit.mock.calls[0][1]).toBe(creationError)
       expect(result).toHaveLength(0)
     })
 })
@@ -139,8 +141,8 @@ test('Create entries', () => {
       expect(target.createEntryWithId.mock.calls).toHaveLength(1)
       expect(target.createEntry.mock.calls).toHaveLength(1)
       expect(updateStub.mock.calls).toHaveLength(1)
-      expect(logEmitter.emit.mock.calls).toHaveLength(3)
-      const logLevels = logEmitter.emit.mock.calls.map((args) => args[0])
+      expect(mockEmit.mock.calls).toHaveLength(3)
+      const logLevels = mockEmit.mock.calls.map((args) => args[0])
       expect(logLevels.indexOf('error') !== -1).toBeFalsy()
     })
 })
@@ -170,8 +172,8 @@ test('Create entries and skip updates', () => {
       expect(target.createEntryWithId.mock.calls).toHaveLength(1)
       expect(target.createEntry.mock.calls).toHaveLength(1)
       expect(updateStub.mock.calls).toHaveLength(0)
-      expect(logEmitter.emit.mock.calls).toHaveLength(3)
-      const logLevels = logEmitter.emit.mock.calls.map((args) => args[0])
+      expect(mockEmit.mock.calls).toHaveLength(3)
+      const logLevels = mockEmit.mock.calls.map((args) => args[0])
       expect(logLevels.indexOf('error') !== -1).toBeFalsy()
     })
 })
@@ -213,8 +215,8 @@ test('Create entries and remove unknown fields', () => {
       expect(updateStub.mock.calls).toHaveLength(2)
       expect('existingfield' in entries[0].transformed.fields).toBeTruthy()
       expect('gonefield' in entries[0].transformed.fields).toBeFalsy()
-      expect(logEmitter.emit.mock.calls).toHaveLength(1)
-      const logLevels = logEmitter.emit.mock.calls.map((args) => args[0])
+      expect(mockEmit.mock.calls).toHaveLength(1)
+      const logLevels = mockEmit.mock.calls.map((args) => args[0])
       expect(logLevels.indexOf('error') !== -1).toBeFalsy()
     })
 })
@@ -241,13 +243,13 @@ test('Create entries and handle regular errors', () => {
   })
     .then((result) => {
       expect(updateStub.mock.calls).toHaveLength(1)
-      expect(logEmitter.emit.mock.calls).toHaveLength(1)
-      const warningCount = logEmitter.emit.mock.calls.filter((args) => args[0] === 'warning').length
-      const errorCount = logEmitter.emit.mock.calls.filter((args) => args[0] === 'error').length
+      expect(mockEmit.mock.calls).toHaveLength(1)
+      const warningCount = mockEmit.mock.calls.filter((args) => args[0] === 'warning').length
+      const errorCount = mockEmit.mock.calls.filter((args) => args[0] === 'error').length
       expect(warningCount).toBe(0)
       expect(errorCount).toBe(1)
-      expect(logEmitter.emit.mock.calls[0][0]).toBe('error')
-      expect(logEmitter.emit.mock.calls[0][1]).toBe(creationError)
+      expect(mockEmit.mock.calls[0][0]).toBe('error')
+      expect(mockEmit.mock.calls[0][1]).toBe(creationError)
       expect(result).toHaveLength(0)
     })
 })
@@ -382,7 +384,7 @@ test('Fails to create locale if it already exists', () => {
   })
     .then((entities) => {
       expect(entities[0]).toBe(entity)
-      const logLevels = logEmitter.emit.mock.calls.map((args) => args[0])
+      const logLevels = mockEmit.mock.calls.map((args) => args[0])
       expect(logLevels.indexOf('error') !== -1).toBeFalsy()
     })
 })
