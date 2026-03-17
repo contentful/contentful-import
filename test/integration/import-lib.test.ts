@@ -12,6 +12,7 @@ const withAssetsSpaceFile = join(__dirname, 'exports/with-assets/space-with-down
 const assetsDirectory = join(__dirname, 'exports/with-assets')
 
 let space
+let client
 
 type Error = {
     errors: {
@@ -24,13 +25,13 @@ type Error = {
 jest.setTimeout(1.5 * 60 * 1000) // 1.5min timeout
 
 beforeEach(async () => {
-  const client = createClient({ accessToken: managementToken })
-  space = await client.createSpace({ name: 'IMPORT [AUTO] TOOL TMP' }, orgId)
+  client = createClient({ accessToken: managementToken })
+  space = await client.space.create({ organizationId: orgId }, { name: 'IMPORT [AUTO] TOOL TMP' })
 })
 
 afterEach(async () => {
   if (space) {
-    await space.delete()
+    await client.space.delete({ spaceId: space.sys.id })
   }
 })
 
@@ -69,7 +70,7 @@ test('It should import a space properly when used as a lib', async () => {
   })
   expect(failedPublishErrors).toHaveLength(0)
 
-  await space.delete()
+  await client.space.delete({ spaceId: space.sys.id })
   // Ensures that there is no deletion attempt in the afterEach function if the
   // deletion had been successful
   space = undefined
@@ -112,7 +113,7 @@ test('It should import a space with assets properly when used as a lib', async (
     return true
   })
   expect(failedPublishErrors).toHaveLength(0)
-  await space.delete()
+  await client.space.delete({ spaceId: space.sys.id })
   // Ensures that there is no deletion attempt in the afterEach function if the
   // deletion had been successful
   space = undefined
@@ -132,7 +133,7 @@ test('It should import a space with custom editor interfaces properly when used 
 
   await wrappedFunc()
 
-  const localClient = createClient({ accessToken: managementToken }, { type: 'plain' })
+  const localClient = createClient({ accessToken: managementToken })
   const editorInterfaces = await localClient.editorInterface.getMany({
     spaceId: space.sys.id,
     environmentId: 'master'
@@ -148,7 +149,7 @@ test('It should import a space with custom editor interfaces properly when used 
     widgetNamespace: 'app'
   })
 
-  await space.delete()
+  await client.space.delete({ spaceId: space.sys.id })
   // Ensures that there is no deletion attempt in the afterEach function if the
   // deletion had been successful
   space = undefined
