@@ -25,7 +25,7 @@ type Error = {
 jest.setTimeout(1.5 * 60 * 1000) // 1.5min timeout
 
 beforeEach(async () => {
-  client = createClient({ accessToken: managementToken })
+  client = createClient({ accessToken: managementToken }, { type: 'legacy' })
   space = await client.space.create({ organizationId: orgId }, { name: 'IMPORT [AUTO] TOOL TMP' })
 })
 
@@ -133,7 +133,7 @@ test('It should import a space with custom editor interfaces properly when used 
 
   await wrappedFunc()
 
-  const localClient = createClient({ accessToken: managementToken })
+  const localClient = createClient({ accessToken: managementToken }, { type: 'legacy' })
   const editorInterfaces = await localClient.editorInterface.getMany({
     spaceId: space.sys.id,
     environmentId: 'master'
