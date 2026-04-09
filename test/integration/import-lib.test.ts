@@ -12,7 +12,6 @@ const withAssetsSpaceFile = join(__dirname, 'exports/with-assets/space-with-down
 const assetsDirectory = join(__dirname, 'exports/with-assets')
 
 let space
-let client
 
 type Error = {
     errors: {
@@ -25,13 +24,13 @@ type Error = {
 jest.setTimeout(1.5 * 60 * 1000) // 1.5min timeout
 
 beforeEach(async () => {
-  client = createClient({ accessToken: managementToken })
-  space = await client.space.create({ organizationId: orgId }, { name: 'IMPORT [AUTO] TOOL TMP' })
+  const client = createClient({ accessToken: managementToken }, { type: 'legacy' })
+  space = await client.createSpace({ name: 'IMPORT [AUTO] TOOL TMP' }, orgId)
 })
 
 afterEach(async () => {
   if (space) {
-    await client.space.delete({ spaceId: space.sys.id })
+    await space.delete()
   }
 })
 
@@ -70,7 +69,7 @@ test('It should import a space properly when used as a lib', async () => {
   })
   expect(failedPublishErrors).toHaveLength(0)
 
-  await client.space.delete({ spaceId: space.sys.id })
+  await space.delete()
   // Ensures that there is no deletion attempt in the afterEach function if the
   // deletion had been successful
   space = undefined
@@ -113,7 +112,7 @@ test('It should import a space with assets properly when used as a lib', async (
     return true
   })
   expect(failedPublishErrors).toHaveLength(0)
-  await client.space.delete({ spaceId: space.sys.id })
+  await space.delete()
   // Ensures that there is no deletion attempt in the afterEach function if the
   // deletion had been successful
   space = undefined
@@ -149,7 +148,7 @@ test('It should import a space with custom editor interfaces properly when used 
     widgetNamespace: 'app'
   })
 
-  await client.space.delete({ spaceId: space.sys.id })
+  await space.delete()
   // Ensures that there is no deletion attempt in the afterEach function if the
   // deletion had been successful
   space = undefined
