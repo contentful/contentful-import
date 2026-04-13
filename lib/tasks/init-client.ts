@@ -15,5 +15,5 @@ export default function initClient (opts) {
     ...defaultOpts,
     ...opts
   }
-  return createClient(config)
+  return createClient(config, { type: 'legacy' })
 }
