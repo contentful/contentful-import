@@ -60,19 +60,19 @@
     "dts": true
   },
   "dependencies": {
-    "@discoveryjs/json-ext": "^0.6.3",
+    "@discoveryjs/json-ext": "^1.0.0",
     "bluebird": "^3.7.2",
     "cli-table3": "^0.6.5",
-    "contentful-batch-libs": "^9.7.0",
+    "contentful-batch-libs": "^11.0.0",
     "contentful-management": "^12.3.1",
-    "date-fns": "^2.30.0",
+    "date-fns": "^4.1.0",
     "joi": "^18.1.2",
     "listr": "^0.14.3",
     "listr-update-renderer": "^0.5.0",
     "listr-verbose-renderer": "^0.6.0",
     "lodash": "^4.18.1",
-    "p-queue": "^6.6.2",
-    "yargs": "^17.7.2"
+    "p-queue": "^9.1.2",
+    "yargs": "^18.0.0"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
