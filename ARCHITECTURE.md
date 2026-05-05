@@ -168,8 +168,8 @@ Rollback: publish a patch release that reverts the breaking change, or use `npm 
 
 ### Monitoring
 
-[NEEDS TEAM INPUT] — This is a library/CLI tool, not a running service. Monitor npm download health and GitHub issues for user-reported breakage.
+Monitored via Datadog. This is a library/CLI tool — there is no running service to instrument. Monitor npm download health and GitHub issues for user-reported breakage.
 
 ### Incident Playbook
 
-[NEEDS TEAM INPUT] — For publish failures, check the GitHub Actions `release` workflow and semantic-release output. For broken releases, use `npm dist-tag add contentful-import@<safe-version> latest` to repoint users to a known-good version.
+Follow the team's default incident playbook. For publish failures: check the GitHub Actions `release` workflow and semantic-release output. For broken releases: use `npm dist-tag add contentful-import@<safe-version> latest` to repoint the `latest` tag to a known-good version.
