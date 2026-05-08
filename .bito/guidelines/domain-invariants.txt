@@ -1,0 +1,48 @@
+Critical invariants for contentful-import. These are non-negotiable constraints derived from the Contentful API and this library's design.
+
+IMPORT ORDERING
+- Locales must be imported before entries and assets (entries are locale-keyed)
+- Content types must be imported AND PUBLISHED before entries referencing them are created
+- Editor interfaces must be imported after content types are published
+- Tags must be handled before entries/assets because transformer behavior (metadata stripping) depends on tag availability
+- Webhooks can only be created in the master environment — skip for all other environmentIds
+
+UPSERT LOGIC
+- Entity existence is determined by sys.id comparison between source and destination
+- "Create" path: entity ID not in destinationDataById → create new
+- "Update" path: entity ID found in destinationDataById → update in-place
+- skipContentUpdates / skipAssetUpdates flags bypass the update path for entries/assets respectively
+- Never assume an entity doesn't exist without checking destinationDataById
+
+RATE LIMITING
+- All CMA API calls MUST go through requestQueue (p-queue, default 7 req/s)
+- Never call environment.* or space.* methods directly outside the queue
+- Violating this causes 429 rate limit errors under load
+
+TAGS FEATURE GATE
+- Tags are available in some spaces, not all
+- If getTags() throws (typically 404), delete destinationData.tags entirely
+- Transformers check tagsEnabled flag to decide whether to strip entity.metadata
+- Never assume destinationData.tags is defined
+
+ASSET UPLOAD FLOW
+- When uploadAssets=true, asset binary files are uploaded to the Upload API first
+- Each locale's file field gets an uploadFrom link replacing the upload URL
+- Asset processing (CDN processing job) happens after creation with retry logic
+- uploadAssets requires assetsDirectory to be set
+
+DUAL EXPORT PATTERN
+- lib/index.ts exports via both `export default` (ESM) and `module.exports = ...` (CJS)
+- This workaround exists because cli-table3 requires esModuleInterop=true
+- Do not refactor this pattern without solving the esModuleInterop/require() compatibility
+- See ADR 001 for context
+
+DEFAULT LOCALE VALIDATION
+- Source and destination spaces must share the same default locale code
+- assertDefaultLocale throws a hard error if they differ
+- This is a Contentful invariant — locales are not remappable during import
+
+CREDENTIALS IN WEBHOOKS
+- Webhook httpBasicUsername fields are stripped by the transformer (credentials are not transferable)
+- Webhook headers with secret=true are also stripped
+- This is documented behavior — do not "fix" by preserving credentials
