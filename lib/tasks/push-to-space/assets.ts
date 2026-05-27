@@ -67,7 +67,7 @@ export async function processAssets ({
   const processingOptions = Object.assign(
     {},
     timeout && { processingCheckWait: timeout },
-    retryLimit && { processingCheckRetry: retryLimit }
+    retryLimit && { processingCheckRetries: retryLimit }
   )
 
   const pendingProcessingAssets = assets.map(async (asset) => {

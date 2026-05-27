@@ -153,6 +153,7 @@ test('Push content to destination space', () => {
       expect((assets.processAssets as jest.Mock).mock.calls).toHaveLength(1)
       expect((assets.processAssets as jest.Mock).mock.calls[0][0].retryLimit).toEqual(20)
       expect((assets.processAssets as jest.Mock).mock.calls[0][0].timeout).toEqual(40000)
+      expect((assets.processAssets as jest.Mock).mock.calls[0][0].retryLimit).toEqual(20)
     })
 })
 
