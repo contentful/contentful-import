@@ -17,3 +17,11 @@ export default function initClient (opts) {
   }
   return createClient(config, { type: 'legacy' })
 }
+
+export function initPlainClient (opts) {
+  return createClient({
+    accessToken: opts.managementToken,
+    host: opts.host,
+    logHandler
+  })
+}

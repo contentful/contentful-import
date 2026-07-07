@@ -10,7 +10,7 @@ import PQueue from 'p-queue'
 import { displayErrorLog, setupLogging, writeErrorLogFile } from 'contentful-batch-libs/dist/logging'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
 
-import initClient from './tasks/init-client'
+import initClient, { initPlainClient } from './tasks/init-client'
 import getDestinationData from './tasks/get-destination-data'
 import pushToSpace from './tasks/push-to-space/push-to-space'
 import transformSpace from './transform/transform-space'
@@ -59,6 +59,7 @@ type RunContentfulImportParams = {
   headers?: object,
   errorLogFile?: string,
   useVerboseRenderer?: boolean,
+  includeExperienceOrchestration?: boolean,
   // TODO These properties are not documented in the Readme
   timeout?: number,
   retryLimit?: number,
@@ -112,6 +113,7 @@ async function runContentfulImport (params: RunContentfulImportParams) {
       title: 'Initialize client',
       task: wrapTask(async (ctx) => {
         ctx.client = initClient({ ...options, content: undefined })
+        ctx.plainClient = initPlainClient({ ...options, content: undefined })
       })
     },
     {
@@ -146,7 +148,9 @@ async function runContentfulImport (params: RunContentfulImportParams) {
           sourceData: ctx.sourceData,
           destinationData: ctx.destinationData,
           client: ctx.client,
+          plainClient: ctx.plainClient,
           spaceId: options.spaceId,
+          includeExperienceOrchestration: options.includeExperienceOrchestration,
           environmentId: options.environmentId,
           contentModelOnly: options.contentModelOnly,
           skipLocales: options.skipLocales,

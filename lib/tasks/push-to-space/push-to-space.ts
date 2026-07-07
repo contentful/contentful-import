@@ -28,8 +28,10 @@ type PushToSpaceParams = {
   destinationData: DestinationData,
   sourceData: TransformedSourceData,
   client: any,
+  plainClient: any,
   spaceId: string,
   environmentId: string,
+  includeExperienceOrchestration?: boolean,
   contentModelOnly?: boolean,
   skipContentModel?: boolean,
   skipContentUpdates?: boolean,
@@ -75,8 +77,10 @@ export default function pushToSpace ({
   sourceData,
   destinationData = {},
   client,
+  plainClient,
   spaceId,
   environmentId,
+  includeExperienceOrchestration,
   contentModelOnly,
   skipContentModel,
   skipContentUpdates,
@@ -377,8 +381,109 @@ export default function pushToSpace ({
       }),
       skip: () =>
         contentModelOnly || (environmentId !== 'master' && 'Webhooks can only be imported in master environment')
+    },
+    {
+      title: 'Importing Component Types',
+      task: wrapTask(async (ctx) => {
+        const results = await Promise.all((sourceData.componentTypes || []).map(async (entity) => {
+          try {
+            const result = await plainClient.componentType.upsert({ spaceId, environmentId, componentTypeId: entity.sys.id }, omitSys(entity))
+            logEmitter.emit('info', `UPSERT ComponentType ${entity.sys.id}`)
+            return result
+          } catch (err) {
+            logEmitter.emit('error', err)
+            return null
+          }
+        }))
+        ctx.data.componentTypes = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.componentTypes || []).length
+    },
+    {
+      title: 'Importing Templates',
+      task: wrapTask(async (ctx) => {
+        const results = await Promise.all((sourceData.templates || []).map(async (entity) => {
+          try {
+            const result = await plainClient.template.upsert({ spaceId, environmentId, templateId: entity.sys.id }, omitSys(entity))
+            logEmitter.emit('info', `UPSERT Template ${entity.sys.id}`)
+            return result
+          } catch (err) {
+            logEmitter.emit('error', err)
+            return null
+          }
+        }))
+        ctx.data.templates = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.templates || []).length
+    },
+    {
+      title: 'Importing Fragments',
+      task: wrapTask(async (ctx) => {
+        const results = await Promise.all((sourceData.fragments || []).map(async (entity) => {
+          try {
+            const result = await plainClient.fragment.upsert({ spaceId, environmentId, fragmentId: entity.sys.id }, omitSys(entity))
+            logEmitter.emit('info', `UPSERT Fragment ${entity.sys.id}`)
+            return result
+          } catch (err) {
+            logEmitter.emit('error', err)
+            return null
+          }
+        }))
+        ctx.data.fragments = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.fragments || []).length
+    },
+    {
+      title: 'Importing Data Assemblies',
+      task: wrapTask(async (ctx) => {
+        const results = await Promise.all((sourceData.dataAssemblies || []).map(async (entity) => {
+          try {
+            let result
+            try {
+              const existing = await plainClient.dataAssembly.get({ spaceId, environmentId, dataAssemblyId: entity.sys.id })
+              result = await plainClient.dataAssembly.update({ spaceId, environmentId, dataAssemblyId: entity.sys.id }, { ...omitSys(entity), sys: { version: existing.sys.version } })
+            } catch (getErr: any) {
+              if (getErr.status === 404) {
+                result = await plainClient.dataAssembly.create({ spaceId, environmentId }, omitSys(entity))
+              } else {
+                throw getErr
+              }
+            }
+            logEmitter.emit('info', `UPSERT DataAssembly ${entity.sys.id}`)
+            return result
+          } catch (err) {
+            logEmitter.emit('error', err)
+            return null
+          }
+        }))
+        ctx.data.dataAssemblies = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.dataAssemblies || []).length
+    },
+    {
+      title: 'Importing Experiences',
+      task: wrapTask(async (ctx) => {
+        const results = await Promise.all((sourceData.experiences || []).map(async (entity) => {
+          try {
+            const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, omitSys(entity))
+            logEmitter.emit('info', `UPSERT Experience ${entity.sys.id}`)
+            return result
+          } catch (err) {
+            logEmitter.emit('error', err)
+            return null
+          }
+        }))
+        ctx.data.experiences = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.experiences || []).length
     }
   ], listrOptions)
+}
+
+function omitSys (entity) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { sys: _sys, ...rest } = entity
+  return rest
 }
 
 function archiveEntities ({ entities, sourceEntities, requestQueue }) {

@@ -15,7 +15,12 @@ const SUPPORTED_ENTITY_TYPES = [
   'assets',
   'locales',
   'webhooks',
-  'editorInterfaces'
+  'editorInterfaces',
+  'componentTypes',
+  'templates',
+  'dataAssemblies',
+  'fragments',
+  'experiences'
 ]
 
 export default async function parseOptions (params) {
@@ -29,7 +34,8 @@ export default async function parseOptions (params) {
     environmentId: 'master',
     rawProxy: false,
     uploadAssets: false,
-    rateLimit: 7
+    rateLimit: 7,
+    includeExperienceOrchestration: false
   }
 
   const configFile = params.config
