@@ -116,11 +116,6 @@
         "prerelease": true
       },
       {
-        "name": "testing-publishing-to-github-packages",
-        "channel": "testing-publishing-to-github-packages",
-        "prerelease": true
-      },
-      {
         "name": "exo",
         "channel": "exo",
         "prerelease": "exo"
@@ -148,5 +143,8 @@
       "@semantic-release/npm",
       "@semantic-release/github"
     ]
+  },
+  "overrides": {
+    "undici": "^6.27.0"
   }
 }
