@@ -119,6 +119,11 @@
         "name": "testing-publishing-to-github-packages",
         "channel": "testing-publishing-to-github-packages",
         "prerelease": true
+      },
+      {
+        "name": "exo",
+        "channel": "exo",
+        "prerelease": "exo"
       }
     ],
     "plugins": [
