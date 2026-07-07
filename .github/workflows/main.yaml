@@ -3,8 +3,12 @@ permissions:
   contents: read
 
 on:
-  workflow_dispatch:
   push:
+    branches:
+      - main
+      - beta
+      - exo
+  pull_request:
     branches: ['**']
 
 concurrency:
