@@ -25,7 +25,7 @@ jobs:
     secrets: inherit
 
   release:
-    if: github.event_name == 'push' && contains(fromJson('["refs/heads/main", "refs/heads/beta"]'), github.ref)
+    if: github.event_name == 'push' && contains(fromJson('["refs/heads/main", "refs/heads/beta", "refs/heads/exo"]'), github.ref)
     needs: [build, check, test-integration]
     permissions:
       contents: write   # Required for semantic-release to push commits and tags
