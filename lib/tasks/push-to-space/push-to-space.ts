@@ -27,8 +27,8 @@ type DestinationDataById = {
 type PushToSpaceParams = {
   destinationData: DestinationData,
   sourceData: TransformedSourceData,
-  client: any,
-  plainClient: any,
+  client?: any,
+  plainClient?: any,
   spaceId: string,
   environmentId: string,
   includeExperienceOrchestration?: boolean,
