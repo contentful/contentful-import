@@ -1,7 +1,4 @@
 import type { AssetProps, ContentTypeProps, EditorInterfaceProps, EntryProps, Link, LocaleProps, TagProps, WebhookProps } from 'contentful-management'
-import type { ComponentType, DataAssembly, DesignToken, Experience, Fragment, Template } from '@contentful/experiences-api-schemas'
-
-export type { ComponentType, DataAssembly, DesignToken, Experience, Fragment, Template }
 
 export type Resources = {
   contentTypes?: ContentTypeProps[]
@@ -11,12 +8,6 @@ export type Resources = {
   assets?: AssetProps[]
   editorInterfaces?: EditorInterfaceProps[]
   webhooks?: WebhookProps[]
-  componentTypes?: ComponentType[]
-  templates?: Template[]
-  fragments?: Fragment[]
-  dataAssemblies?: DataAssembly[]
-  experiences?: Experience[]
-  designTokens?: DesignToken[]
 }
 
 export type ResourcesUnion = (ContentTypeProps | TagProps | LocaleProps | EntryProps | AssetProps | EditorInterfaceProps | WebhookProps)[]
@@ -45,12 +36,6 @@ export type TransformedSourceData = {
   tags: EntityTransformed<TagProps, any>[]
   webhooks: EntityTransformed<WebhookProps, any>[]
   editorInterfaces: EditorInterfaceProps[]
-  componentTypes?: ComponentType[]
-  templates?: Template[]
-  fragments?: Fragment[]
-  dataAssemblies?: DataAssembly[]
-  experiences?: Experience[]
-  designTokens?: DesignToken[]
 }
 
 export type TransformedSourceDataUnion = (
