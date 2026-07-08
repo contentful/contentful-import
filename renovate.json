@@ -1,7 +1,9 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "local>contentful/renovate-config",
+    "config:recommended",
+    ":automergeRequireAllStatusChecks",
+    ":automergeAll",
     ":semanticCommitTypeAll(build)"
   ],
   "timezone": "UTC",
