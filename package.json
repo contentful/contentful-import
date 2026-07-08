@@ -60,6 +60,8 @@
     "dts": true
   },
   "dependencies": {
+    "@contentful/experiences-api-schemas": "^4.99.0",
+    "@contentful/experiences-management-api-contract": "^5.140.0",
     "@discoveryjs/json-ext": "^0.6.3",
     "bluebird": "^3.7.2",
     "cli-table3": "^0.6.5",
