@@ -363,6 +363,41 @@ test('Create public tags', () => {
     })
 })
 
+test('Create entities handles VersionMismatch as a warning', () => {
+  const updateStub = jest.fn()
+  const target = {}
+  const versionMismatchError = new Error('Version mismatch')
+  ;(versionMismatchError as any).error = { sys: { id: 'VersionMismatch' } }
+  updateStub.mockImplementationOnce(() => Promise.reject(versionMismatchError))
+
+  const entities = [{
+    original: { sys: { id: '123', type: 'Entry' } },
+    transformed: { sys: { id: '123' } }
+  }] as any[]
+
+  const destinationEntities = new Map([
+    ['123', { sys: { id: '123', version: 6 }, update: updateStub }]
+  ])
+
+  return createEntities({
+    context: { target, type: 'Entry' },
+    entities,
+    destinationEntitiesById: destinationEntities,
+    requestQueue
+  })
+    .then((result) => {
+      expect(updateStub.mock.calls).toHaveLength(1)
+      expect(result).toHaveLength(0)
+      const warningCount = mockEmit.mock.calls.filter((args) => args[0] === 'warning').length
+      const errorCount = mockEmit.mock.calls.filter((args) => args[0] === 'error').length
+      expect(warningCount).toBe(1)
+      expect(errorCount).toBe(0)
+      const warningCall = mockEmit.mock.calls.find((args) => args[0] === 'warning')
+      expect(warningCall).toBeDefined()
+      expect(warningCall![1]).toContain('skipped')
+    })
+})
+
 test('Fails to create locale if it already exists', () => {
   const target = {
     createLocale: jest.fn(() => Promise.reject(errorValidationFailed))

@@ -92,7 +92,7 @@ export async function processAssets ({
         })
       )
     } catch (err) {
-      // Handle any error that arises during the processing of any locale
+      logEmitter.emit('warning', `Asset ${getEntityName(asset)} processing failed and will be skipped`)
       return null
     }
     return latestAssetVersion
