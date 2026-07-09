@@ -22,7 +22,7 @@ type CreateEntitiesParams = {
  * Applies to all entities except Entries, as the CMA API for those is slightly different
  * See handleCreationErrors for details on what errors reject the promise or not.
  */
-export function createEntities ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }: CreateEntitiesParams) {
+export function createEntities({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }: CreateEntitiesParams) {
   return createEntitiesWithConcurrency({ context, entities, destinationEntitiesById, skipUpdates, requestQueue })
 }
 
@@ -35,11 +35,11 @@ type CreateLocalesParams = {
   requestQueue: PQueue
 }
 
-export function createLocales ({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
+export function createLocales({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
   return createEntitiesInSequence({ context, entities, destinationEntitiesById, requestQueue })
 }
 
-async function createEntitiesWithConcurrency ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
+async function createEntitiesWithConcurrency({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
   const pendingCreatedEntities = entities.map((entity) => {
     const destinationEntity = getDestinationEntityForSourceEntity(destinationEntitiesById, entity.transformed)
     const updateOperation = skipUpdates ? 'skip' : 'update'
@@ -71,7 +71,7 @@ async function createEntitiesWithConcurrency ({ context, entities, destinationEn
   return createdEntities.filter((entity) => entity)
 }
 
-async function createEntitiesInSequence ({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
+async function createEntitiesInSequence({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
   const createdEntities: LocaleProps[] = []
 
   for (const entity of entities) {
@@ -105,7 +105,7 @@ async function createEntitiesInSequence ({ context, entities, destinationEntitie
 /**
  * Creates a list of entries
  */
-export async function createEntries ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
+export async function createEntries({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
   const createdEntries = await Promise.all(entities.map((entry) => {
     return createEntry({ entry, target: context.target, skipContentModel: context.skipContentModel, destinationEntitiesById, skipUpdates, requestQueue })
   }))
@@ -113,7 +113,7 @@ export async function createEntries ({ context, entities, destinationEntitiesByI
   return createdEntries.filter((entry) => entry)
 }
 
-async function createEntry ({ entry, target, skipContentModel, destinationEntitiesById, skipUpdates, requestQueue }) {
+async function createEntry({ entry, target, skipContentModel, destinationEntitiesById, skipUpdates, requestQueue }) {
   const contentTypeId = entry.original.sys.contentType.sys.id
   const destinationEntry = getDestinationEntityForSourceEntity(
     destinationEntitiesById, entry.transformed)
@@ -125,8 +125,8 @@ async function createEntry ({ entry, target, skipContentModel, destinationEntiti
   }
   try {
     const createdOrUpdatedEntry = await requestQueue.add(() => {
-      return destinationEntry 
-        ? updateDestinationWithSourceData(destinationEntry, entry.transformed) 
+      return destinationEntry
+        ? updateDestinationWithSourceData(destinationEntry, entry.transformed)
         : createEntryInDestination(target, contentTypeId, entry.transformed)
     })
 
@@ -154,13 +154,13 @@ async function createEntry ({ entry, target, skipContentModel, destinationEntiti
   }
 }
 
-function updateDestinationWithSourceData (destinationEntity, sourceEntity) {
+function updateDestinationWithSourceData(destinationEntity, sourceEntity) {
   const plainData = getPlainData(sourceEntity)
   assign(destinationEntity, plainData)
   return destinationEntity.update()
 }
 
-function createInDestination (context, sourceEntity) {
+function createInDestination(context, sourceEntity) {
   const { type, target } = context
   if (type === 'Tag') {
     // tags are created with a different signature
@@ -175,7 +175,7 @@ function createInDestination (context, sourceEntity) {
     : target[`create${type}`](plainData)
 }
 
-function createEntryInDestination (space, contentTypeId, sourceEntity) {
+function createEntryInDestination(space, contentTypeId, sourceEntity) {
   const id = sourceEntity.sys.id
   const plainData = getPlainData(sourceEntity)
   return id
@@ -183,7 +183,7 @@ function createEntryInDestination (space, contentTypeId, sourceEntity) {
     : space.createEntry(contentTypeId, plainData)
 }
 
-function createTagInDestination (context, sourceEntity) {
+function createTagInDestination(context, sourceEntity) {
   const id = sourceEntity.sys.id
   const visibility = sourceEntity.sys.visibility || 'private'
   const name = sourceEntity.name
@@ -196,7 +196,7 @@ function createTagInDestination (context, sourceEntity) {
  * already exists at a different version — the update is skipped but import continues.
  * Other errors are logged as errors and the entity is excluded from further steps.
  */
-function handleCreationErrors (entity, err) {
+function handleCreationErrors(entity, err) {
   // Handle the case where a locale already exists and skip it
   if (get(err, 'error.sys.id') === 'ValidationFailed') {
     const errors = get(err, 'error.details.errors')
@@ -217,7 +217,7 @@ function handleCreationErrors (entity, err) {
   return null
 }
 
-function cleanupUnknownFields (fields, errors) {
+function cleanupUnknownFields(fields, errors) {
   return omitBy(fields, (field, fieldId) => {
     return find(errors, (error) => {
       const [, errorFieldId] = error.path
@@ -226,16 +226,16 @@ function cleanupUnknownFields (fields, errors) {
   })
 }
 
-function getDestinationEntityForSourceEntity (destinationEntitiesById, sourceEntity) {
+function getDestinationEntityForSourceEntity(destinationEntitiesById, sourceEntity) {
   return destinationEntitiesById.get(get(sourceEntity, 'sys.id')) || null
 }
 
-function creationSuccessNotifier (method, createdEntity) {
+function creationSuccessNotifier(method, createdEntity) {
   logEmitter.emit('info', `${method.toUpperCase()} ${createdEntity.sys.type} ${getEntityName(createdEntity)}`)
   return createdEntity
 }
 
-function getPlainData (entity) {
+function getPlainData(entity) {
   const data = entity.toPlainObject ? entity.toPlainObject() : entity
   return omit(data, 'sys')
 }
