@@ -145,13 +145,16 @@ test('Process assets fails', async () => {
   // We expect two calls for the first asset (one for each locale)
   // and two for the second asset of which one fails
   expect(processStub.mock.calls).toHaveLength(4)
-  expect(mockEmit.mock.calls).toHaveLength(3)
+  expect(mockEmit.mock.calls).toHaveLength(4)
   expect(mockEmit.mock.calls[0][0]).toBe('info')
   expect(mockEmit.mock.calls[0][1]).toBe('Processing Asset 123')
   expect(mockEmit.mock.calls[1][0]).toBe('info')
   expect(mockEmit.mock.calls[1][1]).toBe('Processing Asset 456')
   expect(mockEmit.mock.calls[2][0]).toBe('error')
   expect(mockEmit.mock.calls[2][1]).toBe(failedError)
+  expect(mockEmit.mock.calls[3][0]).toBe('warning')
+  expect(mockEmit.mock.calls[3][1]).toContain('456')
+  expect(mockEmit.mock.calls[3][1]).toContain('skipped')
 })
 
 test('Get asset stream for url: Throw error if filePath does not exist', async () => {
