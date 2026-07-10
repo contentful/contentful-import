@@ -95,11 +95,16 @@ test('parseOptions sets correct default options', async () => {
   expect(options.uploadAssets).toBe(false)
   expect(options.content).toEqual({
     assets: [],
+    componentTypes: [],
     contentTypes: [],
+    dataAssemblies: [],
     editorInterfaces: [],
-    tags: [],
     entries: [],
+    experiences: [],
+    fragments: [],
     locales: [],
+    tags: [],
+    templates: [],
     webhooks: [],
     ...require(contentFile)
   })
@@ -186,7 +191,7 @@ test('parseOption cleans up content to only include supported entity types', asy
     }
   })
   const content = options.content
-  expect(Object.keys(content)).toHaveLength(7)
+  expect(Object.keys(content)).toHaveLength(12)
   expect(content.invalid).toBeUndefined()
 })
 

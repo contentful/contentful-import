@@ -59,9 +59,13 @@ jest.mock('../../lib/transform/transform-space', () => {
   return jest.fn((data) => data)
 })
 jest.mock('../../lib/tasks/init-client', () => {
-  return jest.fn(() => (
-    { source: { delivery: {} }, destination: { management: {} } }
-  ))
+  return {
+    __esModule: true,
+    default: jest.fn(() => (
+      { source: { delivery: {} }, destination: { management: {} } }
+    )),
+    initPlainClient: jest.fn(() => ({}))
+  }
 })
 
 afterEach(() => {
@@ -161,7 +165,7 @@ test('Runs Contentful Import', () => {
       expect(introTable.push.mock.calls[5][0]).toEqual(['Editor Interfaces', 2])
       expect(introTable.push.mock.calls[6][0]).toEqual(['Locales', 2])
       expect(introTable.push.mock.calls[7][0]).toEqual(['Webhooks', 0])
-      expect(introTable.push.mock.calls).toHaveLength(8)
+      expect(introTable.push.mock.calls).toHaveLength(13)
 
       const resultTable = (TableStub as jest.Mock).mock.instances[1]
       expect(resultTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'Imported entities' }])
@@ -172,7 +176,7 @@ test('Runs Contentful Import', () => {
       expect(resultTable.push.mock.calls[5][0]).toEqual(['Editor Interfaces', 2])
       expect(resultTable.push.mock.calls[6][0]).toEqual(['Locales', 2])
       expect(resultTable.push.mock.calls[7][0]).toEqual(['Webhooks', 0])
-      expect(resultTable.push.mock.calls).toHaveLength(8)
+      expect(resultTable.push.mock.calls).toHaveLength(13)
     })
 })
 
@@ -244,7 +248,7 @@ test('Intro CLI table respects skipContentModel', () => {
       expect(introTable.push.mock.calls[3][0]).toEqual(['Locales', 2])
       expect(introTable.push.mock.calls[4][0]).toEqual(['Tags', 0])
       expect(introTable.push.mock.calls[5][0]).toEqual(['Webhooks', 0])
-      expect(introTable.push.mock.calls).toHaveLength(6)
+      expect(introTable.push.mock.calls).toHaveLength(11)
     })
 })
 

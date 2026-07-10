@@ -64,7 +64,7 @@
     "bluebird": "^3.7.2",
     "cli-table3": "^0.6.5",
     "contentful-batch-libs": "^9.7.0",
-    "contentful-management": "^12.8.0",
+    "contentful-management": "^12.6.0-dev.4",
     "date-fns": "^2.30.0",
     "joi": "^18.2.3",
     "listr": "^0.14.3",
