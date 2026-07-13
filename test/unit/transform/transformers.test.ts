@@ -106,3 +106,68 @@ test('It should transform an entry with tags disabled, and return it', () => {
   const transformed = transformers.entries(entryMock, null, false)
   expect(transformed.metadata).toBeUndefined()
 })
+
+const urnCtx = {
+  destinationSpaceId: 'dst-space',
+  destinationEnvironmentId: 'dst-env'
+}
+
+const SRC_URN = 'crn:contentful:::experience:spaces/src-space/environments/src-env/componentTypes/abc123'
+const DST_URN = 'crn:contentful:::experience:spaces/dst-space/environments/dst-env/componentTypes/abc123'
+
+test('rewriteUrns rewrites ResourceLink URNs to destination space/env', () => {
+  const entity = {
+    sys: { type: 'ResourceLink', linkType: 'Contentful:ComponentType', urn: SRC_URN }
+  }
+  const result = transformers.rewriteUrns(entity, urnCtx) as typeof entity
+  expect(result.sys.urn).toBe(DST_URN)
+})
+
+test('rewriteUrns preserves entity ID at end of URN', () => {
+  const entity = {
+    sys: { type: 'ResourceLink', linkType: 'Contentful:ComponentType', urn: SRC_URN }
+  }
+  const result = transformers.rewriteUrns(entity, urnCtx) as typeof entity
+  expect(result.sys.urn).toContain('abc123')
+})
+
+test('rewriteUrns rewrites nested ResourceLinks recursively', () => {
+  const entity = {
+    sys: { id: 'top', type: 'ComponentType' },
+    componentTree: [
+      {
+        nodeType: 'Component',
+        componentType: {
+          sys: { type: 'ResourceLink', linkType: 'Contentful:ComponentType', urn: SRC_URN }
+        }
+      }
+    ]
+  }
+  const result = transformers.rewriteUrns(entity, urnCtx) as typeof entity
+  expect((result.componentTree[0] as any).componentType.sys.urn).toBe(DST_URN)
+})
+
+test('rewriteUrns is a no-op on same-space same-env round-trip', () => {
+  const sameCtx = { destinationSpaceId: 'src-space', destinationEnvironmentId: 'src-env' }
+  const entity = {
+    sys: { type: 'ResourceLink', linkType: 'Contentful:ComponentType', urn: SRC_URN }
+  }
+  const result = transformers.rewriteUrns(entity, sameCtx) as typeof entity
+  expect(result.sys.urn).toBe(SRC_URN)
+})
+
+test('componentTypes transformer rewrites URNs when ctx provided', () => {
+  const entity = {
+    sys: { id: 'ct1', type: 'ComponentType' as const, version: 1 },
+    componentTree: [
+      { nodeType: 'Component', componentType: { sys: { type: 'ResourceLink', linkType: 'Contentful:ComponentType', urn: SRC_URN } } }
+    ]
+  } as any
+  const result = transformers.componentTypes(entity, null, null, urnCtx) as any
+  expect(result.componentTree[0].componentType.sys.urn).toBe(DST_URN)
+})
+
+test('designTokens transformer passes entity through unchanged', () => {
+  const entity = { sys: { id: 'dt1', type: 'DesignToken' }, value: '#fff' }
+  expect(transformers.designTokens(entity)).toBe(entity)
+})

@@ -137,7 +137,10 @@ async function runContentfulImport (params: RunContentfulImportParams) {
     {
       title: 'Apply transformations to source data',
       task: wrapTask(async (ctx) => {
-        const transformedSourceData = transformSpace(ctx.sourceDataUntransformed, ctx.destinationData)
+        const transformedSourceData = transformSpace(ctx.sourceDataUntransformed, ctx.destinationData, undefined, undefined, {
+          destinationSpaceId: options.spaceId,
+          destinationEnvironmentId: options.environmentId ?? 'master'
+        })
         ctx.sourceData = transformedSourceData
       })
     },
