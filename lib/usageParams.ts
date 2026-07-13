@@ -86,7 +86,7 @@ export default yargs
   .option('include-experience-orchestration', {
     describe: 'Import Experience Orchestration entities (componentTypes, templates, fragments, dataAssemblies, experiences). Requires a space with ExO enabled.',
     type: 'boolean',
-    default: false
+    default: true
   })
   .config('config', 'An optional configuration JSON file containing all the options for a single run')
   .argv
