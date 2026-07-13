@@ -8,7 +8,7 @@ import PQueue from 'p-queue'
 const BATCH_CHAR_LIMIT = 1990
 const BATCH_SIZE_LIMIT = 100
 
-const METHODS = {
+const OFFSET_QUERY_METHODS = {
   contentTypes: { name: 'content types', method: 'getContentTypes' },
   locales: { name: 'locales', method: 'getLocales' },
   entries: { name: 'entries', method: 'getEntries' },
@@ -16,18 +16,35 @@ const METHODS = {
   tags: { name: 'tags', method: 'getTags' }
 }
 
+const CURSOR_QUERY_METHODS = {
+  componentTypes: { name: 'component types', namespace: 'componentType' },
+  templates: { name: 'templates', namespace: 'template' },
+  fragments: { name: 'fragments', namespace: 'fragment' },
+  dataAssemblies: { name: 'data assemblies', namespace: 'dataAssembly' },
+  experiences: { name: 'experiences', namespace: 'experience' }
+  // TODO: add designTokens once the contentful-management SDK exposes a designToken plain client API
+}
+
 type BatchedIdQueryParams = {
   requestQueue: PQueue
   environment: any
-  type: keyof typeof METHODS
+  type: keyof typeof OFFSET_QUERY_METHODS
   ids: string[]
 }
 
 type BatchedPageQueryParams = Omit<BatchedIdQueryParams, 'ids'>
 
-async function batchedIdQuery ({ environment, type, ids, requestQueue }: BatchedIdQueryParams) {
-  const method = METHODS[type].method
-  const entityTypeName = METHODS[type].name
+type CursorPaginatedQueryParams = {
+  requestQueue: PQueue
+  plainClient: any
+  spaceId: string
+  environmentId: string
+  type: keyof typeof CURSOR_QUERY_METHODS
+}
+
+async function batchedIdQuery({ environment, type, ids, requestQueue }: BatchedIdQueryParams) {
+  const method = OFFSET_QUERY_METHODS[type].method
+  const entityTypeName = OFFSET_QUERY_METHODS[type].name
   const batches = getIdBatches(ids)
 
   let totalFetched = 0
@@ -51,9 +68,9 @@ async function batchedIdQuery ({ environment, type, ids, requestQueue }: Batched
   return responses.flat()
 }
 
-async function batchedPageQuery ({ environment, type, requestQueue }: BatchedPageQueryParams) {
-  const method = METHODS[type].method
-  const entityTypeName = METHODS[type].name
+async function batchedPageQuery({ environment, type, requestQueue }: BatchedPageQueryParams) {
+  const method = OFFSET_QUERY_METHODS[type].method
+  const entityTypeName = OFFSET_QUERY_METHODS[type].name
 
   let totalFetched = 0
   const { items, total } = await requestQueue.add(async () => {
@@ -86,7 +103,7 @@ async function batchedPageQuery ({ environment, type, requestQueue }: BatchedPag
   return items.concat(remainingResponses.flat())
 }
 
-function getIdBatches (ids) {
+function getIdBatches(ids) {
   const batches: string[] = []
   let currentBatch = ''
   let currentSize = 0
@@ -119,19 +136,29 @@ function getPagedBatches(totalFetched: number, total: number) {
   return batches
 }
 
-async function fetchAllExoEntities<T>(
-  fetchPage: (pageNext?: string) => Promise<{ items: T[], pages: { next?: string } }>
-): Promise<T[]> {
-  const all: T[] = []
+async function cursorPaginatedQuery ({ plainClient, spaceId, environmentId, type, requestQueue }: CursorPaginatedQueryParams) {
+  const { name: entityTypeName, namespace } = CURSOR_QUERY_METHODS[type]
+
+  let totalFetched = 0
   let pageNext: string | undefined = undefined
+  const allItems: any[] = []
 
   do {
-    const response = await fetchPage(pageNext)
-    all.push(...response.items)
-    pageNext = response.pages?.next
+    const items: any[] = await requestQueue.add(async () => {
+      const response = await plainClient[namespace].getMany({
+        spaceId,
+        environmentId,
+        query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) }
+      })
+      totalFetched += response.items.length
+      logEmitter.emit('info', `Fetched ${totalFetched} ${entityTypeName}`)
+      pageNext = response.pages?.next
+      return response.items
+    })
+    allItems.push(...items)
   } while (pageNext)
 
-  return all
+  return allItems
 }
 
 type AllDestinationData = {
@@ -140,7 +167,6 @@ type AllDestinationData = {
   locales: Promise<LocaleProps[]>
   entries: Promise<EntryProps[]>
   assets: Promise<AssetProps[]>
-  // TODO Why are webhooks optional?
   webhooks?: Promise<WebhookProps[]>
   componentTypes?: Promise<ComponentTypeProps[]>
   templates?: Promise<TemplateProps[]>
@@ -172,7 +198,7 @@ type GetDestinationDataParams = {
  *
  */
 
-export default async function getDestinationData ({
+export default async function getDestinationData({
   client,
   plainClient,
   spaceId,
@@ -191,7 +217,14 @@ export default async function getDestinationData ({
     tags: [],
     locales: [],
     entries: [],
-    assets: []
+    assets: [],
+    experiences: [],
+    templates: [],
+    componentTypes: [],
+    fragments: [],
+    dataAssemblies: [],
+    // designTokens: [], // TODO: add designTokens once the contentful-management SDK exposes a designToken plain client API
+    webhooks: [],
   }
 
   // Make sure all required properties are available and at least an empty array
@@ -238,7 +271,7 @@ export default async function getDestinationData ({
 
   const entryIds = sourceData.entries?.map((e) => e.sys.id)
   const assetIds = sourceData.assets?.map((e) => e.sys.id)
-  if (entryIds) {
+  if (entryIds && entryIds.length) {
     result.entries = batchedIdQuery({
       environment,
       type: 'entries',
@@ -246,7 +279,7 @@ export default async function getDestinationData ({
       requestQueue
     })
   }
-  if (assetIds) {
+  if (assetIds && assetIds.length) {
     result.assets = batchedIdQuery({
       environment,
       type: 'assets',
@@ -255,44 +288,12 @@ export default async function getDestinationData ({
     })
   }
 
-  result.webhooks = []
-
   if (includeExperienceOrchestration && plainClient) {
-    result.componentTypes = fetchAllExoEntities((pageNext) =>
-      plainClient.componentType.getMany({ spaceId, environmentId, query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) } })
-    ).then((items) => {
-      logEmitter.emit('info', `Fetched ${items.length} destination component types`)
-      return items
-    })
-
-    result.templates = fetchAllExoEntities((pageNext) =>
-      plainClient.template.getMany({ spaceId, environmentId, query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) } })
-    ).then((items) => {
-      logEmitter.emit('info', `Fetched ${items.length} destination templates`)
-      return items
-    })
-
-    result.fragments = fetchAllExoEntities((pageNext) =>
-      plainClient.fragment.getMany({ spaceId, environmentId, query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) } })
-    ).then((items) => {
-      logEmitter.emit('info', `Fetched ${items.length} destination fragments`)
-      return items
-    })
-
-    result.dataAssemblies = fetchAllExoEntities((pageNext) =>
-      plainClient.dataAssembly.getMany({ spaceId, environmentId, query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) } })
-    ).then((items) => {
-      logEmitter.emit('info', `Fetched ${items.length} destination data assemblies`)
-      return items
-    })
-
-    result.experiences = fetchAllExoEntities((pageNext) =>
-      plainClient.experience.getMany({ spaceId, environmentId, query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) } })
-    ).then((items) => {
-      logEmitter.emit('info', `Fetched ${items.length} destination experiences`)
-      return items
-    })
-
+    result.componentTypes = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'componentTypes', requestQueue })
+    result.templates = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'templates', requestQueue })
+    result.fragments = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'fragments', requestQueue })
+    result.dataAssemblies = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'dataAssemblies', requestQueue })
+    result.experiences = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'experiences', requestQueue })
     // TODO: fetch destination designTokens here once the contentful-management SDK exposes a designToken plain client API
   }
 
