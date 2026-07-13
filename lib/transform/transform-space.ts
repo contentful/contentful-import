@@ -6,12 +6,13 @@ import sortLocales from '../utils/sort-locales'
 import { DestinationData, OriginalSourceData, TransformedSourceData } from '../types'
 
 const spaceEntities = [
-  'contentTypes', 'entries', 'assets', 'locales', 'webhooks', 'tags'
-]
-
-const exoEntities = [
+  'contentTypes', 'entries', 'assets', 'locales', 'webhooks', 'tags',
   'componentTypes', 'templates', 'fragments', 'dataAssemblies', 'experiences', 'designTokens'
 ]
+
+const exoEntities = new Set([
+  'componentTypes', 'templates', 'fragments', 'dataAssemblies', 'experiences', 'designTokens'
+])
 
 type TransformContext = {
   destinationSpaceId: string
@@ -26,16 +27,15 @@ export default function (
   sourceData: OriginalSourceData, destinationData: DestinationData, customTransformers?: any, entities = spaceEntities, ctx?: TransformContext
 ): TransformedSourceData {
   const transformers = defaults(customTransformers, defaultTransformers)
-  const allEntities = [...entities, ...exoEntities.filter((type) => sourceData[type]?.length)]
-  const baseSpaceData = omit(sourceData, ...allEntities)
+  const baseSpaceData = omit(sourceData, ...entities)
 
   sourceData.locales = sortLocales(sourceData.locales)
   const tagsEnabled = !!destinationData.tags
 
-  return allEntities.reduce((transformedSpaceData, type) => {
+  return entities.reduce((transformedSpaceData, type) => {
     if (!sourceData[type]?.length) return transformedSpaceData
 
-    const isExo = exoEntities.includes(type)
+    const isExo = exoEntities.has(type)
     // tags and ExO entities don't contain entry links, don't need entry sorting
     const sortedEntities = (type === 'tags' || isExo) ? sourceData[type] : sortEntries(sourceData[type])
 
