@@ -65,7 +65,6 @@ type PushToSpaceParams = {
   destinationData: DestinationData,
   sourceData: TransformedSourceData,
   client?: any,
-  plainClient?: any,
   spaceId: string,
   environmentId: string,
   includeExperienceOrchestration?: boolean,
@@ -114,7 +113,6 @@ export default function pushToSpace({
   sourceData,
   destinationData = {},
   client,
-  plainClient,
   spaceId,
   environmentId,
   includeExperienceOrchestration,
@@ -158,23 +156,13 @@ export default function pushToSpace({
 
   return new Listr([
     {
-      title: 'Connecting to space',
-      task: wrapTask(async (ctx) => {
-        const space = await client.getSpace(spaceId)
-        const environment = await space.getEnvironment(environmentId)
-
-        ctx.space = space
-        ctx.environment = environment
-      })
-    },
-    {
       title: 'Importing Locales',
       task: wrapTask(async (ctx) => {
         if (!destinationDataById.locales) {
           return
         }
         const locales = await creation.createLocales({
-          context: { target: ctx.environment, type: 'Locale' },
+          context: { client, spaceId, environmentId, type: 'Locale' },
           entities: sourceData.locales,
           destinationEntitiesById: destinationDataById.locales,
           requestQueue
@@ -191,7 +179,7 @@ export default function pushToSpace({
           return
         }
         const contentTypes = await creation.createEntities({
-          context: { target: ctx.environment, type: 'ContentType' },
+          context: { client, spaceId, environmentId, type: 'ContentType' },
           entities: sourceData.contentTypes,
           destinationEntitiesById: destinationDataById.contentTypes,
           skipUpdates: false,
@@ -208,6 +196,9 @@ export default function pushToSpace({
         const publishedContentTypes = await publishEntities({
           entities: ctx.data.contentTypes,
           sourceEntities: sourceData.contentTypes,
+          client,
+          spaceId,
+          environmentId,
           requestQueue
         })
         ctx.data.contentTypes = publishedContentTypes
@@ -219,7 +210,7 @@ export default function pushToSpace({
       task: wrapTask(async (ctx) => {
         if (sourceData.tags && destinationDataById.tags) {
           const tags = await creation.createEntities({
-            context: { target: ctx.environment, type: 'Tag' },
+            context: { client, spaceId, environmentId, type: 'Tag' },
             entities: sourceData.tags,
             destinationEntitiesById: destinationDataById.tags,
             skipUpdates: false,
@@ -249,15 +240,26 @@ export default function pushToSpace({
           }
 
           try {
-            const ctEditorInterface = await requestQueue.add(() => ctx.environment.getEditorInterfaceForContentType(contentType.sys.id))
+            const ctEditorInterface = await requestQueue.add(() =>
+              client.editorInterface.get({ spaceId, environmentId, contentTypeId: contentType.sys.id })
+            )
             logEmitter.emit('info', `Fetched editor interface for ${contentType.name}`)
-            ctEditorInterface.controls = editorInterface.controls
-            ctEditorInterface.groupControls = editorInterface.groupControls
-            ctEditorInterface.editorLayout = editorInterface.editorLayout
-            ctEditorInterface.sidebar = editorInterface.sidebar
-            ctEditorInterface.editors = editorInterface.editors
 
-            const updatedEditorInterface = await requestQueue.add(() => ctEditorInterface.update())
+            const updatedData = {
+              ...ctEditorInterface,
+              controls: editorInterface.controls,
+              groupControls: editorInterface.groupControls,
+              editorLayout: editorInterface.editorLayout,
+              sidebar: editorInterface.sidebar,
+              editors: editorInterface.editors,
+            }
+
+            const updatedEditorInterface = await requestQueue.add(() =>
+              client.editorInterface.update(
+                { spaceId, environmentId, contentTypeId: contentType.sys.id },
+                updatedData
+              )
+            )
             return updatedEditorInterface
           } catch (err: any) {
             err.entity = editorInterface
@@ -284,10 +286,10 @@ export default function pushToSpace({
               try {
                 logEmitter.emit('info', `Uploading Asset file ${file.upload}`)
                 const assetStream = await assets.getAssetStreamForURL(file.upload, assetsDirectory)
-                const upload = await ctx.environment.createUpload({
-                  fileName: asset.transformed.sys.id,
-                  file: assetStream
-                })
+                const upload = await client.upload.create(
+                  { spaceId, environmentId },
+                  { file: assetStream }
+                )
 
                 delete file.upload
 
@@ -322,7 +324,7 @@ export default function pushToSpace({
           return
         }
         const assetsToProcess = await creation.createEntities({
-          context: { target: ctx.environment, type: 'Asset' },
+          context: { client, spaceId, environmentId, type: 'Asset' },
           entities: sourceData.assets,
           destinationEntitiesById: destinationDataById.assets,
           skipUpdates: skipAssetUpdates,
@@ -331,6 +333,9 @@ export default function pushToSpace({
 
         const processedAssets = await assets.processAssets({
           assets: assetsToProcess,
+          client,
+          spaceId,
+          environmentId,
           timeout,
           retryLimit,
           requestQueue
@@ -345,6 +350,9 @@ export default function pushToSpace({
         const publishedAssets = await publishEntities({
           entities: ctx.data.assets,
           sourceEntities: sourceData.assets,
+          client,
+          spaceId,
+          environmentId,
           requestQueue
         })
         ctx.data.publishedAssets = publishedAssets
@@ -357,6 +365,9 @@ export default function pushToSpace({
         const archivedAssets = await archiveEntities({
           entities: ctx.data.assets,
           sourceEntities: sourceData.assets,
+          client,
+          spaceId,
+          environmentId,
           requestQueue
         })
         ctx.data.archivedAssets = archivedAssets
@@ -367,7 +378,7 @@ export default function pushToSpace({
       title: 'Importing Content Entries',
       task: wrapTask(async (ctx) => {
         const entries = await creation.createEntries({
-          context: { target: ctx.environment, skipContentModel },
+          context: { client, spaceId, environmentId, skipContentModel, type: 'Entry' },
           entities: sourceData.entries,
           destinationEntitiesById: destinationDataById.entries,
           skipUpdates: skipContentUpdates,
@@ -383,6 +394,9 @@ export default function pushToSpace({
         const publishedEntries = await publishEntities({
           entities: ctx.data.entries,
           sourceEntities: sourceData.entries,
+          client,
+          spaceId,
+          environmentId,
           requestQueue
         })
         ctx.data.publishedEntries = publishedEntries
@@ -395,6 +409,9 @@ export default function pushToSpace({
         const archivedEntries = await archiveEntities({
           entities: ctx.data.entries,
           sourceEntities: sourceData.entries,
+          client,
+          spaceId,
+          environmentId,
           requestQueue
         })
         ctx.data.archivedEntries = archivedEntries
@@ -408,7 +425,7 @@ export default function pushToSpace({
           return
         }
         const webhooks = await creation.createEntities({
-          context: { target: ctx.space, type: 'Webhook' },
+          context: { client, spaceId, environmentId, type: 'Webhook' },
           entities: sourceData.webhooks,
           destinationEntitiesById: destinationDataById.webhooks,
           requestQueue
@@ -420,19 +437,25 @@ export default function pushToSpace({
     },
     {
       title: 'Create ExO Folders',
-      task: wrapTask(async (ctx) => {
-        await importExoFolders({
-          plainClient,
-          organizationId: ctx.space.sys.organization.sys.id,
-          destinationSpaceId: spaceId,
-          sourceEntities: {
-            designTokens: sourceData.designTokens,
-            components: sourceData.components,
-            experienceTemplates: sourceData.experienceTemplates,
-            experienceFragments: sourceData.experienceFragments,
-            experiences: sourceData.experiences,
-          },
-        })
+      task: wrapTask(async () => {
+
+        try {
+          const space = await client.space.get({ spaceId })
+          await importExoFolders({
+            client,
+            organizationId: space.sys.organization.sys.id,
+            destinationSpaceId: spaceId,
+            sourceEntities: {
+              designTokens: sourceData.designTokens,
+              components: sourceData.components,
+              experienceTemplates: sourceData.experienceTemplates,
+              experienceFragments: sourceData.experienceFragments,
+              experiences: sourceData.experiences,
+            },
+          })
+        } catch (error) {
+          logEmitter.emit('warning', `Unable to create Experience Orchestration (ExO) folders, error: ${error}`)
+        }
       }),
       skip: () => !includeExperienceOrchestration
     },
@@ -445,14 +468,14 @@ export default function pushToSpace({
             let result
             if (existing) {
               const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: buildDataAssemblySys(entity, existing.sys.version) }
-              result = await withGraphQLSchemaBackoff(() => plainClient.dataAssembly.update(
+              result = await withGraphQLSchemaBackoff(() => client.dataAssembly.update(
                 { spaceId, environmentId, dataAssemblyId: entity.sys.id },
                 payload
               ))
               logEmitter.emit('info', `UPDATE DataAssembly ${entity.sys.id}`)
             } else {
               const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: buildDataAssemblySys(entity, 0) }
-              result = await withGraphQLSchemaBackoff(() => plainClient.dataAssembly.update(
+              result = await withGraphQLSchemaBackoff(() => client.dataAssembly.update(
                 { spaceId, environmentId, dataAssemblyId: entity.sys.id },
                 payload
               ))
@@ -474,7 +497,7 @@ export default function pushToSpace({
       task: wrapTask(async (ctx: { data: { dataAssemblies: DataAssemblyProps[], publishedDataAssemblies: DataAssemblyProps[] } }) => {
         const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.dataAssemblies, sourceData.dataAssemblies || [])
         const results = await Promise.all(entitiesToPublish.map((entity) =>
-          publishExoEntity<DataAssemblyProps>('DataAssembly', entity, () => plainClient.dataAssembly.publish(
+          publishExoEntity<DataAssemblyProps>('DataAssembly', entity, () => client.dataAssembly.publish(
             { spaceId, environmentId, dataAssemblyId: entity.sys.id, version: entity.sys.version }
           ))
         ))
@@ -490,12 +513,12 @@ export default function pushToSpace({
             const existing = destinationDataById.designTokens?.get(entity.sys.id)
             if (existing) {
               const payload: UpsertDesignTokenProps = { ...entity, sys: { id: entity.sys.id, type: 'DesignToken', version: existing.sys.version } }
-              const result = await plainClient.designToken.upsert({ spaceId, environmentId, designTokenId: entity.sys.id }, payload)
+              const result = await client.designToken.upsert({ spaceId, environmentId, designTokenId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE DesignToken ${entity.sys.id}`)
               return result
             } else {
               const payload: UpsertDesignTokenProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'DesignToken' } }
-              const result = await plainClient.designToken.upsert({ spaceId, environmentId, designTokenId: entity.sys.id }, payload)
+              const result = await client.designToken.upsert({ spaceId, environmentId, designTokenId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE DesignToken ${entity.sys.id}`)
               return result
             }
@@ -519,12 +542,12 @@ export default function pushToSpace({
             const existing = destinationDataById.components?.get(entity.sys.id)
             if (existing) {
               const payload: UpsertComponentProps = { ...entity, sys: { id: entity.sys.id, type: 'Component', version: existing.sys.version } }
-              const result = await plainClient.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
+              const result = await client.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Component ${entity.sys.id}`)
               results.push(result)
             } else {
               const payload: UpsertComponentProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'Component' } }
-              const result = await plainClient.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
+              const result = await client.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE Component ${entity.sys.id}`)
               results.push(result)
             }
@@ -547,7 +570,7 @@ export default function pushToSpace({
         const sorted = sortOrReport(() => sortComponents(entitiesToPublish))
         const results: ComponentProps[] = []
         for (const entity of sorted) {
-          const published = await publishExoEntity<ComponentProps>('Component', entity, () => plainClient.component.publish(
+          const published = await publishExoEntity<ComponentProps>('Component', entity, () => client.component.publish(
             { spaceId, environmentId, componentId: entity.sys.id, version: entity.sys.version }
           ))
           if (published) results.push(published)
@@ -564,12 +587,12 @@ export default function pushToSpace({
             const existing = destinationDataById.experienceTemplates?.get(entity.sys.id)
             if (existing) {
               const payload: UpsertExperienceTemplateProps = { ...entity, sys: { id: entity.sys.id, type: 'ExperienceTemplate', version: existing.sys.version } }
-              const result = await plainClient.experienceTemplate.upsert({ spaceId, environmentId, experienceTemplateId: entity.sys.id }, payload)
+              const result = await client.experienceTemplate.upsert({ spaceId, environmentId, experienceTemplateId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE ExperienceTemplate ${entity.sys.id}`)
               return result
             } else {
               const payload: UpsertExperienceTemplateProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'ExperienceTemplate' } }
-              const result = await plainClient.experienceTemplate.upsert({ spaceId, environmentId, experienceTemplateId: entity.sys.id }, payload)
+              const result = await client.experienceTemplate.upsert({ spaceId, environmentId, experienceTemplateId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE ExperienceTemplate ${entity.sys.id}`)
               return result
             }
@@ -588,7 +611,7 @@ export default function pushToSpace({
       task: wrapTask(async (ctx: { data: { experienceTemplates: ExperienceTemplateProps[], publishedExperienceTemplates: ExperienceTemplateProps[] } }) => {
         const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.experienceTemplates, sourceData.experienceTemplates || [])
         const results = await Promise.all(entitiesToPublish.map((entity) =>
-          publishExoEntity<ExperienceTemplateProps>('ExperienceTemplate', entity, () => plainClient.experienceTemplate.publish(
+          publishExoEntity<ExperienceTemplateProps>('ExperienceTemplate', entity, () => client.experienceTemplate.publish(
             { spaceId, environmentId, experienceTemplateId: entity.sys.id, version: entity.sys.version }
           ))
         ))
@@ -608,12 +631,12 @@ export default function pushToSpace({
               // once an ExperienceFragment is created, its component cannot be changed to a different component -
               // the API rejects `component` on UPDATE even when the value is unchanged, so omit it entirely
               const payload: UpsertExperienceFragmentProps = { ...entity, sys: { id: entity.sys.id, type: 'ExperienceFragment', version: existing.sys.version } }
-              const result = await plainClient.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
+              const result = await client.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE ExperienceFragment ${entity.sys.id}`)
               results.push(result)
             } else {
               const payload: UpsertExperienceFragmentProps = { ...omitSys(entity), component: entity.sys.component, sys: { id: entity.sys.id, type: 'ExperienceFragment' } }
-              const result = await plainClient.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
+              const result = await client.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE ExperienceFragment ${entity.sys.id}`)
               results.push(result)
             }
@@ -635,7 +658,7 @@ export default function pushToSpace({
         const sorted = sortOrReport(() => sortExperienceFragments(entitiesToPublish))
         const results: ExperienceFragmentProps[] = []
         for (const entity of sorted) {
-          const published = await publishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => plainClient.experienceFragment.publish(
+          const published = await publishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => client.experienceFragment.publish(
             { spaceId, environmentId, experienceFragmentId: entity.sys.id, version: entity.sys.version }
           ))
           if (published) results.push(published)
@@ -654,12 +677,12 @@ export default function pushToSpace({
               // once an Experience is created, its experienceTemplate cannot be changed to a different experienceTemplate -
               // the API rejects `experienceTemplate` on UPDATE even when the value is unchanged, so omit it entirely
               const payload: UpsertExperienceProps = { ...entity, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
-              const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
+              const result = await client.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Experience ${entity.sys.id}`)
               return result
             } else {
               const payload: UpsertExperienceProps = { ...omitSys(entity), experienceTemplate: entity.sys.experienceTemplate, sys: { id: entity.sys.id, type: 'Experience' } }
-              const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
+              const result = await client.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE Experience ${entity.sys.id}`)
               return result
             }
@@ -678,7 +701,7 @@ export default function pushToSpace({
       task: wrapTask(async (ctx: { data: { experiences: ExperienceProps[], publishedExperiences: ExperienceProps[] } }) => {
         const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.experiences, sourceData.experiences || [])
         const results = await Promise.all(entitiesToPublish.map((entity) =>
-          publishExoEntity<ExperienceProps>('Experience', entity, () => plainClient.experience.publish(
+          publishExoEntity<ExperienceProps>('Experience', entity, () => client.experience.publish(
             { spaceId, environmentId, experienceId: entity.sys.id, version: entity.sys.version }
           ))
         ))
@@ -694,7 +717,7 @@ export default function pushToSpace({
       task: wrapTask(async (ctx: { data: { experiences: ExperienceProps[] } }) => {
         const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.experiences, sourceData.experiences || [])
         await Promise.all(entitiesToUnpublish.map((entity) =>
-          unpublishExoEntity<ExperienceProps>('Experience', entity, () => plainClient.experience.unpublish(
+          unpublishExoEntity<ExperienceProps>('Experience', entity, () => client.experience.unpublish(
             { spaceId, environmentId, experienceId: entity.sys.id, version: entity.sys.version }
           ))
         ))
@@ -710,7 +733,7 @@ export default function pushToSpace({
         // unpublish first.
         const sorted = sortExperienceFragments(entitiesToUnpublish).reverse()
         for (const entity of sorted) {
-          await unpublishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => plainClient.experienceFragment.unpublish(
+          await unpublishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => client.experienceFragment.unpublish(
             { spaceId, environmentId, experienceFragmentId: entity.sys.id, version: entity.sys.version }
           ))
         }
@@ -722,7 +745,7 @@ export default function pushToSpace({
       task: wrapTask(async (ctx: { data: { experienceTemplates: ExperienceTemplateProps[] } }) => {
         const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.experienceTemplates, sourceData.experienceTemplates || [])
         await Promise.all(entitiesToUnpublish.map((entity) =>
-          unpublishExoEntity<ExperienceTemplateProps>('ExperienceTemplate', entity, () => plainClient.experienceTemplate.unpublish(
+          unpublishExoEntity<ExperienceTemplateProps>('ExperienceTemplate', entity, () => client.experienceTemplate.unpublish(
             { spaceId, environmentId, experienceTemplateId: entity.sys.id, version: entity.sys.version }
           ))
         ))
@@ -737,7 +760,7 @@ export default function pushToSpace({
         // a Component that a still-published parent references, so ancestors must unpublish first.
         const sorted = sortComponents(entitiesToUnpublish).reverse()
         for (const entity of sorted) {
-          await unpublishExoEntity<ComponentProps>('Component', entity, () => plainClient.component.unpublish(
+          await unpublishExoEntity<ComponentProps>('Component', entity, () => client.component.unpublish(
             { spaceId, environmentId, componentId: entity.sys.id, version: entity.sys.version }
           ))
         }
@@ -749,7 +772,7 @@ export default function pushToSpace({
       task: wrapTask(async (ctx: { data: { dataAssemblies: DataAssemblyProps[] } }) => {
         const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.dataAssemblies, sourceData.dataAssemblies || [])
         await Promise.all(entitiesToUnpublish.map((entity) =>
-          unpublishExoEntity<DataAssemblyProps>('DataAssembly', entity, () => plainClient.dataAssembly.unpublish(
+          unpublishExoEntity<DataAssemblyProps>('DataAssembly', entity, () => client.dataAssembly.unpublish(
             { spaceId, environmentId, dataAssemblyId: entity.sys.id, version: entity.sys.version }
           ))
         ))
@@ -765,7 +788,8 @@ function omitSys(entity) {
   return rest
 }
 
-function archiveEntities({ entities, sourceEntities, requestQueue }) {
+// function archiveEntities({ entities, sourceEntities, requestQueue }) {
+function archiveEntities({ entities, sourceEntities, client, spaceId, environmentId, requestQueue }) {
   const entityIdsToArchive = sourceEntities
     .filter(({ original }) => original.sys.archivedVersion)
     .map(({ original }) => original.sys.id)
@@ -773,10 +797,11 @@ function archiveEntities({ entities, sourceEntities, requestQueue }) {
   const entitiesToArchive = entities
     .filter((entity) => entityIdsToArchive.indexOf(entity.sys.id) !== -1)
 
-  return publishing.archiveEntities({ entities: entitiesToArchive, requestQueue })
+  return publishing.archiveEntities({ entities: entitiesToArchive, client, spaceId, environmentId, requestQueue })
 }
 
-function publishEntities({ entities, sourceEntities, requestQueue }) {
+// function publishEntities({ entities, sourceEntities, requestQueue }) {
+function publishEntities({ entities, sourceEntities, client, spaceId, environmentId, requestQueue }) {
   // Find all entities in source content which are published
   const entityIdsToPublish = sourceEntities
     .filter(({ original }) => original.sys.publishedVersion)
@@ -786,5 +811,5 @@ function publishEntities({ entities, sourceEntities, requestQueue }) {
   const entitiesToPublish = entities
     .filter((entity) => entityIdsToPublish.indexOf(entity.sys.id) !== -1)
 
-  return publishing.publishEntities({ entities: entitiesToPublish, requestQueue })
+  return publishing.publishEntities({ entities: entitiesToPublish, client, spaceId, environmentId, requestQueue })
 }

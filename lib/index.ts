@@ -10,7 +10,7 @@ import PQueue from 'p-queue'
 import { displayErrorLog, setupLogging, writeErrorLogFile } from 'contentful-batch-libs/dist/logging'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
 
-import initClient, { initPlainClient } from './tasks/init-client'
+import initClient from './tasks/init-client'
 import getDestinationData from './tasks/get-destination-data'
 import pushToSpace from './tasks/push-to-space/push-to-space'
 import transformSpace from './transform/transform-space'
@@ -112,8 +112,7 @@ async function runContentfulImport (params: RunContentfulImportParams) {
     {
       title: 'Initialize client',
       task: wrapTask(async (ctx) => {
-        ctx.client = initClient({ ...options, content: undefined })
-        ctx.plainClient = initPlainClient({ ...options, content: undefined })
+        ctx.client = initClient({ ...options })
       })
     },
     {
@@ -121,7 +120,6 @@ async function runContentfulImport (params: RunContentfulImportParams) {
       task: wrapTask(async (ctx) => {
         const destinationData = await getDestinationData({
           client: ctx.client,
-          plainClient: ctx.plainClient,
           spaceId: options.spaceId,
           environmentId: options.environmentId,
           sourceData: options.content,
@@ -150,7 +148,6 @@ async function runContentfulImport (params: RunContentfulImportParams) {
           sourceData: ctx.sourceData,
           destinationData: ctx.destinationData,
           client: ctx.client,
-          plainClient: ctx.plainClient,
           spaceId: options.spaceId,
           includeExperienceOrchestration: options.includeExperienceOrchestration,
           environmentId: options.environmentId,
