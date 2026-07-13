@@ -11,43 +11,37 @@ const sourceData = {
   tags: times(250, (n) => ({ sys: { id: `t-${n}` }, name: `t-${n}` }))
 }
 
-function batchQueryResolver (query) {
+function batchQueryResolver ({ query }) {
   const items = query['sys.id[in]'].split(',').map((id) => ({
-    sys: {
-      id
-    }
+    sys: { id }
   }))
-  return Promise.resolve({
-    items
-  })
+  return Promise.resolve({ items, total: items.length })
 }
 
-function batchPageResolver (sourceData) {
-  return (query) => {
-    const skip = query.skip || 0
-    const limit = query.limit || 100
-    const items = sourceData.slice(skip, skip + limit)
+function batchPageResolver (allItems) {
+  return ({ query }) => {
+    const skip = query?.skip || 0
+    const limit = query?.limit || 100
+    const items = allItems.slice(skip, skip + limit)
     return Promise.resolve({
       items,
-      total: sourceData.length
+      total: allItems.length
     })
   }
 }
 
-const mockEnvironment = {
-  getContentTypes: jest.fn(batchQueryResolver),
-  getEntries: jest.fn(batchQueryResolver),
-  getAssets: jest.fn(batchQueryResolver),
-  getLocales: jest.fn(batchPageResolver(sourceData.locales)),
-  getTags: jest.fn(batchPageResolver(sourceData.tags)) // resolve 250 tags
-}
-
-const mockSpace = {
-  getEnvironment: jest.fn(() => Promise.resolve(mockEnvironment))
-}
+const mockGetManyContentTypes = jest.fn(batchQueryResolver)
+const mockGetManyEntries = jest.fn(batchQueryResolver)
+const mockGetManyAssets = jest.fn(batchQueryResolver)
+const mockGetManyLocales = jest.fn(batchPageResolver(sourceData.locales))
+const mockGetManyTags = jest.fn(batchPageResolver(sourceData.tags))
 
 const mockClient = {
-  getSpace: jest.fn()
+  contentType: { getMany: mockGetManyContentTypes },
+  entry: { getMany: mockGetManyEntries },
+  asset: { getMany: mockGetManyAssets },
+  locale: { getMany: mockGetManyLocales },
+  tag: { getMany: mockGetManyTags },
 }
 
 let requestQueue
@@ -62,40 +56,37 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  mockEnvironment.getContentTypes.mockClear()
-  mockEnvironment.getEntries.mockClear()
-  mockEnvironment.getAssets.mockClear()
-  mockEnvironment.getLocales.mockClear()
-  mockEnvironment.getTags.mockClear()
-  mockSpace.getEnvironment.mockClear()
-  mockClient.getSpace.mockClear()
+  mockGetManyContentTypes.mockClear()
+  mockGetManyEntries.mockClear()
+  mockGetManyAssets.mockClear()
+  mockGetManyLocales.mockClear()
+  mockGetManyTags.mockClear()
 })
 
-function testQueryLength (method) {
-  const query = mockEnvironment[method].mock.calls[0][0]['sys.id[in]']
+function testQueryLength (mockFn: jest.Mock) {
+  const query = mockFn.mock.calls[0][0].query['sys.id[in]']
   const queryLength = query.length
   expect(queryLength < 2100).toBeTruthy()
   expect(query[query.length - 1]).not.toBe(',')
 }
 
 test('Gets destination content', () => {
-  mockClient.getSpace = jest.fn(() => Promise.resolve(mockSpace))
   return getDestinationData({
-    client: mockClient,
+    client: mockClient as any,
     spaceId: 'spaceid',
     environmentId: 'master',
     sourceData,
     requestQueue
   })
     .then((response) => {
-      expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(2)
-      testQueryLength('getContentTypes')
-      expect(mockEnvironment.getLocales.mock.calls).toHaveLength(2)
-      expect(mockEnvironment.getEntries.mock.calls).toHaveLength(20)
-      testQueryLength('getEntries')
-      expect(mockEnvironment.getAssets.mock.calls).toHaveLength(15)
-      testQueryLength('getAssets')
-      expect(mockEnvironment.getTags.mock.calls).toHaveLength(3)
+      expect(mockGetManyContentTypes.mock.calls).toHaveLength(2)
+      testQueryLength(mockGetManyContentTypes)
+      expect(mockGetManyLocales.mock.calls).toHaveLength(2)
+      expect(mockGetManyEntries.mock.calls).toHaveLength(20)
+      testQueryLength(mockGetManyEntries)
+      expect(mockGetManyAssets.mock.calls).toHaveLength(15)
+      testQueryLength(mockGetManyAssets)
+      expect(mockGetManyTags.mock.calls).toHaveLength(3)
       expect(response.contentTypes).toHaveLength(150)
       expect(response.locales).toHaveLength(105)
       expect(response.entries).toHaveLength(2000)
@@ -105,9 +96,8 @@ test('Gets destination content', () => {
 })
 
 test('Gets destination content with content model skipped', () => {
-  mockClient.getSpace = jest.fn(() => Promise.resolve(mockSpace))
   return getDestinationData({
-    client: mockClient,
+    client: mockClient as any,
     spaceId: 'spaceid',
     environmentId: 'master',
     sourceData,
@@ -115,13 +105,13 @@ test('Gets destination content with content model skipped', () => {
     requestQueue
   })
     .then((response) => {
-      expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(0)
-      expect(mockEnvironment.getLocales.mock.calls).toHaveLength(0)
-      expect(mockEnvironment.getEntries.mock.calls).toHaveLength(20)
-      expect(mockEnvironment.getTags.mock.calls).toHaveLength(3)
-      testQueryLength('getEntries')
-      expect(mockEnvironment.getAssets.mock.calls).toHaveLength(15)
-      testQueryLength('getAssets')
+      expect(mockGetManyContentTypes.mock.calls).toHaveLength(0)
+      expect(mockGetManyLocales.mock.calls).toHaveLength(0)
+      expect(mockGetManyEntries.mock.calls).toHaveLength(20)
+      expect(mockGetManyTags.mock.calls).toHaveLength(3)
+      testQueryLength(mockGetManyEntries)
+      expect(mockGetManyAssets.mock.calls).toHaveLength(15)
+      testQueryLength(mockGetManyAssets)
       expect(response.contentTypes).toHaveLength(0)
       expect(response.tags).toHaveLength(250)
       expect(response.locales).toHaveLength(0)
@@ -131,9 +121,8 @@ test('Gets destination content with content model skipped', () => {
 })
 
 test('Gets destination content with locales skipped', () => {
-  mockClient.getSpace = jest.fn(() => Promise.resolve(mockSpace))
   return getDestinationData({
-    client: mockClient,
+    client: mockClient as any,
     spaceId: 'spaceid',
     environmentId: 'master',
     sourceData,
@@ -141,14 +130,14 @@ test('Gets destination content with locales skipped', () => {
     requestQueue
   })
     .then((response) => {
-      expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(2)
-      testQueryLength('getContentTypes')
-      expect(mockEnvironment.getLocales.mock.calls).toHaveLength(0)
-      expect(mockEnvironment.getEntries.mock.calls).toHaveLength(20)
-      expect(mockEnvironment.getTags.mock.calls).toHaveLength(3)
-      testQueryLength('getEntries')
-      expect(mockEnvironment.getAssets.mock.calls).toHaveLength(15)
-      testQueryLength('getAssets')
+      expect(mockGetManyContentTypes.mock.calls).toHaveLength(2)
+      testQueryLength(mockGetManyContentTypes)
+      expect(mockGetManyLocales.mock.calls).toHaveLength(0)
+      expect(mockGetManyEntries.mock.calls).toHaveLength(20)
+      expect(mockGetManyTags.mock.calls).toHaveLength(3)
+      testQueryLength(mockGetManyEntries)
+      expect(mockGetManyAssets.mock.calls).toHaveLength(15)
+      testQueryLength(mockGetManyAssets)
       expect(response.contentTypes).toHaveLength(150)
       expect(response.locales).toHaveLength(0)
       expect(response.entries).toHaveLength(2000)
@@ -158,9 +147,8 @@ test('Gets destination content with locales skipped', () => {
 })
 
 test('Gets destination content with contentModelOnly', () => {
-  mockClient.getSpace = jest.fn(() => Promise.resolve(mockSpace))
   return getDestinationData({
-    client: mockClient,
+    client: mockClient as any,
     spaceId: 'spaceid',
     environmentId: 'master',
     sourceData,
@@ -168,12 +156,12 @@ test('Gets destination content with contentModelOnly', () => {
     requestQueue
   })
     .then((response) => {
-      expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(2)
-      testQueryLength('getContentTypes')
-      expect(mockEnvironment.getLocales.mock.calls).toHaveLength(2)
-      expect(mockEnvironment.getEntries.mock.calls).toHaveLength(0)
-      expect(mockEnvironment.getAssets.mock.calls).toHaveLength(0)
-      expect(mockEnvironment.getTags.mock.calls).toHaveLength(3)
+      expect(mockGetManyContentTypes.mock.calls).toHaveLength(2)
+      testQueryLength(mockGetManyContentTypes)
+      expect(mockGetManyLocales.mock.calls).toHaveLength(2)
+      expect(mockGetManyEntries.mock.calls).toHaveLength(0)
+      expect(mockGetManyAssets.mock.calls).toHaveLength(0)
+      expect(mockGetManyTags.mock.calls).toHaveLength(3)
       expect(response.contentTypes).toHaveLength(150)
       expect(response.locales).toHaveLength(105)
       expect(response.entries).toHaveLength(0)
@@ -183,21 +171,20 @@ test('Gets destination content with contentModelOnly', () => {
 })
 
 test('Does not fail with incomplete source data', () => {
-  mockClient.getSpace = jest.fn(() => Promise.resolve(mockSpace))
   return getDestinationData({
-    client: mockClient,
+    client: mockClient as any,
     spaceId: 'spaceid',
     environmentId: 'master',
     sourceData: {},
     requestQueue
   })
     .then((response) => {
-      expect(mockEnvironment.getContentTypes.mock.calls).toHaveLength(0)
-      expect(mockEnvironment.getLocales.mock.calls).toHaveLength(0)
-      expect(mockEnvironment.getEntries.mock.calls).toHaveLength(0)
-      expect(mockEnvironment.getAssets.mock.calls).toHaveLength(0)
+      expect(mockGetManyContentTypes.mock.calls).toHaveLength(0)
+      expect(mockGetManyLocales.mock.calls).toHaveLength(0)
+      expect(mockGetManyEntries.mock.calls).toHaveLength(0)
+      expect(mockGetManyAssets.mock.calls).toHaveLength(0)
       // we always fetch all tags, no matter what's included in source data
-      expect(mockEnvironment.getTags.mock.calls).toHaveLength(3)
+      expect(mockGetManyTags.mock.calls).toHaveLength(3)
       expect(response.contentTypes).toHaveLength(0)
       expect(response.locales).toHaveLength(0)
       expect(response.entries).toHaveLength(0)
@@ -207,41 +194,18 @@ test('Does not fail with incomplete source data', () => {
 })
 
 test('Removes Tags key from response if tags endpoint throws error (meaning tags not enabled)', () => {
-  mockEnvironment.getTags.mockImplementation(async () => {
+  mockGetManyTags.mockImplementationOnce(async () => {
     throw new Error('fake error')
   })
   return getDestinationData({
-    client: mockClient,
+    client: mockClient as any,
     spaceId: 'spaceid',
     environmentId: 'master',
     sourceData: {},
     requestQueue
   })
     .then((response) => {
-      expect(mockEnvironment.getTags.mock.calls).toHaveLength(1)
+      expect(mockGetManyTags.mock.calls).toHaveLength(1)
       expect(response.tags).toBeUndefined()
     })
-})
-
-test('Fails to get destination space', async () => {
-  const errorNotFound = new Error()
-  errorNotFound.name = 'NotFound'
-  mockClient.getSpace = jest.fn(() => Promise.reject(errorNotFound))
-
-  const wrappedFunc = () => {
-    return getDestinationData({
-      client: mockClient,
-      spaceId: 'spaceid',
-      environmentId: 'master',
-      sourceData,
-      skipContentModel: true,
-      requestQueue
-    })
-  }
-
-  let err
-  await wrappedFunc()
-    .catch(e => { err = e })
-
-  expect(err.name).toEqual('NotFound')
 })

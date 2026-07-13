@@ -85,31 +85,23 @@ const transformedSourceData = {
 
 const destinationData = {}
 
-const editorInterfaceUpdateMock = jest.fn()
+const editorInterfaceUpdateMock = jest.fn().mockResolvedValue({
+  sys: { type: 'EditorInterface', contentType: { sys: { id: 'someId' } } }
+})
 
 const clientMock = {
-  getSpace: jest.fn(() => Promise.resolve({
-    getEnvironment: jest.fn(() => Promise.resolve({
-      getEditorInterfaceForContentType: () => {
-        return Promise.resolve({
-          sys: {
-            type: 'EditorInterface',
-            contentType: {
-              sys: {
-                id: 'someId'
-              }
-            }
-          },
-          update: editorInterfaceUpdateMock
-        })
-      },
-      createUpload: () => Promise.resolve({
-        sys: {
-          id: 'id'
-        }
-      })
-    }))
-  }))
+  editorInterface: {
+    get: jest.fn().mockResolvedValue({
+      sys: {
+        type: 'EditorInterface',
+        contentType: { sys: { id: 'someId' } }
+      }
+    }),
+    update: editorInterfaceUpdateMock,
+  },
+  upload: {
+    create: jest.fn().mockResolvedValue({ sys: { id: 'id' } }),
+  },
 }
 
 let requestQueue

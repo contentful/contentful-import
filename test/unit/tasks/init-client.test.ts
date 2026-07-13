@@ -50,6 +50,7 @@ test('does create clients and passes custom logHandler', () => {
   })
   expect((contentfulManagement.createClient as jest.Mock).mock.calls[0][0]).toHaveProperty('logHandler')
   expect((contentfulManagement.createClient as jest.Mock).mock.calls[0][0].timeout).toEqual(30000)
+  expect((contentfulManagement.createClient as jest.Mock).mock.calls[0][1]).toEqual({ type: 'plain' })
   expect((contentfulManagement.createClient as jest.Mock).mock.calls).toHaveLength(1);
 
   // Call passed log handler
