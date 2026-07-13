@@ -56,7 +56,7 @@ jest.mock('../../lib/tasks/push-to-space/push-to-space', () => {
   })
 })
 jest.mock('../../lib/transform/transform-space', () => {
-  return jest.fn((data) => data)
+  return jest.fn(({ sourceData }) => sourceData)
 })
 jest.mock('../../lib/tasks/init-client', () => {
   return {

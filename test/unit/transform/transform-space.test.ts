@@ -41,7 +41,7 @@ const destinationSpace = cloneDeep(space)
 space.doNotTouch = true
 
 test('applies transformers to give space data', () => {
-  const result = transformSpace(space, destinationSpace) as TransformedSourceDataWithDoNotTouch
+  const result = transformSpace({ sourceData: space, destinationData: destinationSpace }) as TransformedSourceDataWithDoNotTouch
 
   expect(result.contentTypes[0]).toHaveProperty('original')
   expect(result.contentTypes[0]).toHaveProperty('transformed')
@@ -59,14 +59,14 @@ test('applies transformers to give space data', () => {
 })
 
 test('applies custom transformers to give space data', () => {
-  const result = transformSpace(space, destinationSpace, {
+  const result = transformSpace({ sourceData: space, destinationData: destinationSpace, customTransformers: {
     entries: () => 'transformed'
-  })
+  } })
   expect(result.entries?.[0]?.transformed).toBe('transformed')
 })
 
 test('applies transformers to given entity types', () => {
-  const result = transformSpace(space, destinationSpace, {}, ['entries'])
+  const result = transformSpace({ sourceData: space, destinationData: destinationSpace, entities: ['entries'] })
   expect(result.contentTypes[0]).not.toHaveProperty('original')
   expect(result.contentTypes[0]).not.toHaveProperty('transformed')
   expect(result.entries[0]).toHaveProperty('original')

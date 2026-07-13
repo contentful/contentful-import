@@ -134,6 +134,7 @@ export function experiences (entity: ExperienceProps, _: unknown, __: unknown, c
   return ctx ? rewriteUrns(entity, ctx) : entity
 }
 
+// TODO: Implement designTokens transformer when the CMA supports it
 export function designTokens (entity: unknown): unknown {
   return entity
 }

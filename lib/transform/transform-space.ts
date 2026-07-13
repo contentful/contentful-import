@@ -19,13 +19,21 @@ type TransformContext = {
   destinationEnvironmentId: string
 }
 
+type TransformSpaceParams = {
+  sourceData: OriginalSourceData
+  destinationData: DestinationData
+  customTransformers?: any
+  entities?: string[]
+  ctx?: TransformContext
+}
+
 /**
  * Run transformer methods on each item for each kind of entity, in case there
  * is a need to transform data when copying it to the destination space
  */
-export default function (
-  sourceData: OriginalSourceData, destinationData: DestinationData, customTransformers?: any, entities = spaceEntities, ctx?: TransformContext
-): TransformedSourceData {
+export default function ({
+  sourceData, destinationData, customTransformers, entities = spaceEntities, ctx
+}: TransformSpaceParams): TransformedSourceData {
   const transformers = defaults(customTransformers, defaultTransformers)
   const baseSpaceData = omit(sourceData, ...entities)
 
