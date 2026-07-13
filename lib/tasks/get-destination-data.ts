@@ -1,7 +1,7 @@
 import Promise from 'bluebird'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
-import type { AssetProps, ContentTypeProps, EntryProps, LocaleProps, TagProps, WebhookProps } from 'contentful-management'
+import type { AssetProps, ComponentTypeProps, ContentTypeProps, DataAssemblyProps, EntryProps, ExperienceProps, FragmentProps, LocaleProps, TagProps, TemplateProps, WebhookProps } from 'contentful-management'
 import { OriginalSourceData } from '../types'
 import PQueue from 'p-queue'
 
@@ -119,6 +119,21 @@ function getPagedBatches(totalFetched: number, total: number) {
   return batches
 }
 
+async function fetchAllExoEntities<T>(
+  fetchPage: (pageNext?: string) => Promise<{ items: T[], pages: { next?: string } }>
+): Promise<T[]> {
+  const all: T[] = []
+  let pageNext: string | undefined = undefined
+
+  do {
+    const response = await fetchPage(pageNext)
+    all.push(...response.items)
+    pageNext = response.pages?.next
+  } while (pageNext)
+
+  return all
+}
+
 type AllDestinationData = {
   contentTypes: Promise<ContentTypeProps[]>
   tags: Promise<TagProps[]>
@@ -127,16 +142,24 @@ type AllDestinationData = {
   assets: Promise<AssetProps[]>
   // TODO Why are webhooks optional?
   webhooks?: Promise<WebhookProps[]>
+  componentTypes?: Promise<ComponentTypeProps[]>
+  templates?: Promise<TemplateProps[]>
+  fragments?: Promise<FragmentProps[]>
+  dataAssemblies?: Promise<DataAssemblyProps[]>
+  experiences?: Promise<ExperienceProps[]>
+  // TODO: add designTokens once the contentful-management SDK exposes a designToken plain client API
 }
 
 type GetDestinationDataParams = {
   client: any
+  plainClient?: any
   spaceId: string
   environmentId: string
   sourceData: OriginalSourceData
   contentModelOnly?: boolean
   skipLocales?: boolean
   skipContentModel?: boolean
+  includeExperienceOrchestration?: boolean
   requestQueue: PQueue
 }
 
@@ -151,12 +174,14 @@ type GetDestinationDataParams = {
 
 export default async function getDestinationData ({
   client,
+  plainClient,
   spaceId,
   environmentId,
   sourceData,
   contentModelOnly,
   skipLocales,
   skipContentModel,
+  includeExperienceOrchestration,
   requestQueue
 }: GetDestinationDataParams) {
   const space = await client.getSpace(spaceId)
@@ -231,6 +256,45 @@ export default async function getDestinationData ({
   }
 
   result.webhooks = []
+
+  if (includeExperienceOrchestration && plainClient) {
+    result.componentTypes = fetchAllExoEntities((pageNext) =>
+      plainClient.componentType.getMany({ spaceId, environmentId, query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) } })
+    ).then((items) => {
+      logEmitter.emit('info', `Fetched ${items.length} destination component types`)
+      return items
+    })
+
+    result.templates = fetchAllExoEntities((pageNext) =>
+      plainClient.template.getMany({ spaceId, environmentId, query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) } })
+    ).then((items) => {
+      logEmitter.emit('info', `Fetched ${items.length} destination templates`)
+      return items
+    })
+
+    result.fragments = fetchAllExoEntities((pageNext) =>
+      plainClient.fragment.getMany({ spaceId, environmentId, query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) } })
+    ).then((items) => {
+      logEmitter.emit('info', `Fetched ${items.length} destination fragments`)
+      return items
+    })
+
+    result.dataAssemblies = fetchAllExoEntities((pageNext) =>
+      plainClient.dataAssembly.getMany({ spaceId, environmentId, query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) } })
+    ).then((items) => {
+      logEmitter.emit('info', `Fetched ${items.length} destination data assemblies`)
+      return items
+    })
+
+    result.experiences = fetchAllExoEntities((pageNext) =>
+      plainClient.experience.getMany({ spaceId, environmentId, query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) } })
+    ).then((items) => {
+      logEmitter.emit('info', `Fetched ${items.length} destination experiences`)
+      return items
+    })
+
+    // TODO: fetch destination designTokens here once the contentful-management SDK exposes a designToken plain client API
+  }
 
   return Promise.props(result)
 }
