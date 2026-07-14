@@ -8,7 +8,7 @@ import { startCase } from 'lodash'
 import PQueue from 'p-queue'
 
 import { displayErrorLog, setupLogging, writeErrorLogFile } from 'contentful-batch-libs/dist/logging'
-import { wrapTask } from 'contentful-batch-libs/dist/listr'
+import { wrapTaskWithRateLimitStatus as wrapTask } from './utils/rate-limit-status'
 
 import initClient from './tasks/init-client'
 import getDestinationData from './tasks/get-destination-data'
