@@ -1,12 +1,11 @@
-import { find } from 'lodash/collection'
-import { assign, get, omitBy, omit } from 'lodash/object'
+import { find, assign, get, omitBy, omit } from 'lodash'
 
 import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { ContentfulEntityError } from '../../utils/errors'
 import { TransformedSourceData, TransformedSourceDataUnion } from '../../types'
 import PQueue from 'p-queue'
-import { PlainClientAPI, LocaleProps } from 'contentful-management'
+import { AssetProps, ContentTypeProps, EntryProps, LocaleProps, PlainClientAPI, WebhookProps } from 'contentful-management'
 
 type CreateEntitiesParams = {
   context: PushToSpaceContext,
@@ -29,7 +28,7 @@ export type PushToSpaceContext = {
  * Applies to all entities except Entries, as the CMA API for those is slightly different
  * See handleCreationErrors for details on what errors reject the promise or not.
  */
-export function createEntities ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }: CreateEntitiesParams) {
+export function createEntities({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }: CreateEntitiesParams) {
   return createEntitiesWithConcurrency({ context, entities, destinationEntitiesById, skipUpdates, requestQueue })
 }
 
@@ -42,11 +41,11 @@ type CreateLocalesParams = {
   requestQueue: PQueue
 }
 
-export function createLocales ({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
+export function createLocales({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
   return createEntitiesInSequence({ context, entities, destinationEntitiesById, requestQueue })
 }
 
-async function createEntitiesWithConcurrency ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
+async function createEntitiesWithConcurrency({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
   const pendingCreatedEntities = entities.map((entity) => {
     const destinationEntity = getDestinationEntityForSourceEntity(destinationEntitiesById, entity.transformed)
     const updateOperation = skipUpdates ? 'skip' : 'update'
@@ -78,7 +77,7 @@ async function createEntitiesWithConcurrency ({ context, entities, destinationEn
   return createdEntities.filter((entity) => entity)
 }
 
-async function createEntitiesInSequence ({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
+async function createEntitiesInSequence({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
   const createdEntities: any[] = []
 
   for (const entity of entities) {
@@ -112,7 +111,7 @@ async function createEntitiesInSequence ({ context, entities, destinationEntitie
 /**
  * Creates a list of entries
  */
-export async function createEntries ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
+export async function createEntries({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
   const createdEntries = await Promise.all(entities.map((entry) => {
     return createEntry({ entry, context, destinationEntitiesById, skipUpdates, requestQueue })
   }))
@@ -169,37 +168,37 @@ function updateDestinationWithSourceData(context: PushToSpaceContext, destinatio
   if (type === 'Entry') {
     return client.entry.update(
       { spaceId, environmentId, entryId: destinationEntity.sys.id },
-      updated
+      updated as EntryProps
     )
   }
   if (type === 'ContentType') {
     return client.contentType.update(
       { spaceId, environmentId, contentTypeId: destinationEntity.sys.id },
-      updated
+      updated as ContentTypeProps
     )
   }
   if (type === 'Asset') {
     return client.asset.update(
       { spaceId, environmentId, assetId: destinationEntity.sys.id },
-      updated
+      updated as AssetProps
     )
   }
   if (type === 'Locale') {
     return client.locale.update(
       { spaceId, environmentId, localeId: destinationEntity.sys.id },
-      updated
+      updated as LocaleProps
     )
   }
   if (type === 'Webhook') {
     return client.webhook.update(
       { spaceId, webhookDefinitionId: destinationEntity.sys.id },
-      updated
+      updated as WebhookProps
     )
   }
   throw new Error(`updateDestinationWithSourceData: unsupported type "${type}"`)
 }
 
-function createInDestination (context: PushToSpaceContext, sourceEntity) {
+function createInDestination(context: PushToSpaceContext, sourceEntity) {
   const { type, client, spaceId, environmentId } = context
   if (type === 'Tag') {
     return createTagInDestination(context, sourceEntity)
@@ -210,21 +209,21 @@ function createInDestination (context: PushToSpaceContext, sourceEntity) {
 
   if (type === 'ContentType') {
     return id
-      ? client.contentType.createWithId({ spaceId, environmentId, contentTypeId: id }, plainData)
-      : client.contentType.create({ spaceId, environmentId }, plainData)
+      ? client.contentType.createWithId({ spaceId, environmentId, contentTypeId: id }, plainData as ContentTypeProps)
+      : client.contentType.create({ spaceId, environmentId }, plainData as ContentTypeProps)
   }
   if (type === 'Asset') {
     return id
-      ? client.asset.createWithId({ spaceId, environmentId, assetId: id }, plainData)
-      : client.asset.create({ spaceId, environmentId }, plainData)
+      ? client.asset.createWithId({ spaceId, environmentId, assetId: id }, plainData as AssetProps)
+      : client.asset.create({ spaceId, environmentId }, plainData as AssetProps)
   }
   if (type === 'Locale') {
-    return client.locale.create({ spaceId, environmentId }, plainData)
+    return client.locale.create({ spaceId, environmentId }, plainData as LocaleProps)
   }
   if (type === 'Webhook') {
     return id
-      ? client.webhook.update({ spaceId, webhookDefinitionId: id }, { ...plainData, sys: { id } })
-      : client.webhook.create({ spaceId }, plainData)
+      ? client.webhook.update({ spaceId, webhookDefinitionId: id }, { ...plainData, sys: { id } } as WebhookProps)
+      : client.webhook.create({ spaceId }, plainData as WebhookProps)
   }
   throw new Error(`createInDestination: unsupported type "${type}"`)
 }
@@ -234,8 +233,8 @@ function createEntryInDestination(context: PushToSpaceContext, contentTypeId: st
   const id = sourceEntity.sys.id
   const plainData = getPlainData(sourceEntity)
   return id
-    ? client.entry.createWithId({ spaceId, environmentId, contentTypeId, entryId: id }, plainData)
-    : client.entry.create({ spaceId, environmentId, contentTypeId }, plainData)
+    ? client.entry.createWithId({ spaceId, environmentId, contentTypeId, entryId: id }, plainData as EntryProps)
+    : client.entry.create({ spaceId, environmentId, contentTypeId }, plainData as EntryProps)
 }
 
 function createTagInDestination(context: PushToSpaceContext, sourceEntity) {
@@ -255,7 +254,7 @@ function createTagInDestination(context: PushToSpaceContext, sourceEntity) {
  * already exists at a different version — the update is skipped but import continues.
  * Other errors are logged as errors and the entity is excluded from further steps.
  */
-function handleCreationErrors (entity, err) {
+function handleCreationErrors(entity, err) {
   // Handle the case where a locale already exists and skip it
   if (get(err, 'error.sys.id') === 'ValidationFailed') {
     const errors = get(err, 'error.details.errors')
