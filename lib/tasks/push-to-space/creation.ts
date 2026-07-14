@@ -164,7 +164,7 @@ async function createEntry ({ entry, context, destinationEntitiesById, skipUpdat
 function updateDestinationWithSourceData (context: PushToSpaceContext, destinationEntity, sourceEntity) {
   const { client, spaceId, environmentId, type } = context
   const plainData = getPlainData(sourceEntity)
-  const updated = assign({}, destinationEntity, plainData)
+  const updated = assign({}, plainData, { sys: destinationEntity.sys })
 
   if (type === 'Entry') {
     return client.entry.update(
