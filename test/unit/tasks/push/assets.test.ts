@@ -24,7 +24,18 @@ const assetPaths = [
   'assets/images/contentful-de.jpg'
 ]
 
+const spaceId = 'test-space'
+const environmentId = 'master'
+
 let requestQueue
+
+function makeClient (processForLocaleImpl = jest.fn().mockResolvedValue({ sys: { type: 'Asset' } })) {
+  return {
+    asset: {
+      processForLocale: processForLocaleImpl,
+    },
+  }
+}
 
 beforeEach(() => {
   // We set a high interval cap here because with the amount of data to fetch
@@ -38,35 +49,35 @@ beforeEach(() => {
 })
 
 test('Process assets', async () => {
-  const processStub = jest
-    .fn()
-    .mockReturnValue(Promise.resolve({ sys: { type: 'Asset' } }))
+  const processStub = jest.fn().mockResolvedValue({ sys: { type: 'Asset' } })
+  const client = makeClient(processStub)
 
   const assets = await processAssets({
     assets: [
       {
         sys: { id: '123' },
         fields: { file: { 'en-US': 'file object', 'en-GB': {} } },
-        processForLocale: processStub
       },
       {
         sys: { id: '456' },
         fields: { file: { 'en-US': 'file object', 'en-GB': {} } },
-        processForLocale: processStub
       }
     ],
-    locales: ['en-US', 'en-GB'],
+    client,
+    spaceId,
+    environmentId,
     requestQueue
   })
 
   // We expect two assets to be returned
   expect(assets).toHaveLength(2)
   // We expect 4 calls, one for each locale
+  // signature: processForLocale(params, asset, locale, options) — locale is at index [2]
   expect(processStub.mock.calls).toHaveLength(4)
-  expect(processStub.mock.calls[0][0]).toBe('en-US')
-  expect(processStub.mock.calls[1][0]).toBe('en-GB')
-  expect(processStub.mock.calls[2][0]).toBe('en-US')
-  expect(processStub.mock.calls[3][0]).toBe('en-GB')
+  expect(processStub.mock.calls[0][2]).toBe('en-US')
+  expect(processStub.mock.calls[1][2]).toBe('en-GB')
+  expect(processStub.mock.calls[2][2]).toBe('en-US')
+  expect(processStub.mock.calls[3][2]).toBe('en-GB')
   expect(mockEmit.mock.calls).toHaveLength(2)
 })
 
@@ -98,15 +109,18 @@ test('Return most up to date processed asset version', async () => {
       }
     }), 50)))
 
+  const client = makeClient(processStub)
+
   const assets = await processAssets({
     assets: [
       {
         sys: { id: '123' },
         fields: { file: { 'en-US': 'file object', 'en-GB': {} } },
-        processForLocale: processStub
       }
     ],
-    locales: ['en-US', 'en-GB'],
+    client,
+    spaceId,
+    environmentId,
     requestQueue
   })
   expect(assets).toHaveLength(1)
@@ -122,24 +136,26 @@ test('Process assets fails', async () => {
 
   const processStub = jest
     .fn()
-    .mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset' } }))
-    .mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset' } }))
-    .mockImplementationOnce(() => Promise.reject(failedError))
+    .mockResolvedValueOnce({ sys: { type: 'Asset' } })
+    .mockResolvedValueOnce({ sys: { type: 'Asset' } })
+    .mockRejectedValueOnce(failedError)
+
+  const client = makeClient(processStub)
 
   await processAssets({
     assets: [
       {
         sys: { id: '123' },
         fields: { file: { 'en-US': 'file object', 'en-GB': {} } },
-        processForLocale: processStub
       },
       {
         sys: { id: '456' },
         fields: { file: { 'en-US': 'file object', 'en-GB': {} } },
-        processForLocale: processStub
       }
     ],
-    locales: ['en-US', 'en-GB'],
+    client,
+    spaceId,
+    environmentId,
     requestQueue
   })
   // We expect two calls for the first asset (one for each locale)

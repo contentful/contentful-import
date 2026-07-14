@@ -6,8 +6,7 @@ import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { ContentfulEntityError } from '../../utils/errors'
 import { TransformedSourceData, TransformedSourceDataUnion } from '../../types'
 import PQueue from 'p-queue'
-import { PushToSpaceContext } from './push-to-space'
-import { LocaleProps } from 'contentful-management'
+import { PlainClientAPI, LocaleProps } from 'contentful-management'
 
 type CreateEntitiesParams = {
   context: PushToSpaceContext,
@@ -15,6 +14,14 @@ type CreateEntitiesParams = {
   destinationEntitiesById: Map<string, any>,
   skipUpdates?: boolean,
   requestQueue: PQueue
+}
+
+export type PushToSpaceContext = {
+  type: string,
+  client: any,
+  spaceId: string,
+  environmentId: string,
+  skipContentModel?: boolean,
 }
 
 /**
@@ -53,7 +60,7 @@ async function createEntitiesWithConcurrency ({ context, entities, destinationEn
     return requestQueue.add(async () => {
       try {
         const createdEntity = await (destinationEntity
-          ? updateDestinationWithSourceData(destinationEntity, entity.transformed)
+          ? updateDestinationWithSourceData(context, destinationEntity, entity.transformed)
           : createInDestination(context, entity.transformed))
 
         creationSuccessNotifier(operation, createdEntity)
@@ -72,7 +79,7 @@ async function createEntitiesWithConcurrency ({ context, entities, destinationEn
 }
 
 async function createEntitiesInSequence ({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
-  const createdEntities: LocaleProps[] = []
+  const createdEntities: any[] = []
 
   for (const entity of entities) {
     const destinationEntity = getDestinationEntityForSourceEntity(destinationEntitiesById, entity.transformed)
@@ -83,7 +90,7 @@ async function createEntitiesInSequence ({ context, entities, destinationEntitie
       // we still want to go through the normal rate limiting queue
       const createdEntity = await requestQueue.add(async () => {
         const createdOrUpdatedEntity = await (destinationEntity
-          ? updateDestinationWithSourceData(destinationEntity, entity.transformed)
+          ? updateDestinationWithSourceData(context, destinationEntity, entity.transformed)
           : createInDestination(context, entity.transformed))
         return createdOrUpdatedEntity
       })
@@ -107,13 +114,13 @@ async function createEntitiesInSequence ({ context, entities, destinationEntitie
  */
 export async function createEntries ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
   const createdEntries = await Promise.all(entities.map((entry) => {
-    return createEntry({ entry, target: context.target, skipContentModel: context.skipContentModel, destinationEntitiesById, skipUpdates, requestQueue })
+    return createEntry({ entry, context, destinationEntitiesById, skipUpdates, requestQueue })
   }))
 
   return createdEntries.filter((entry) => entry)
 }
 
-async function createEntry ({ entry, target, skipContentModel, destinationEntitiesById, skipUpdates, requestQueue }) {
+async function createEntry ({ entry, context, destinationEntitiesById, skipUpdates, requestQueue }) {
   const contentTypeId = entry.original.sys.contentType.sys.id
   const destinationEntry = getDestinationEntityForSourceEntity(
     destinationEntitiesById, entry.transformed)
@@ -125,9 +132,9 @@ async function createEntry ({ entry, target, skipContentModel, destinationEntiti
   }
   try {
     const createdOrUpdatedEntry = await requestQueue.add(() => {
-      return destinationEntry 
-        ? updateDestinationWithSourceData(destinationEntry, entry.transformed) 
-        : createEntryInDestination(target, contentTypeId, entry.transformed)
+      return destinationEntry
+        ? updateDestinationWithSourceData(context, destinationEntry, entry.transformed)
+        : createEntryInDestination(context, contentTypeId, entry.transformed)
     })
 
     creationSuccessNotifier(operation, createdOrUpdatedEntry)
@@ -138,10 +145,10 @@ async function createEntry ({ entry, target, skipContentModel, destinationEntiti
      * In that case, the field is removed from the entry, and creation is attempted again.
     */
     if (err instanceof Error) {
-      if (skipContentModel && err.name === 'UnknownField') {
+      if (context.skipContentModel && err.name === 'UnknownField') {
         const errors = get(JSON.parse(err.message), 'details.errors')
         entry.transformed.fields = cleanupUnknownFields(entry.transformed.fields, errors)
-        return createEntry({ entry, target, skipContentModel, destinationEntitiesById, skipUpdates, requestQueue })
+        return createEntry({ entry, context, destinationEntitiesById, skipUpdates, requestQueue })
       }
     }
     if (err instanceof ContentfulEntityError) {
@@ -154,40 +161,92 @@ async function createEntry ({ entry, target, skipContentModel, destinationEntiti
   }
 }
 
-function updateDestinationWithSourceData (destinationEntity, sourceEntity) {
+function updateDestinationWithSourceData (context: PushToSpaceContext, destinationEntity, sourceEntity) {
+  const { client, spaceId, environmentId, type } = context
   const plainData = getPlainData(sourceEntity)
-  assign(destinationEntity, plainData)
-  return destinationEntity.update()
+  const updated = assign({}, plainData, { sys: destinationEntity.sys })
+
+  if (type === 'Entry') {
+    return client.entry.update(
+      { spaceId, environmentId, entryId: destinationEntity.sys.id },
+      updated
+    )
+  }
+  if (type === 'ContentType') {
+    return client.contentType.update(
+      { spaceId, environmentId, contentTypeId: destinationEntity.sys.id },
+      updated
+    )
+  }
+  if (type === 'Asset') {
+    return client.asset.update(
+      { spaceId, environmentId, assetId: destinationEntity.sys.id },
+      updated
+    )
+  }
+  if (type === 'Locale') {
+    return client.locale.update(
+      { spaceId, environmentId, localeId: destinationEntity.sys.id },
+      updated
+    )
+  }
+  if (type === 'Webhook') {
+    return client.webhook.update(
+      { spaceId, webhookDefinitionId: destinationEntity.sys.id },
+      updated
+    )
+  }
+  throw new Error(`updateDestinationWithSourceData: unsupported type "${type}"`)
 }
 
-function createInDestination (context, sourceEntity) {
-  const { type, target } = context
+function createInDestination (context: PushToSpaceContext, sourceEntity) {
+  const { type, client, spaceId, environmentId } = context
   if (type === 'Tag') {
-    // tags are created with a different signature
     return createTagInDestination(context, sourceEntity)
   }
 
   const id = get(sourceEntity, 'sys.id')
   const plainData = getPlainData(sourceEntity)
 
-  return id
-    ? target[`create${type}WithId`](id, plainData)
-    : target[`create${type}`](plainData)
+  if (type === 'ContentType') {
+    return id
+      ? client.contentType.createWithId({ spaceId, environmentId, contentTypeId: id }, plainData)
+      : client.contentType.create({ spaceId, environmentId }, plainData)
+  }
+  if (type === 'Asset') {
+    return id
+      ? client.asset.createWithId({ spaceId, environmentId, assetId: id }, plainData)
+      : client.asset.create({ spaceId, environmentId }, plainData)
+  }
+  if (type === 'Locale') {
+    return client.locale.create({ spaceId, environmentId }, plainData)
+  }
+  if (type === 'Webhook') {
+    return id
+      ? client.webhook.update({ spaceId, webhookDefinitionId: id }, { ...plainData, sys: { id } })
+      : client.webhook.create({ spaceId }, plainData)
+  }
+  throw new Error(`createInDestination: unsupported type "${type}"`)
 }
 
-function createEntryInDestination (space, contentTypeId, sourceEntity) {
+function createEntryInDestination (context: PushToSpaceContext, contentTypeId: string, sourceEntity) {
+  const { client, spaceId, environmentId } = context
   const id = sourceEntity.sys.id
   const plainData = getPlainData(sourceEntity)
   return id
-    ? space.createEntryWithId(contentTypeId, id, plainData)
-    : space.createEntry(contentTypeId, plainData)
+    ? client.entry.createWithId({ spaceId, environmentId, contentTypeId, entryId: id }, plainData)
+    : client.entry.create({ spaceId, environmentId, contentTypeId }, plainData)
 }
 
-function createTagInDestination (context, sourceEntity) {
+function createTagInDestination (context: PushToSpaceContext, sourceEntity) {
+  const { client, spaceId, environmentId } = context
   const id = sourceEntity.sys.id
   const visibility = sourceEntity.sys.visibility || 'private'
   const name = sourceEntity.name
-  return context.target.createTag(id, name, visibility)
+  return client.tag.createWithId(
+    { spaceId, environmentId, tagId: id },
+    { name, sys: { visibility } }
+  )
 }
 
 /**
@@ -236,6 +295,5 @@ function creationSuccessNotifier (method, createdEntity) {
 }
 
 function getPlainData (entity) {
-  const data = entity.toPlainObject ? entity.toPlainObject() : entity
-  return omit(data, 'sys')
+  return omit(entity, 'sys')
 }

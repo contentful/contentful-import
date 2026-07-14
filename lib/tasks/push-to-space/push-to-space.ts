@@ -66,11 +66,6 @@ type PushToSpaceParams = {
  * - assetsDirectory: path to exported asset files to be uploaded instead of pointing to an existing URL
  */
 
-export type PushToSpaceContext = {
-    type: string,
-    target: any,
-}
-
 export default function pushToSpace ({
   sourceData,
   destinationData = {},
@@ -117,23 +112,13 @@ export default function pushToSpace ({
 
   return new Listr([
     {
-      title: 'Connecting to space',
-      task: wrapTask(async (ctx) => {
-        const space = await client.getSpace(spaceId)
-        const environment = await space.getEnvironment(environmentId)
-
-        ctx.space = space
-        ctx.environment = environment
-      })
-    },
-    {
       title: 'Importing Locales',
       task: wrapTask(async (ctx) => {
         if (!destinationDataById.locales) {
           return
         }
         const locales = await creation.createLocales({
-          context: { target: ctx.environment, type: 'Locale' },
+          context: { client, spaceId, environmentId, type: 'Locale' },
           entities: sourceData.locales,
           destinationEntitiesById: destinationDataById.locales,
           requestQueue
@@ -150,7 +135,7 @@ export default function pushToSpace ({
           return
         }
         const contentTypes = await creation.createEntities({
-          context: { target: ctx.environment, type: 'ContentType' },
+          context: { client, spaceId, environmentId, type: 'ContentType' },
           entities: sourceData.contentTypes,
           destinationEntitiesById: destinationDataById.contentTypes,
           skipUpdates: false,
@@ -167,6 +152,9 @@ export default function pushToSpace ({
         const publishedContentTypes = await publishEntities({
           entities: ctx.data.contentTypes,
           sourceEntities: sourceData.contentTypes,
+          client,
+          spaceId,
+          environmentId,
           requestQueue
         })
         ctx.data.contentTypes = publishedContentTypes
@@ -178,7 +166,7 @@ export default function pushToSpace ({
       task: wrapTask(async (ctx) => {
         if (sourceData.tags && destinationDataById.tags) {
           const tags = await creation.createEntities({
-            context: { target: ctx.environment, type: 'Tag' },
+            context: { client, spaceId, environmentId, type: 'Tag' },
             entities: sourceData.tags,
             destinationEntitiesById: destinationDataById.tags,
             skipUpdates: false,
@@ -208,15 +196,26 @@ export default function pushToSpace ({
           }
 
           try {
-            const ctEditorInterface = await requestQueue.add(() => ctx.environment.getEditorInterfaceForContentType(contentType.sys.id))
+            const ctEditorInterface = await requestQueue.add(() =>
+              client.editorInterface.get({ spaceId, environmentId, contentTypeId: contentType.sys.id })
+            )
             logEmitter.emit('info', `Fetched editor interface for ${contentType.name}`)
-            ctEditorInterface.controls = editorInterface.controls
-            ctEditorInterface.groupControls = editorInterface.groupControls
-            ctEditorInterface.editorLayout = editorInterface.editorLayout
-            ctEditorInterface.sidebar = editorInterface.sidebar
-            ctEditorInterface.editors = editorInterface.editors
 
-            const updatedEditorInterface = await requestQueue.add(() => ctEditorInterface.update())
+            const updatedData = {
+              ...ctEditorInterface,
+              controls: editorInterface.controls,
+              groupControls: editorInterface.groupControls,
+              editorLayout: editorInterface.editorLayout,
+              sidebar: editorInterface.sidebar,
+              editors: editorInterface.editors,
+            }
+
+            const updatedEditorInterface = await requestQueue.add(() =>
+              client.editorInterface.update(
+                { spaceId, environmentId, contentTypeId: contentType.sys.id },
+                updatedData
+              )
+            )
             return updatedEditorInterface
           } catch (err: any) {
             if (err instanceof ContentfulEntityError) {
@@ -244,10 +243,10 @@ export default function pushToSpace ({
               try {
                 logEmitter.emit('info', `Uploading Asset file ${file.upload}`)
                 const assetStream = await assets.getAssetStreamForURL(file.upload, assetsDirectory)
-                const upload = await ctx.environment.createUpload({
-                  fileName: asset.transformed.sys.id,
-                  file: assetStream
-                })
+                const upload = await client.upload.create(
+                  { spaceId, environmentId },
+                  { file: assetStream }
+                )
 
                 delete file.upload
 
@@ -282,7 +281,7 @@ export default function pushToSpace ({
           return
         }
         const assetsToProcess = await creation.createEntities({
-          context: { target: ctx.environment, type: 'Asset'},
+          context: { client, spaceId, environmentId, type: 'Asset'},
           entities: sourceData.assets,
           destinationEntitiesById: destinationDataById.assets,
           skipUpdates: skipAssetUpdates,
@@ -291,6 +290,9 @@ export default function pushToSpace ({
 
         const processedAssets = await assets.processAssets({
           assets: assetsToProcess,
+          client,
+          spaceId,
+          environmentId,
           timeout,
           retryLimit,
           requestQueue
@@ -305,6 +307,9 @@ export default function pushToSpace ({
         const publishedAssets = await publishEntities({
           entities: ctx.data.assets,
           sourceEntities: sourceData.assets,
+          client,
+          spaceId,
+          environmentId,
           requestQueue
         })
         ctx.data.publishedAssets = publishedAssets
@@ -317,6 +322,9 @@ export default function pushToSpace ({
         const archivedAssets = await archiveEntities({
           entities: ctx.data.assets,
           sourceEntities: sourceData.assets,
+          client,
+          spaceId,
+          environmentId,
           requestQueue
         })
         ctx.data.archivedAssets = archivedAssets
@@ -327,7 +335,7 @@ export default function pushToSpace ({
       title: 'Importing Content Entries',
       task: wrapTask(async (ctx) => {
         const entries = await creation.createEntries({
-          context: { target: ctx.environment, skipContentModel },
+          context: { client, spaceId, environmentId, skipContentModel, type: 'Entry' },
           entities: sourceData.entries,
           destinationEntitiesById: destinationDataById.entries,
           skipUpdates: skipContentUpdates,
@@ -343,6 +351,9 @@ export default function pushToSpace ({
         const publishedEntries = await publishEntities({
           entities: ctx.data.entries,
           sourceEntities: sourceData.entries,
+          client,
+          spaceId,
+          environmentId,
           requestQueue
         })
         ctx.data.publishedEntries = publishedEntries
@@ -355,6 +366,9 @@ export default function pushToSpace ({
         const archivedEntries = await archiveEntities({
           entities: ctx.data.entries,
           sourceEntities: sourceData.entries,
+          client,
+          spaceId,
+          environmentId,
           requestQueue
         })
         ctx.data.archivedEntries = archivedEntries
@@ -368,7 +382,7 @@ export default function pushToSpace ({
           return
         }
         const webhooks = await creation.createEntities({
-          context: { target: ctx.space, type: 'Webhook' },
+          context: { client, spaceId, environmentId, type: 'Webhook' },
           entities: sourceData.webhooks,
           destinationEntitiesById: destinationDataById.webhooks,
           requestQueue
@@ -381,7 +395,7 @@ export default function pushToSpace ({
   ], listrOptions)
 }
 
-function archiveEntities ({ entities, sourceEntities, requestQueue }) {
+function archiveEntities ({ entities, sourceEntities, client, spaceId, environmentId, requestQueue }) {
   const entityIdsToArchive = sourceEntities
     .filter(({ original }) => original.sys.archivedVersion)
     .map(({ original }) => original.sys.id)
@@ -389,10 +403,10 @@ function archiveEntities ({ entities, sourceEntities, requestQueue }) {
   const entitiesToArchive = entities
     .filter((entity) => entityIdsToArchive.indexOf(entity.sys.id) !== -1)
 
-  return publishing.archiveEntities({ entities: entitiesToArchive, requestQueue })
+  return publishing.archiveEntities({ entities: entitiesToArchive, client, spaceId, environmentId, requestQueue })
 }
 
-function publishEntities ({ entities, sourceEntities, requestQueue }) {
+function publishEntities ({ entities, sourceEntities, client, spaceId, environmentId, requestQueue }) {
   // Find all entities in source content which are published
   const entityIdsToPublish = sourceEntities
     .filter(({ original }) => original.sys.publishedVersion)
@@ -402,5 +416,5 @@ function publishEntities ({ entities, sourceEntities, requestQueue }) {
   const entitiesToPublish = entities
     .filter((entity) => entityIdsToPublish.indexOf(entity.sys.id) !== -1)
 
-  return publishing.publishEntities({ entities: entitiesToPublish, requestQueue })
+  return publishing.publishEntities({ entities: entitiesToPublish, client, spaceId, environmentId, requestQueue })
 }

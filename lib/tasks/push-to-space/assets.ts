@@ -23,9 +23,9 @@ export async function getAssetStreamForURL (url, assetsDirectory) {
   }
 }
 
-async function processAssetForLocale (locale, asset, processingOptions) {
+async function processAssetForLocale (client: any, spaceId: string, environmentId: string, locale: string, asset, processingOptions) {
   try {
-    return await asset.processForLocale(locale, processingOptions)
+    return await client.asset.processForLocale({ spaceId, environmentId }, asset, locale, processingOptions)
   } catch (err: any) {
     if (err instanceof ContentfulEntityError) {
       err.entity = asset
@@ -52,14 +52,19 @@ async function lastResult (promises: Promise<any>[]) {
 
 type ProcessAssetsParams = {
   assets: any[];
+  client: any;
+  spaceId: string;
+  environmentId: string;
   timeout?: number;
   retryLimit?: number;
   requestQueue: any;
-  locales?: string[];
 };
 
 export async function processAssets ({
   assets,
+  client,
+  spaceId,
+  environmentId,
   timeout,
   retryLimit,
   requestQueue
@@ -87,7 +92,7 @@ export async function processAssets ({
       latestAssetVersion = await lastResult(
         locales.map((locale) => {
           return requestQueue.add(() =>
-            processAssetForLocale(locale, asset, processingOptions)
+            processAssetForLocale(client, spaceId, environmentId, locale, asset, processingOptions)
           )
         })
       )
