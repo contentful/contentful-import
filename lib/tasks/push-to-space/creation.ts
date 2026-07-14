@@ -1,5 +1,4 @@
-import { find } from 'lodash/collection'
-import { assign, get, omitBy, omit } from 'lodash/object'
+import { find, assign, get, omitBy, omit } from 'lodash'
 
 import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'

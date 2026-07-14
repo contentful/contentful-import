@@ -1,4 +1,4 @@
-import { omit, defaults } from 'lodash/object'
+import { omit, defaults } from 'lodash'
 
 import * as defaultTransformers from './transformers'
 import sortEntries from '../utils/sort-entries'
@@ -17,14 +17,14 @@ export default function (
   sourceData: OriginalSourceData, destinationData: DestinationData, customTransformers?: any, entities = spaceEntities
 ): TransformedSourceData {
   const transformers = defaults(customTransformers, defaultTransformers)
-  const baseSpaceData = omit(sourceData, ...entities)
+  const baseSpaceData = omit(sourceData, ...entities) as unknown as TransformedSourceData
 
   sourceData.locales = sortLocales(sourceData.locales)
   const tagsEnabled = !!destinationData.tags
 
   return entities.reduce((transformedSpaceData, type) => {
     // tags don't contain links to other entities, don't need to be sorted
-    const sortedEntities = (type === 'tags') ? sourceData[type] : sortEntries(sourceData[type])
+    const sortedEntities = (type === 'tags') ? (sourceData[type] ?? []) : sortEntries(sourceData[type] ?? [])
 
     const transformedEntities = sortedEntities.map((entity) => ({
       original: entity,
