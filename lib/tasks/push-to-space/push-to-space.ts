@@ -69,11 +69,11 @@ type PushToSpaceParams = {
  */
 
 export type PushToSpaceContext = {
-    type: string,
-    target: any,
+  type: string,
+  target: any,
 }
 
-export default function pushToSpace ({
+export default function pushToSpace({
   sourceData,
   destinationData = {},
   client,
@@ -286,7 +286,7 @@ export default function pushToSpace ({
           return
         }
         const assetsToProcess = await creation.createEntities({
-          context: { target: ctx.environment, type: 'Asset'},
+          context: { target: ctx.environment, type: 'Asset' },
           entities: sourceData.assets,
           destinationEntitiesById: destinationDataById.assets,
           skipUpdates: skipAssetUpdates,
@@ -387,8 +387,12 @@ export default function pushToSpace ({
       task: wrapTask(async (ctx) => {
         const results = await Promise.all((sourceData.componentTypes || []).map(async (entity) => {
           try {
-            const result = await plainClient.componentType.upsert({ spaceId, environmentId, componentTypeId: entity.sys.id }, omitSys(entity))
-            logEmitter.emit('info', `UPSERT ComponentType ${entity.sys.id}`)
+            const existing = destinationDataById.componentTypes?.get(entity.sys.id)
+            const payload = existing
+              ? { ...omitSys(entity), sys: { id: entity.sys.id, type: 'ComponentType', version: existing.sys.version } }
+              : omitSys(entity)
+            const result = await plainClient.componentType.upsert({ spaceId, environmentId, componentTypeId: entity.sys.id }, payload)
+            logEmitter.emit('info', `${existing ? 'UPDATE' : 'CREATE'} ComponentType ${entity.sys.id}`)
             return result
           } catch (err) {
             logEmitter.emit('error', err)
@@ -404,8 +408,12 @@ export default function pushToSpace ({
       task: wrapTask(async (ctx) => {
         const results = await Promise.all((sourceData.templates || []).map(async (entity) => {
           try {
-            const result = await plainClient.template.upsert({ spaceId, environmentId, templateId: entity.sys.id }, omitSys(entity))
-            logEmitter.emit('info', `UPSERT Template ${entity.sys.id}`)
+            const existing = destinationDataById.templates?.get(entity.sys.id)
+            const payload = existing
+              ? { ...omitSys(entity), sys: { id: entity.sys.id, type: 'Template', version: existing.sys.version } }
+              : omitSys(entity)
+            const result = await plainClient.template.upsert({ spaceId, environmentId, templateId: entity.sys.id }, payload)
+            logEmitter.emit('info', `${existing ? 'UPDATE' : 'CREATE'} Template ${entity.sys.id}`)
             return result
           } catch (err) {
             logEmitter.emit('error', err)
@@ -421,8 +429,12 @@ export default function pushToSpace ({
       task: wrapTask(async (ctx) => {
         const results = await Promise.all((sourceData.fragments || []).map(async (entity) => {
           try {
-            const result = await plainClient.fragment.upsert({ spaceId, environmentId, fragmentId: entity.sys.id }, omitSys(entity))
-            logEmitter.emit('info', `UPSERT Fragment ${entity.sys.id}`)
+            const existing = destinationDataById.fragments?.get(entity.sys.id)
+            const payload = existing
+              ? { ...omitSys(entity), sys: { id: entity.sys.id, type: 'Fragment', version: existing.sys.version } }
+              : omitSys(entity)
+            const result = await plainClient.fragment.upsert({ spaceId, environmentId, fragmentId: entity.sys.id }, payload)
+            logEmitter.emit('info', `${existing ? 'UPDATE' : 'CREATE'} Fragment ${entity.sys.id}`)
             return result
           } catch (err) {
             logEmitter.emit('error', err)
@@ -438,18 +450,18 @@ export default function pushToSpace ({
       task: wrapTask(async (ctx) => {
         const results = await Promise.all((sourceData.dataAssemblies || []).map(async (entity) => {
           try {
+            const existing = destinationDataById.dataAssemblies?.get(entity.sys.id)
             let result
-            try {
-              const existing = await plainClient.dataAssembly.get({ spaceId, environmentId, dataAssemblyId: entity.sys.id })
-              result = await plainClient.dataAssembly.update({ spaceId, environmentId, dataAssemblyId: entity.sys.id }, { ...omitSys(entity), sys: { version: existing.sys.version } })
-            } catch (getErr: any) {
-              if (getErr.status === 404) {
-                result = await plainClient.dataAssembly.create({ spaceId, environmentId }, omitSys(entity))
-              } else {
-                throw getErr
-              }
+            if (existing) {
+              result = await plainClient.dataAssembly.update(
+                { spaceId, environmentId, dataAssemblyId: entity.sys.id },
+                { ...omitSys(entity), sys: { version: existing.sys.version } }
+              )
+              logEmitter.emit('info', `UPDATE DataAssembly ${entity.sys.id}`)
+            } else {
+              result = await plainClient.dataAssembly.create({ spaceId, environmentId }, omitSys(entity))
+              logEmitter.emit('info', `CREATE DataAssembly ${entity.sys.id}`)
             }
-            logEmitter.emit('info', `UPSERT DataAssembly ${entity.sys.id}`)
             return result
           } catch (err) {
             logEmitter.emit('error', err)
@@ -465,8 +477,12 @@ export default function pushToSpace ({
       task: wrapTask(async (ctx) => {
         const results = await Promise.all((sourceData.experiences || []).map(async (entity) => {
           try {
-            const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, omitSys(entity))
-            logEmitter.emit('info', `UPSERT Experience ${entity.sys.id}`)
+            const existing = destinationDataById.experiences?.get(entity.sys.id)
+            const payload = existing
+              ? { ...omitSys(entity), sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
+              : omitSys(entity)
+            const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
+            logEmitter.emit('info', `${existing ? 'UPDATE' : 'CREATE'} Experience ${entity.sys.id}`)
             return result
           } catch (err) {
             logEmitter.emit('error', err)
@@ -477,16 +493,17 @@ export default function pushToSpace ({
       }),
       skip: () => !includeExperienceOrchestration || !(sourceData.experiences || []).length
     }
+    // TODO: add 'Importing Design Tokens' task once the contentful-management SDK exposes a designToken plain client API
   ], listrOptions)
 }
 
-function omitSys (entity) {
+function omitSys(entity) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { sys: _sys, ...rest } = entity
   return rest
 }
 
-function archiveEntities ({ entities, sourceEntities, requestQueue }) {
+function archiveEntities({ entities, sourceEntities, requestQueue }) {
   const entityIdsToArchive = sourceEntities
     .filter(({ original }) => original.sys.archivedVersion)
     .map(({ original }) => original.sys.id)
@@ -497,7 +514,7 @@ function archiveEntities ({ entities, sourceEntities, requestQueue }) {
   return publishing.archiveEntities({ entities: entitiesToArchive, requestQueue })
 }
 
-function publishEntities ({ entities, sourceEntities, requestQueue }) {
+function publishEntities({ entities, sourceEntities, requestQueue }) {
   // Find all entities in source content which are published
   const entityIdsToPublish = sourceEntities
     .filter(({ original }) => original.sys.publishedVersion)

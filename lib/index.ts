@@ -121,11 +121,13 @@ async function runContentfulImport (params: RunContentfulImportParams) {
       task: wrapTask(async (ctx) => {
         const destinationData = await getDestinationData({
           client: ctx.client,
+          plainClient: ctx.plainClient,
           spaceId: options.spaceId,
           environmentId: options.environmentId,
           sourceData: options.content,
           skipLocales: options.skipLocales,
           skipContentModel: options.skipContentModel,
+          includeExperienceOrchestration: options.includeExperienceOrchestration,
           requestQueue
         })
 
