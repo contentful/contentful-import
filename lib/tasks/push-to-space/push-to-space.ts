@@ -421,6 +421,35 @@ export default function pushToSpace({
       skip: () => !includeExperienceOrchestration || !(sourceData.componentTypes || []).length
     },
     {
+      title: 'Importing Data Assemblies',
+      task: wrapTask(async (ctx) => {
+        const results = await Promise.all((sourceData.dataAssemblies || []).map(async (entity) => {
+          try {
+            const existing = destinationDataById.dataAssemblies?.get(entity.sys.id)
+            let result
+            if (existing) {
+              const payload: UpdateDataAssemblyProps = { ...entity, sys: { ...entity.sys, version: existing.sys.version } }
+              result = await plainClient.dataAssembly.update(
+                { spaceId, environmentId, dataAssemblyId: entity.sys.id },
+                payload
+              )
+              logEmitter.emit('info', `UPDATE DataAssembly ${entity.sys.id}`)
+            } else {
+              const payload: CreateDataAssemblyProps = omitSys(entity)
+              result = await plainClient.dataAssembly.create({ spaceId, environmentId }, payload)
+              logEmitter.emit('info', `CREATE DataAssembly ${entity.sys.id}`)
+            }
+            return result
+          } catch (err) {
+            logEmitter.emit('error', err)
+            return null
+          }
+        }))
+        ctx.data.dataAssemblies = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.dataAssemblies || []).length
+    },
+    {
       title: 'Importing Templates',
       task: wrapTask(async (ctx) => {
         const results = await Promise.all((sourceData.templates || []).map(async (entity) => {
@@ -471,35 +500,6 @@ export default function pushToSpace({
         ctx.data.fragments = results.filter(Boolean)
       }),
       skip: () => !includeExperienceOrchestration || !(sourceData.fragments || []).length
-    },
-    {
-      title: 'Importing Data Assemblies',
-      task: wrapTask(async (ctx) => {
-        const results = await Promise.all((sourceData.dataAssemblies || []).map(async (entity) => {
-          try {
-            const existing = destinationDataById.dataAssemblies?.get(entity.sys.id)
-            let result
-            if (existing) {
-              const payload: UpdateDataAssemblyProps = { ...entity, sys: { ...entity.sys, version: existing.sys.version } }
-              result = await plainClient.dataAssembly.update(
-                { spaceId, environmentId, dataAssemblyId: entity.sys.id },
-                payload
-              )
-              logEmitter.emit('info', `UPDATE DataAssembly ${entity.sys.id}`)
-            } else {
-              const payload: CreateDataAssemblyProps = omitSys(entity)
-              result = await plainClient.dataAssembly.create({ spaceId, environmentId }, payload)
-              logEmitter.emit('info', `CREATE DataAssembly ${entity.sys.id}`)
-            }
-            return result
-          } catch (err) {
-            logEmitter.emit('error', err)
-            return null
-          }
-        }))
-        ctx.data.dataAssemblies = results.filter(Boolean)
-      }),
-      skip: () => !includeExperienceOrchestration || !(sourceData.dataAssemblies || []).length
     },
     {
       title: 'Importing Experiences',
