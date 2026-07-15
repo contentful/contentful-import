@@ -27,14 +27,26 @@ function makeClientMock() {
 
 function makePlainClientMock() {
   return {
-    componentType: { upsert: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } })) },
-    template: { upsert: jest.fn(() => Promise.resolve({ sys: { id: 'tmpl-1' } })) },
-    fragment: { upsert: jest.fn(() => Promise.resolve({ sys: { id: 'frag-1' } })) },
+    componentType: {
+      create: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } })),
+      upsert: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } })),
+    },
+    template: {
+      create: jest.fn(() => Promise.resolve({ sys: { id: 'tmpl-1' } })),
+      upsert: jest.fn(() => Promise.resolve({ sys: { id: 'tmpl-1' } })),
+    },
+    fragment: {
+      create: jest.fn(() => Promise.resolve({ sys: { id: 'frag-1' } })),
+      upsert: jest.fn(() => Promise.resolve({ sys: { id: 'frag-1' } })),
+    },
     dataAssembly: {
       update: jest.fn(() => Promise.resolve({ sys: { id: 'da-1' } })),
       create: jest.fn(() => Promise.resolve({ sys: { id: 'da-1' } }))
     },
-    experience: { upsert: jest.fn(() => Promise.resolve({ sys: { id: 'exp-1' } })) }
+    experience: {
+      create: jest.fn(() => Promise.resolve({ sys: { id: 'exp-1' } })),
+      upsert: jest.fn(() => Promise.resolve({ sys: { id: 'exp-1' } })),
+    },
   }
 }
 
@@ -49,7 +61,7 @@ beforeEach(() => {
 describe('Importing Component Types', () => {
   const entity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 3 }, name: 'Hero' }
 
-  test('CREATE: calls upsert without sys when entity does not exist in destination', async () => {
+  test('CREATE: calls create without sys when entity does not exist in destination', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
       sourceData: { ...baseSourceData, componentTypes: [entity] } as any,
@@ -62,9 +74,10 @@ describe('Importing Component Types', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.componentType.upsert).toHaveBeenCalledTimes(1)
-    const [params, payload] = plainClient.componentType.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', componentTypeId: 'ct-1' })
+    expect(plainClient.componentType.create).toHaveBeenCalledTimes(1)
+    expect(plainClient.componentType.upsert).not.toHaveBeenCalled()
+    const [params, payload] = plainClient.componentType.create.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master' })
     expect(payload).not.toHaveProperty('sys')
     expect(payload.name).toBe('Hero')
   })
@@ -112,7 +125,7 @@ describe('Importing Component Types', () => {
 describe('Importing Templates', () => {
   const entity: any = { sys: { id: 'tmpl-1', type: 'Template', version: 2 }, name: 'Landing Page' }
 
-  test('CREATE: calls upsert without sys when entity does not exist in destination', async () => {
+  test('CREATE: calls create without sys when entity does not exist in destination', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
       sourceData: { ...baseSourceData, templates: [entity] } as any,
@@ -125,9 +138,10 @@ describe('Importing Templates', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.template.upsert).toHaveBeenCalledTimes(1)
-    const [params, payload] = plainClient.template.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', templateId: 'tmpl-1' })
+    expect(plainClient.template.create).toHaveBeenCalledTimes(1)
+    expect(plainClient.template.upsert).not.toHaveBeenCalled()
+    const [params, payload] = plainClient.template.create.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master' })
     expect(payload).not.toHaveProperty('sys')
     expect(payload.name).toBe('Landing Page')
   })
@@ -158,7 +172,7 @@ describe('Importing Templates', () => {
 describe('Importing Fragments', () => {
   const entity: any = { sys: { id: 'frag-1', type: 'Fragment', version: 1 }, name: 'Hero Fragment' }
 
-  test('CREATE: calls upsert without sys when entity does not exist in destination', async () => {
+  test('CREATE: calls create without sys when entity does not exist in destination', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
       sourceData: { ...baseSourceData, fragments: [entity] } as any,
@@ -171,9 +185,10 @@ describe('Importing Fragments', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.fragment.upsert).toHaveBeenCalledTimes(1)
-    const [params, payload] = plainClient.fragment.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', fragmentId: 'frag-1' })
+    expect(plainClient.fragment.create).toHaveBeenCalledTimes(1)
+    expect(plainClient.fragment.upsert).not.toHaveBeenCalled()
+    const [params, payload] = plainClient.fragment.create.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master' })
     expect(payload).not.toHaveProperty('sys')
     expect(payload.name).toBe('Hero Fragment')
   })
@@ -252,7 +267,7 @@ describe('Importing Data Assemblies', () => {
 describe('Importing Experiences', () => {
   const entity: any = { sys: { id: 'exp-1', type: 'Experience', version: 1 }, name: 'My Experience' }
 
-  test('CREATE: calls upsert without sys when entity does not exist in destination', async () => {
+  test('CREATE: calls create without sys when entity does not exist in destination', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
       sourceData: { ...baseSourceData, experiences: [entity] } as any,
@@ -265,9 +280,10 @@ describe('Importing Experiences', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.experience.upsert).toHaveBeenCalledTimes(1)
-    const [params, payload] = plainClient.experience.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', experienceId: 'exp-1' })
+    expect(plainClient.experience.create).toHaveBeenCalledTimes(1)
+    expect(plainClient.experience.upsert).not.toHaveBeenCalled()
+    const [params, payload] = plainClient.experience.create.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master' })
     expect(payload).not.toHaveProperty('sys')
     expect(payload.name).toBe('My Experience')
   })
