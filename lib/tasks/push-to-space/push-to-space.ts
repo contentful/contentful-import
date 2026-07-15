@@ -16,6 +16,8 @@ import * as creation from './creation'
 import * as publishing from './publishing'
 import type { DestinationData, TransformedSourceData, Resources, TransformedAsset } from '../../types'
 import { ContentfulEntityError } from '../../utils/errors'
+import sortComponentTypes from '../../utils/sort-component-types'
+import sortFragments from '../../utils/sort-fragments'
 
 const DEFAULT_CONTENT_STRUCTURE = {
   entries: [],
@@ -424,26 +426,27 @@ export default function pushToSpace({
     {
       title: 'Importing Component Types',
       task: wrapTask(async (ctx) => {
-        const results = await Promise.all((sourceData.componentTypes || []).map(async (entity) => {
+        const sorted = sortComponentTypes(sourceData.componentTypes || [])
+        const results: any[] = []
+        for (const entity of sorted) {
           try {
             const existing = destinationDataById.componentTypes?.get(entity.sys.id)
             if (existing) {
               const payload: UpsertComponentTypeProps = { ...entity, sys: { id: entity.sys.id, type: 'ComponentType', version: existing.sys.version } }
               const result = await plainClient.componentType.upsert({ spaceId, environmentId, componentTypeId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE ComponentType ${entity.sys.id}`)
-              return result
+              results.push(result)
             } else {
               const payload: UpsertComponentTypeProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'ComponentType' } }
               const result = await plainClient.componentType.upsert({ spaceId, environmentId, componentTypeId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE ComponentType ${entity.sys.id}`)
-              return result
+              results.push(result)
             }
           } catch (err) {
             logEmitter.emit('error', err)
-            return null
           }
-        }))
-        ctx.data.componentTypes = results.filter(Boolean)
+        }
+        ctx.data.componentTypes = results
       }),
       skip: () => !includeExperienceOrchestration || !(sourceData.componentTypes || []).length
     },
@@ -476,26 +479,27 @@ export default function pushToSpace({
     {
       title: 'Importing Fragments',
       task: wrapTask(async (ctx) => {
-        const results = await Promise.all((sourceData.fragments || []).map(async (entity) => {
+        const sorted = sortFragments(sourceData.fragments || [])
+        const results: any[] = []
+        for (const entity of sorted) {
           try {
             const existing = destinationDataById.fragments?.get(entity.sys.id)
             if (existing) {
               const payload: UpsertFragmentProps = { ...entity, componentType: entity.sys.componentType, sys: { id: entity.sys.id, type: 'Fragment', version: existing.sys.version } }
               const result = await plainClient.fragment.upsert({ spaceId, environmentId, fragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Fragment ${entity.sys.id}`)
-              return result
+              results.push(result)
             } else {
               const payload: UpsertFragmentProps = { ...omitSys(entity), componentType: entity.sys.componentType, sys: { id: entity.sys.id, type: 'Fragment' } }
               const result = await plainClient.fragment.upsert({ spaceId, environmentId, fragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE Fragment ${entity.sys.id}`)
-              return result
+              results.push(result)
             }
           } catch (err) {
             logEmitter.emit('error', err)
-            return null
           }
-        }))
-        ctx.data.fragments = results.filter(Boolean)
+        }
+        ctx.data.fragments = results
       }),
       skip: () => !includeExperienceOrchestration || !(sourceData.fragments || []).length
     },
