@@ -395,32 +395,6 @@ export default function pushToSpace({
         contentModelOnly || (environmentId !== 'master' && 'Webhooks can only be imported in master environment')
     },
     {
-      title: 'Importing Component Types',
-      task: wrapTask(async (ctx) => {
-        const results = await Promise.all((sourceData.componentTypes || []).map(async (entity) => {
-          try {
-            const existing = destinationDataById.componentTypes?.get(entity.sys.id)
-            if (existing) {
-              const payload: UpsertComponentTypeProps = { ...entity, sys: { id: entity.sys.id, type: 'ComponentType', version: existing.sys.version } }
-              const result = await plainClient.componentType.upsert({ spaceId, environmentId, componentTypeId: entity.sys.id }, payload)
-              logEmitter.emit('info', `UPDATE ComponentType ${entity.sys.id}`)
-              return result
-            } else {
-              const payload: CreateComponentTypeProps = omitSys(entity)
-              const result = await plainClient.componentType.create({ spaceId, environmentId }, payload)
-              logEmitter.emit('info', `CREATE ComponentType ${entity.sys.id}`)
-              return result
-            }
-          } catch (err) {
-            logEmitter.emit('error', err)
-            return null
-          }
-        }))
-        ctx.data.componentTypes = results.filter(Boolean)
-      }),
-      skip: () => !includeExperienceOrchestration || !(sourceData.componentTypes || []).length
-    },
-    {
       title: 'Importing Data Assemblies',
       task: wrapTask(async (ctx) => {
         const results = await Promise.all((sourceData.dataAssemblies || []).map(async (entity) => {
@@ -448,6 +422,32 @@ export default function pushToSpace({
         ctx.data.dataAssemblies = results.filter(Boolean)
       }),
       skip: () => !includeExperienceOrchestration || !(sourceData.dataAssemblies || []).length
+    },
+    {
+      title: 'Importing Component Types',
+      task: wrapTask(async (ctx) => {
+        const results = await Promise.all((sourceData.componentTypes || []).map(async (entity) => {
+          try {
+            const existing = destinationDataById.componentTypes?.get(entity.sys.id)
+            if (existing) {
+              const payload: UpsertComponentTypeProps = { ...entity, sys: { id: entity.sys.id, type: 'ComponentType', version: existing.sys.version } }
+              const result = await plainClient.componentType.upsert({ spaceId, environmentId, componentTypeId: entity.sys.id }, payload)
+              logEmitter.emit('info', `UPDATE ComponentType ${entity.sys.id}`)
+              return result
+            } else {
+              const payload: CreateComponentTypeProps = omitSys(entity)
+              const result = await plainClient.componentType.create({ spaceId, environmentId }, payload)
+              logEmitter.emit('info', `CREATE ComponentType ${entity.sys.id}`)
+              return result
+            }
+          } catch (err) {
+            logEmitter.emit('error', err)
+            return null
+          }
+        }))
+        ctx.data.componentTypes = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.componentTypes || []).length
     },
     {
       title: 'Importing Templates',
