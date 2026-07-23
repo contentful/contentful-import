@@ -192,8 +192,9 @@ function createTagInDestination (context, sourceEntity) {
 
 /**
  * Handles entity creation errors.
- * If the error is a VersionMismatch the error is thrown and a message is returned
- * instructing the user on what this situation probably means.
+ * VersionMismatch errors are logged as warnings with guidance, since the entity
+ * already exists at a different version — the update is skipped but import continues.
+ * Other errors are logged as errors and the entity is excluded from further steps.
  */
 function handleCreationErrors (entity, err) {
   // Handle the case where a locale already exists and skip it
@@ -203,6 +204,12 @@ function handleCreationErrors (entity, err) {
       return entity
     }
   }
+
+  if (get(err, 'error.sys.id') === 'VersionMismatch') {
+    logEmitter.emit('warning', `Version mismatch for entity ${getEntityName(entity.original)}: the destination has a newer version. This entity was skipped.`)
+    return null
+  }
+
   err.entity = entity.original
   logEmitter.emit('error', err)
 
