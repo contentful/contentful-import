@@ -4,15 +4,10 @@ import verboseRenderer from 'listr-verbose-renderer'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
 import {
-  CreateComponentTypeProps,
   UpsertComponentTypeProps,
-  CreateTemplateProps,
   UpsertTemplateProps,
-  CreateFragmentProps,
   UpsertFragmentProps,
-  CreateExperienceProps,
   UpsertExperienceProps,
-  CreateDataAssemblyProps,
   UpdateDataAssemblyProps,
 } from 'contentful-management'
 
@@ -409,8 +404,11 @@ export default function pushToSpace({
               )
               logEmitter.emit('info', `UPDATE DataAssembly ${entity.sys.id}`)
             } else {
-              const payload: CreateDataAssemblyProps = omitSys(entity)
-              result = await plainClient.dataAssembly.create({ spaceId, environmentId }, payload)
+              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'DataAssembly', dataType: entity.sys.dataType, ...(entity.sys.variant ? { variant: entity.sys.variant } : {}), version: 0 } }
+              result = await plainClient.dataAssembly.update(
+                { spaceId, environmentId, dataAssemblyId: entity.sys.id },
+                payload
+              )
               logEmitter.emit('info', `CREATE DataAssembly ${entity.sys.id}`)
             }
             return result
@@ -435,8 +433,8 @@ export default function pushToSpace({
               logEmitter.emit('info', `UPDATE ComponentType ${entity.sys.id}`)
               return result
             } else {
-              const payload: CreateComponentTypeProps = omitSys(entity)
-              const result = await plainClient.componentType.create({ spaceId, environmentId }, payload)
+              const payload: UpsertComponentTypeProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'ComponentType' } }
+              const result = await plainClient.componentType.upsert({ spaceId, environmentId, componentTypeId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE ComponentType ${entity.sys.id}`)
               return result
             }
@@ -461,8 +459,8 @@ export default function pushToSpace({
               logEmitter.emit('info', `UPDATE Template ${entity.sys.id}`)
               return result
             } else {
-              const payload: CreateTemplateProps = omitSys(entity)
-              const result = await plainClient.template.create({ spaceId, environmentId }, payload)
+              const payload: UpsertTemplateProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'Template' } }
+              const result = await plainClient.template.upsert({ spaceId, environmentId, templateId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE Template ${entity.sys.id}`)
               return result
             }
@@ -482,13 +480,13 @@ export default function pushToSpace({
           try {
             const existing = destinationDataById.fragments?.get(entity.sys.id)
             if (existing) {
-              const payload: UpsertFragmentProps = { ...entity, sys: { id: entity.sys.id, type: 'Fragment', version: existing.sys.version } }
+              const payload: UpsertFragmentProps = { ...entity, componentType: entity.sys.componentType, sys: { id: entity.sys.id, type: 'Fragment', version: existing.sys.version } }
               const result = await plainClient.fragment.upsert({ spaceId, environmentId, fragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Fragment ${entity.sys.id}`)
               return result
             } else {
-              const payload: CreateFragmentProps = omitSys(entity)
-              const result = await plainClient.fragment.create({ spaceId, environmentId }, payload)
+              const payload: UpsertFragmentProps = { ...omitSys(entity), componentType: entity.sys.componentType, sys: { id: entity.sys.id, type: 'Fragment' } }
+              const result = await plainClient.fragment.upsert({ spaceId, environmentId, fragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE Fragment ${entity.sys.id}`)
               return result
             }
@@ -508,13 +506,13 @@ export default function pushToSpace({
           try {
             const existing = destinationDataById.experiences?.get(entity.sys.id)
             if (existing) {
-              const payload: UpsertExperienceProps = { ...entity, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
+              const payload: UpsertExperienceProps = { ...entity, template: entity.sys.template, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
               const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Experience ${entity.sys.id}`)
               return result
             } else {
-              const payload: CreateExperienceProps = omitSys(entity)
-              const result = await plainClient.experience.create({ spaceId, environmentId }, payload)
+              const payload: UpsertExperienceProps = { ...omitSys(entity), template: entity.sys.template, sys: { id: entity.sys.id, type: 'Experience' } }
+              const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE Experience ${entity.sys.id}`)
               return result
             }
