@@ -27,6 +27,7 @@ import sortComponents from '../../utils/sort-components'
 import sortExperienceFragments from '../../utils/sort-experience-fragments'
 import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity } from '../../utils/publish-exo-entities'
 import { sortOrReport } from '../../utils/sort-or-report'
+import { ensureFolderConcepts, rewriteEntityFolderConcepts } from '../../utils/ensure-folder-concepts'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
@@ -418,6 +419,38 @@ export default function pushToSpace({
         contentModelOnly || (environmentId !== 'master' && 'Webhooks can only be imported in master environment')
     },
     {
+      title: 'Ensuring ExO folder concepts in destination space',
+      task: wrapTask(async (ctx) => {
+        const organizationId = ctx.space.sys.organization.sys.id
+        const sourceEntities = {
+          designTokens: sourceData.designTokens,
+          components: sourceData.components,
+          experienceTemplates: sourceData.experienceTemplates,
+          experienceFragments: sourceData.experienceFragments,
+          experiences: sourceData.experiences,
+        }
+        const conceptIdMap = await ensureFolderConcepts({
+          plainClient,
+          organizationId,
+          destinationSpaceId: spaceId,
+          sourceEntities,
+        })
+
+        if (conceptIdMap.size > 0) {
+          const allEntities = [
+            ...(sourceData.designTokens ?? []),
+            ...(sourceData.components ?? []),
+            ...(sourceData.experienceTemplates ?? []),
+            ...(sourceData.experienceFragments ?? []),
+            ...(sourceData.experiences ?? []),
+          ]
+
+          rewriteEntityFolderConcepts(allEntities, conceptIdMap)
+        }
+      }),
+      skip: () => !includeExperienceOrchestration
+    },
+    {
       title: 'Importing Data Assemblies',
       task: wrapTask(async (ctx) => {
         const results = await Promise.all((sourceData.dataAssemblies || []).map(async (entity) => {
@@ -466,6 +499,8 @@ export default function pushToSpace({
     {
       title: 'Importing Design Tokens',
       task: wrapTask(async (ctx) => {
+
+
         const results = await Promise.all((sourceData.designTokens || []).map(async (entity) => {
           try {
             const existing = destinationDataById.designTokens?.get(entity.sys.id)
