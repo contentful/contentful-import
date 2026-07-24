@@ -16,8 +16,27 @@ import * as creation from './creation'
 import * as publishing from './publishing'
 import type { DestinationData, TransformedSourceData, Resources, TransformedAsset } from '../../types'
 import { ContentfulEntityError } from '../../utils/errors'
+import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../../utils/graphql-schema-backoff'
 import sortComponentTypes from '../../utils/sort-component-types'
 import sortFragments from '../../utils/sort-fragments'
+
+async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
+  let lastErr: unknown
+  for (let attempt = 0; attempt <= GRAPHQL_SCHEMA_STALE_DELAYS_MS.length; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      if (!isGraphQLSchemaStaleError(err) || attempt === GRAPHQL_SCHEMA_STALE_DELAYS_MS.length) {
+        throw err
+      }
+      const delay = GRAPHQL_SCHEMA_STALE_DELAYS_MS[attempt]
+      logEmitter.emit('warning', `DataAssembly GraphQL schema not yet current, retrying in ${delay}ms (attempt ${attempt + 1}/${GRAPHQL_SCHEMA_STALE_DELAYS_MS.length})`)
+      await new Promise((resolve) => setTimeout(resolve, delay))
+      lastErr = err
+    }
+  }
+  throw lastErr
+}
 
 const DEFAULT_CONTENT_STRUCTURE = {
   entries: [],
@@ -400,17 +419,17 @@ export default function pushToSpace({
             let result
             if (existing) {
               const payload: UpdateDataAssemblyProps = { ...entity, sys: { ...entity.sys, version: existing.sys.version } }
-              result = await plainClient.dataAssembly.update(
+              result = await withGraphQLSchemaBackoff(() => plainClient.dataAssembly.update(
                 { spaceId, environmentId, dataAssemblyId: entity.sys.id },
                 payload
-              )
+              ))
               logEmitter.emit('info', `UPDATE DataAssembly ${entity.sys.id}`)
             } else {
               const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'DataAssembly', dataType: entity.sys.dataType, ...(entity.sys.variant ? { variant: entity.sys.variant } : {}), version: 0 } }
-              result = await plainClient.dataAssembly.update(
+              result = await withGraphQLSchemaBackoff(() => plainClient.dataAssembly.update(
                 { spaceId, environmentId, dataAssemblyId: entity.sys.id },
                 payload
-              )
+              ))
               logEmitter.emit('info', `CREATE DataAssembly ${entity.sys.id}`)
             }
             return result
