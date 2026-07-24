@@ -18,6 +18,7 @@ const baseDestinationData = {}
 function makeClientMock() {
   return {
     getSpace: jest.fn(() => Promise.resolve({
+      sys: { organization: { sys: { id: 'org-1' } } },
       getEnvironment: jest.fn(() => Promise.resolve({
         getEditorInterfaceForContentType: jest.fn(() => Promise.resolve({ update: jest.fn() }))
       }))
@@ -30,6 +31,10 @@ function makePlainClientMock() {
     designToken: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'dt-1' } })),
       upsert: jest.fn(() => Promise.resolve({ sys: { id: 'dt-1' } })),
+    },
+    concept: {
+      get: jest.fn(() => Promise.resolve({ sys: { id: 'folder-1', version: 0 }, metadata: { spaces: [] } })),
+      patch: jest.fn(() => Promise.resolve({})),
     },
     componentType: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } })),

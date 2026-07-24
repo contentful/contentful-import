@@ -20,6 +20,7 @@ import { ContentfulEntityError } from '../../utils/errors'
 import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../../utils/graphql-schema-backoff'
 import sortComponentTypes from '../../utils/sort-component-types'
 import sortFragments from '../../utils/sort-fragments'
+import { patchFolderConcepts } from '../../utils/patch-folder-concepts'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
@@ -410,6 +411,25 @@ export default function pushToSpace({
       }),
       skip: () =>
         contentModelOnly || (environmentId !== 'master' && 'Webhooks can only be imported in master environment')
+    },
+    {
+      title: 'Patching ExO folder concepts',
+      task: wrapTask(async (ctx) => {
+        const organizationId = ctx.space.sys.organization.sys.id
+        await patchFolderConcepts({
+          plainClient,
+          organizationId,
+          spaceId,
+          sourceEntities: {
+            designTokens: sourceData.designTokens,
+            componentTypes: sourceData.componentTypes,
+            templates: sourceData.templates,
+            fragments: sourceData.fragments,
+            experiences: sourceData.experiences,
+          },
+        })
+      }),
+      skip: () => !includeExperienceOrchestration
     },
     {
       title: 'Importing Data Assemblies',
