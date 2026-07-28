@@ -27,6 +27,10 @@ function makeClientMock() {
 
 function makePlainClientMock() {
   return {
+    designToken: {
+      create: jest.fn(() => Promise.resolve({ sys: { id: 'dt-1' } })),
+      upsert: jest.fn(() => Promise.resolve({ sys: { id: 'dt-1' } })),
+    },
     componentType: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } })),
       upsert: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } })),
@@ -271,6 +275,73 @@ describe('Importing Data Assemblies', () => {
     expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', dataAssemblyId: 'da-1' })
     expect(payload.sys.version).toBe(9)
     expect(payload.name).toBe('My Assembly')
+  })
+})
+
+// ─── DesignToken ──────────────────────────────────────────────────────────────
+
+describe('Importing Design Tokens', () => {
+  const entity: any = { sys: { id: 'dt-1', type: 'DesignToken', version: 2 }, name: 'Primary Blue', type: 'DTCG.Color' }
+
+  test('CREATE: calls upsert with id in sys when entity does not exist in destination', async () => {
+    const plainClient = makePlainClientMock()
+    await pushToSpace({
+      sourceData: { ...baseSourceData, designTokens: [entity] } as any,
+      destinationData: { ...baseDestinationData, designTokens: [] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })
+
+    expect(plainClient.designToken.upsert).toHaveBeenCalledTimes(1)
+    expect(plainClient.designToken.create).not.toHaveBeenCalled()
+    const [params, payload] = plainClient.designToken.upsert.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', designTokenId: 'dt-1' })
+    expect(payload.sys.id).toBe('dt-1')
+    expect(payload.sys.type).toBe('DesignToken')
+    expect(payload.sys).not.toHaveProperty('version')
+    expect(payload.name).toBe('Primary Blue')
+    expect(payload.type).toBe('DTCG.Color')
+  })
+
+  test('UPDATE: calls upsert with destination sys.version when entity exists in destination', async () => {
+    const plainClient = makePlainClientMock()
+    const destinationEntity: any = { sys: { id: 'dt-1', type: 'DesignToken', version: 7 } }
+    await pushToSpace({
+      sourceData: { ...baseSourceData, designTokens: [entity] } as any,
+      destinationData: { ...baseDestinationData, designTokens: [destinationEntity] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })
+
+    expect(plainClient.designToken.upsert).toHaveBeenCalledTimes(1)
+    const [params, payload] = plainClient.designToken.upsert.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', designTokenId: 'dt-1' })
+    expect(payload.sys.version).toBe(7)
+    expect(payload.name).toBe('Primary Blue')
+  })
+
+  test('skips task when includeExperienceOrchestration is false', async () => {
+    const plainClient = makePlainClientMock()
+    await pushToSpace({
+      sourceData: { ...baseSourceData, designTokens: [entity] } as any,
+      destinationData: baseDestinationData,
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: false,
+      requestQueue
+    }).run({ data: {} })
+
+    expect(plainClient.designToken.upsert).not.toHaveBeenCalled()
   })
 })
 

@@ -9,6 +9,7 @@ import {
   UpsertFragmentProps,
   UpsertExperienceProps,
   UpdateDataAssemblyProps,
+  UpsertDesignTokenProps,
 } from 'contentful-management'
 
 import * as assets from './assets'
@@ -443,6 +444,32 @@ export default function pushToSpace({
       skip: () => !includeExperienceOrchestration || !(sourceData.dataAssemblies || []).length
     },
     {
+      title: 'Importing Design Tokens',
+      task: wrapTask(async (ctx) => {
+        const results = await Promise.all((sourceData.designTokens || []).map(async (entity) => {
+          try {
+            const existing = destinationDataById.designTokens?.get(entity.sys.id)
+            if (existing) {
+              const payload: UpsertDesignTokenProps = { ...entity, sys: { id: entity.sys.id, type: 'DesignToken', version: existing.sys.version } }
+              const result = await plainClient.designToken.upsert({ spaceId, environmentId, designTokenId: entity.sys.id }, payload)
+              logEmitter.emit('info', `UPDATE DesignToken ${entity.sys.id}`)
+              return result
+            } else {
+              const payload: UpsertDesignTokenProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'DesignToken' } }
+              const result = await plainClient.designToken.upsert({ spaceId, environmentId, designTokenId: entity.sys.id }, payload)
+              logEmitter.emit('info', `CREATE DesignToken ${entity.sys.id}`)
+              return result
+            }
+          } catch (err) {
+            logEmitter.emit('error', err)
+            return null
+          }
+        }))
+        ctx.data.designTokens = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.designTokens || []).length
+    },
+    {
       title: 'Importing Component Types',
       task: wrapTask(async (ctx) => {
         const sorted = sortComponentTypes(sourceData.componentTypes || [])
@@ -548,7 +575,6 @@ export default function pushToSpace({
       }),
       skip: () => !includeExperienceOrchestration || !(sourceData.experiences || []).length
     }
-    // TODO: add 'Importing Design Tokens' task once the contentful-management SDK exposes a designToken plain client API
   ], listrOptions)
 }
 

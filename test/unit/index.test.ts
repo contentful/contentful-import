@@ -165,7 +165,8 @@ test('Runs Contentful Import', () => {
       expect(introTable.push.mock.calls[5][0]).toEqual(['Editor Interfaces', 2])
       expect(introTable.push.mock.calls[6][0]).toEqual(['Locales', 2])
       expect(introTable.push.mock.calls[7][0]).toEqual(['Webhooks', 0])
-      expect(introTable.push.mock.calls).toHaveLength(13)
+      expect(introTable.push.mock.calls[8][0]).toEqual(['Design Tokens', 0])
+      expect(introTable.push.mock.calls).toHaveLength(14)
 
       const resultTable = (TableStub as jest.Mock).mock.instances[1]
       expect(resultTable.push.mock.calls[0][0]).toEqual([{ colSpan: 2, content: 'Imported entities' }])
@@ -176,7 +177,8 @@ test('Runs Contentful Import', () => {
       expect(resultTable.push.mock.calls[5][0]).toEqual(['Editor Interfaces', 2])
       expect(resultTable.push.mock.calls[6][0]).toEqual(['Locales', 2])
       expect(resultTable.push.mock.calls[7][0]).toEqual(['Webhooks', 0])
-      expect(resultTable.push.mock.calls).toHaveLength(13)
+      expect(resultTable.push.mock.calls[8][0]).toEqual(['Design Tokens', 0])
+      expect(resultTable.push.mock.calls).toHaveLength(14)
     })
 })
 
@@ -248,7 +250,8 @@ test('Intro CLI table respects skipContentModel', () => {
       expect(introTable.push.mock.calls[3][0]).toEqual(['Locales', 2])
       expect(introTable.push.mock.calls[4][0]).toEqual(['Tags', 0])
       expect(introTable.push.mock.calls[5][0]).toEqual(['Webhooks', 0])
-      expect(introTable.push.mock.calls).toHaveLength(11)
+      expect(introTable.push.mock.calls[6][0]).toEqual(['Design Tokens', 0])
+      expect(introTable.push.mock.calls).toHaveLength(12)
     })
 })
 

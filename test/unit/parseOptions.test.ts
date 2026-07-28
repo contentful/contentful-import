@@ -98,6 +98,7 @@ test('parseOptions sets correct default options', async () => {
     componentTypes: [],
     contentTypes: [],
     dataAssemblies: [],
+    designTokens: [],
     editorInterfaces: [],
     entries: [],
     experiences: [],
@@ -191,7 +192,7 @@ test('parseOption cleans up content to only include supported entity types', asy
     }
   })
   const content = options.content
-  expect(Object.keys(content)).toHaveLength(12)
+  expect(Object.keys(content)).toHaveLength(13)
   expect(content.invalid).toBeUndefined()
 })
 

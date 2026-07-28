@@ -16,6 +16,7 @@ const SUPPORTED_ENTITY_TYPES = [
   'locales',
   'webhooks',
   'editorInterfaces',
+  'designTokens',
   'componentTypes',
   'templates',
   'dataAssemblies',
