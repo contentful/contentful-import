@@ -30,6 +30,7 @@ function makeOffsetResolver(items: any[]) {
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 const exoItems = {
+  designTokens: Array.from({ length: 7 }, (_, i) => makeEntity(`dt-${i}`)),
   componentTypes: Array.from({ length: 5 }, (_, i) => makeEntity(`ct-${i}`)),
   templates: Array.from({ length: 3 }, (_, i) => makeEntity(`tmpl-${i}`)),
   fragments: Array.from({ length: 4 }, (_, i) => makeEntity(`frag-${i}`)),
@@ -39,6 +40,7 @@ const exoItems = {
 
 function makePlainClientMock() {
   return {
+    designToken: { getMany: makeCursorResolver(exoItems.designTokens) },
     componentType: { getMany: makeCursorResolver(exoItems.componentTypes) },
     template: { getMany: makeCursorResolver(exoItems.templates) },
     fragment: { getMany: makeCursorResolver(exoItems.fragments) },
@@ -117,6 +119,7 @@ test('does NOT call plainClient ExO methods when includeExperienceOrchestration 
     requestQueue
   })
 
+  expect(plainClient.designToken.getMany).not.toHaveBeenCalled()
   expect(plainClient.componentType.getMany).not.toHaveBeenCalled()
   expect(plainClient.template.getMany).not.toHaveBeenCalled()
   expect(plainClient.fragment.getMany).not.toHaveBeenCalled()
@@ -147,6 +150,22 @@ test('follows pageNext cursor across multiple pages', async () => {
 })
 
 // ─── Returns destination data for all ExO entities ───────────────────────────
+
+test('returns destination designTokens fetched via cursor pagination', async () => {
+  const plainClient = makePlainClientMock()
+  const result = await getDestinationData({
+    client: mockClient,
+    plainClient,
+    spaceId: 'space-1',
+    environmentId: 'master',
+    sourceData: {},
+    includeExperienceOrchestration: true,
+    requestQueue
+  })
+
+  expect(result.designTokens).toHaveLength(exoItems.designTokens.length)
+  expect(result.designTokens![0].sys.id).toBe('dt-0')
+})
 
 test('returns destination componentTypes fetched via cursor pagination', async () => {
   const plainClient = makePlainClientMock()
@@ -230,6 +249,7 @@ test('returns destination experiences fetched via cursor pagination', async () =
 
 test('returns empty arrays for all ExO entities when none exist in destination', async () => {
   const emptyPlainClient = {
+    designToken: { getMany: jest.fn(() => Promise.resolve({ items: [] })) },
     componentType: { getMany: jest.fn(() => Promise.resolve({ items: [] })) },
     template: { getMany: jest.fn(() => Promise.resolve({ items: [] })) },
     fragment: { getMany: jest.fn(() => Promise.resolve({ items: [] })) },
@@ -247,6 +267,7 @@ test('returns empty arrays for all ExO entities when none exist in destination',
     requestQueue
   })
 
+  expect(result.designTokens).toHaveLength(0)
   expect(result.componentTypes).toHaveLength(0)
   expect(result.templates).toHaveLength(0)
   expect(result.fragments).toHaveLength(0)

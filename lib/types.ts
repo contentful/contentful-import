@@ -1,7 +1,7 @@
 import type { AssetProps, ContentTypeProps, EditorInterfaceProps, EntryProps, Link, LocaleProps, TagProps, WebhookProps } from 'contentful-management'
-import type { ComponentTypeProps, DataAssemblyProps, ExperienceProps, FragmentProps, TemplateProps } from 'contentful-management'
+import type { ComponentTypeProps, DataAssemblyProps, DesignTokenProps, ExperienceProps, FragmentProps, TemplateProps } from 'contentful-management'
 
-export type { ComponentTypeProps, DataAssemblyProps, ExperienceProps, FragmentProps, TemplateProps }
+export type { ComponentTypeProps, DataAssemblyProps, DesignTokenProps, ExperienceProps, FragmentProps, TemplateProps }
 
 export type Resources = {
   contentTypes?: ContentTypeProps[]
@@ -16,6 +16,7 @@ export type Resources = {
   fragments?: FragmentProps[]
   dataAssemblies?: DataAssemblyProps[]
   experiences?: ExperienceProps[]
+  designTokens?: DesignTokenProps[]
 }
 
 export type ResourcesUnion = (ContentTypeProps | TagProps | LocaleProps | EntryProps | AssetProps | EditorInterfaceProps | WebhookProps)[]
@@ -49,6 +50,7 @@ export type TransformedSourceData = {
   fragments?: FragmentProps[]
   dataAssemblies?: DataAssemblyProps[]
   experiences?: ExperienceProps[]
+  designTokens?: DesignTokenProps[]
 }
 
 export type TransformedSourceDataUnion = (

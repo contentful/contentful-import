@@ -1,7 +1,7 @@
 import Promise from 'bluebird'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
-import type { AssetProps, ComponentTypeProps, ContentTypeProps, DataAssemblyProps, EntryProps, ExperienceProps, FragmentProps, LocaleProps, TagProps, TemplateProps, WebhookProps } from 'contentful-management'
+import type { AssetProps, ComponentTypeProps, ContentTypeProps, DataAssemblyProps, DesignTokenProps, EntryProps, ExperienceProps, FragmentProps, LocaleProps, TagProps, TemplateProps, WebhookProps } from 'contentful-management'
 import { OriginalSourceData } from '../types'
 import PQueue from 'p-queue'
 
@@ -17,12 +17,12 @@ const OFFSET_QUERY_METHODS = {
 }
 
 const CURSOR_QUERY_METHODS = {
+  designTokens: { name: 'design tokens', namespace: 'designToken' },
   componentTypes: { name: 'component types', namespace: 'componentType' },
   templates: { name: 'templates', namespace: 'template' },
   fragments: { name: 'fragments', namespace: 'fragment' },
   dataAssemblies: { name: 'data assemblies', namespace: 'dataAssembly' },
   experiences: { name: 'experiences', namespace: 'experience' }
-  // TODO: add designTokens once the contentful-management SDK exposes a designToken plain client API
 }
 
 type BatchedIdQueryParams = {
@@ -173,7 +173,7 @@ type AllDestinationData = {
   fragments?: Promise<FragmentProps[]>
   dataAssemblies?: Promise<DataAssemblyProps[]>
   experiences?: Promise<ExperienceProps[]>
-  // TODO: add designTokens once the contentful-management SDK exposes a designToken plain client API
+  designTokens?: Promise<DesignTokenProps[]>
 }
 
 type GetDestinationDataParams = {
@@ -223,7 +223,7 @@ export default async function getDestinationData({
     componentTypes: [],
     fragments: [],
     dataAssemblies: [],
-    // designTokens: [], // TODO: add designTokens once the contentful-management SDK exposes a designToken plain client API
+    designTokens: [],
     webhooks: [],
   }
 
@@ -289,12 +289,12 @@ export default async function getDestinationData({
   }
 
   if (includeExperienceOrchestration && plainClient) {
+    result.designTokens = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'designTokens', requestQueue })
     result.componentTypes = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'componentTypes', requestQueue })
     result.templates = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'templates', requestQueue })
     result.fragments = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'fragments', requestQueue })
     result.dataAssemblies = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'dataAssemblies', requestQueue })
     result.experiences = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'experiences', requestQueue })
-    // TODO: fetch destination designTokens here once the contentful-management SDK exposes a designToken plain client API
   }
 
   return Promise.props(result)
