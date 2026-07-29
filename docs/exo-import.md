@@ -52,7 +52,7 @@ ExO entities have a stricter contract: the CMA validates references **at create 
 
 This means the import order must respect the dependency graph above:
 
-1. **DataAssemblies** and **DesignTokens** — no dependencies, can be imported in parallel (relative to each other)
+1. **DataAssemblies** and **DesignTokens** — no dependencies on each other or on any other ExO type; either can be imported before the other with no ordering risk
 2. **ComponentTypes** — depend on DataAssemblies and DesignTokens (must already exist); may depend on other ComponentTypes
 3. **Templates** — depend on ComponentTypes and DesignTokens
 4. **Fragments** — depend on ComponentTypes, DataAssemblies, and DesignTokens; may depend on other Fragments
