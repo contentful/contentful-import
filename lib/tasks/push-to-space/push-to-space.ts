@@ -10,6 +10,7 @@ import {
   UpsertExperienceProps,
   UpdateDataAssemblyProps,
   UpsertDesignTokenProps,
+  DataAssemblyProps,
 } from 'contentful-management'
 
 import * as assets from './assets'
@@ -419,14 +420,14 @@ export default function pushToSpace({
             const existing = destinationDataById.dataAssemblies?.get(entity.sys.id)
             let result
             if (existing) {
-              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'DataAssembly', dataType: entity.sys.dataType, ...(entity.sys.variant ? { variant: entity.sys.variant } : {}), version: existing.sys.version } }
+              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: buildDataAssemblySys(entity, existing.sys.version) }
               result = await withGraphQLSchemaBackoff(() => plainClient.dataAssembly.update(
                 { spaceId, environmentId, dataAssemblyId: entity.sys.id },
                 payload
               ))
               logEmitter.emit('info', `UPDATE DataAssembly ${entity.sys.id}`)
             } else {
-              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'DataAssembly', dataType: entity.sys.dataType, ...(entity.sys.variant ? { variant: entity.sys.variant } : {}), version: 0 } }
+              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: buildDataAssemblySys(entity, 0) }
               result = await withGraphQLSchemaBackoff(() => plainClient.dataAssembly.update(
                 { spaceId, environmentId, dataAssemblyId: entity.sys.id },
                 payload
@@ -584,6 +585,16 @@ function omitSys(entity) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { sys: _sys, ...rest } = entity
   return rest
+}
+
+function buildDataAssemblySys(entity: DataAssemblyProps, version: number) {
+  return {
+    id: entity.sys.id,
+    type: 'DataAssembly' as const,
+    dataType: entity.sys.dataType,
+    ...(entity.sys.variant ? { variant: entity.sys.variant } : {}),
+    version
+  }
 }
 
 function archiveEntities({ entities, sourceEntities, requestQueue }) {
