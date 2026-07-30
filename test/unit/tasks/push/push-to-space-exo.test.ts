@@ -144,7 +144,7 @@ describe('Importing Component Types', () => {
 })
 
 describe('Publishing Component Types', () => {
-  const publishedEntity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 3, publishedVersion: 2 }, name: 'Hero' }
+  const publishedEntity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 2, publishedVersion: 2 }, name: 'Hero' }
   const draftEntity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 3 }, name: 'Hero' }
   const destinationEntity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 7 } }
 
@@ -266,7 +266,7 @@ describe('Importing Templates', () => {
 })
 
 describe('Publishing Templates', () => {
-  const publishedEntity: any = { sys: { id: 'tmpl-1', type: 'Template', version: 2, publishedVersion: 1 }, name: 'Landing Page' }
+  const publishedEntity: any = { sys: { id: 'tmpl-1', type: 'Template', version: 1, publishedVersion: 1 }, name: 'Landing Page' }
   const draftEntity: any = { sys: { id: 'tmpl-1', type: 'Template', version: 2 }, name: 'Landing Page' }
   const destinationEntity: any = { sys: { id: 'tmpl-1', type: 'Template', version: 5 } }
 

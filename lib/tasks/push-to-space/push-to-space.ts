@@ -4,6 +4,8 @@ import verboseRenderer from 'listr-verbose-renderer'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
 import {
+  ComponentTypeProps,
+  FragmentProps,
   UpsertComponentTypeProps,
   UpsertTemplateProps,
   UpsertFragmentProps,
@@ -20,6 +22,7 @@ import { ContentfulEntityError } from '../../utils/errors'
 import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../../utils/graphql-schema-backoff'
 import sortComponentTypes from '../../utils/sort-component-types'
 import sortFragments from '../../utils/sort-fragments'
+import { filterExoEntitiesToPublish, publishExoEntity } from '../../utils/publish-exo-entities'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
@@ -517,9 +520,9 @@ export default function pushToSpace({
         // ComponentType/DataAssembly references against their *published* state, so a
         // parent can't publish before the ComponentTypes it embeds are published.
         const sorted = sortComponentTypes(entitiesToPublish)
-        const results: any[] = []
+        const results: ComponentTypeProps[] = []
         for (const entity of sorted) {
-          const published = await publishExoEntity('ComponentType', entity, () => plainClient.componentType.publish(
+          const published = await publishExoEntity<ComponentTypeProps>('ComponentType', entity, () => plainClient.componentType.publish(
             { spaceId, environmentId, componentTypeId: entity.sys.id, version: entity.sys.version }
           ))
           if (published) results.push(published)
@@ -601,9 +604,9 @@ export default function pushToSpace({
         // Sorted and sequential, same reasoning as Publishing Component Types: a Fragment
         // can reference other Fragments in its slots, resolved against published state.
         const sorted = sortFragments(entitiesToPublish)
-        const results: any[] = []
+        const results: FragmentProps[] = []
         for (const entity of sorted) {
-          const published = await publishExoEntity('Fragment', entity, () => plainClient.fragment.publish(
+          const published = await publishExoEntity<FragmentProps>('Fragment', entity, () => plainClient.fragment.publish(
             { spaceId, environmentId, fragmentId: entity.sys.id, version: entity.sys.version }
           ))
           if (published) results.push(published)
@@ -682,29 +685,4 @@ function publishEntities({ entities, sourceEntities, requestQueue }) {
     .filter((entity) => entityIdsToPublish.indexOf(entity.sys.id) !== -1)
 
   return publishing.publishEntities({ entities: entitiesToPublish, requestQueue })
-}
-
-// Find all ExO entities in source content which are published, and filter the
-// created/upserted destination entities down to just those. Mirrors publishEntities
-// above, but ExO source entities aren't wrapped in { original, transformed } and are
-// plain JSON rather than SDK-wrapped instances, so ExO entities get their own gate here.
-function filterExoEntitiesToPublish<T extends { sys: { id: string; version: number } }>(
-  entities: T[],
-  sourceEntities: Array<{ sys: { id: string; publishedVersion?: number } }>
-): T[] {
-  const entityIdsToPublish = new Set(
-    sourceEntities.filter((entity) => entity.sys.publishedVersion).map((entity) => entity.sys.id)
-  )
-  return entities.filter((entity) => entityIdsToPublish.has(entity.sys.id))
-}
-
-async function publishExoEntity<T>(type: string, entity: { sys: { id: string } }, publish: () => Promise<T>): Promise<T | null> {
-  try {
-    const result = await publish()
-    logEmitter.emit('info', `PUBLISH ${type} ${entity.sys.id}`)
-    return result
-  } catch (err) {
-    logEmitter.emit('error', err)
-    return null
-  }
 }
