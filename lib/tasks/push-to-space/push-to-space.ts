@@ -5,7 +5,10 @@ import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
 import {
   ComponentTypeProps,
+  DataAssemblyProps,
+  ExperienceProps,
   FragmentProps,
+  TemplateProps,
   UpsertComponentTypeProps,
   UpsertTemplateProps,
   UpsertFragmentProps,
@@ -448,14 +451,14 @@ export default function pushToSpace({
     },
     {
       title: 'Publishing Data Assemblies',
-      task: wrapTask(async (ctx) => {
+      task: wrapTask(async (ctx: { data: { dataAssemblies: DataAssemblyProps[], publishedDataAssemblies: DataAssemblyProps[] } }) => {
         const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.dataAssemblies, sourceData.dataAssemblies || [])
         const results = await Promise.all(entitiesToPublish.map((entity) =>
-          publishExoEntity('DataAssembly', entity, () => plainClient.dataAssembly.publish(
+          publishExoEntity<DataAssemblyProps>('DataAssembly', entity, () => plainClient.dataAssembly.publish(
             { spaceId, environmentId, dataAssemblyId: entity.sys.id, version: entity.sys.version }
           ))
         ))
-        ctx.data.publishedDataAssemblies = results.filter(Boolean)
+        ctx.data.publishedDataAssemblies = results.filter((entity): entity is DataAssemblyProps => entity !== null)
       }),
       skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.dataAssemblies || []).length
     },
@@ -559,14 +562,14 @@ export default function pushToSpace({
     },
     {
       title: 'Publishing Templates',
-      task: wrapTask(async (ctx) => {
+      task: wrapTask(async (ctx: { data: { templates: TemplateProps[], publishedTemplates: TemplateProps[] } }) => {
         const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.templates, sourceData.templates || [])
         const results = await Promise.all(entitiesToPublish.map((entity) =>
-          publishExoEntity('Template', entity, () => plainClient.template.publish(
+          publishExoEntity<TemplateProps>('Template', entity, () => plainClient.template.publish(
             { spaceId, environmentId, templateId: entity.sys.id, version: entity.sys.version }
           ))
         ))
-        ctx.data.publishedTemplates = results.filter(Boolean)
+        ctx.data.publishedTemplates = results.filter((entity): entity is TemplateProps => entity !== null)
       }),
       skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.templates || []).length
     },
@@ -643,14 +646,14 @@ export default function pushToSpace({
     },
     {
       title: 'Publishing Experiences',
-      task: wrapTask(async (ctx) => {
+      task: wrapTask(async (ctx: { data: { experiences: ExperienceProps[], publishedExperiences: ExperienceProps[] } }) => {
         const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.experiences, sourceData.experiences || [])
         const results = await Promise.all(entitiesToPublish.map((entity) =>
-          publishExoEntity('Experience', entity, () => plainClient.experience.publish(
+          publishExoEntity<ExperienceProps>('Experience', entity, () => plainClient.experience.publish(
             { spaceId, environmentId, experienceId: entity.sys.id, version: entity.sys.version }
           ))
         ))
-        ctx.data.publishedExperiences = results.filter(Boolean)
+        ctx.data.publishedExperiences = results.filter((entity): entity is ExperienceProps => entity !== null)
       }),
       skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experiences || []).length
     }
