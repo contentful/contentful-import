@@ -444,6 +444,19 @@ export default function pushToSpace({
       skip: () => !includeExperienceOrchestration || !(sourceData.dataAssemblies || []).length
     },
     {
+      title: 'Publishing Data Assemblies',
+      task: wrapTask(async (ctx) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.dataAssemblies, sourceData.dataAssemblies || [])
+        const results = await Promise.all(entitiesToPublish.map((entity) =>
+          publishExoEntity('DataAssembly', entity, () => plainClient.dataAssembly.publish(
+            { spaceId, environmentId, dataAssemblyId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+        ctx.data.publishedDataAssemblies = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.dataAssemblies || []).length
+    },
+    {
       title: 'Importing Design Tokens',
       task: wrapTask(async (ctx) => {
         const results = await Promise.all((sourceData.designTokens || []).map(async (entity) => {
@@ -497,6 +510,25 @@ export default function pushToSpace({
       skip: () => !includeExperienceOrchestration || !(sourceData.componentTypes || []).length
     },
     {
+      title: 'Publishing Component Types',
+      task: wrapTask(async (ctx) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.componentTypes, sourceData.componentTypes || [])
+        // Sorted and sequential: a ComponentType's publish validation resolves nested
+        // ComponentType/DataAssembly references against their *published* state, so a
+        // parent can't publish before the ComponentTypes it embeds are published.
+        const sorted = sortComponentTypes(entitiesToPublish)
+        const results: any[] = []
+        for (const entity of sorted) {
+          const published = await publishExoEntity('ComponentType', entity, () => plainClient.componentType.publish(
+            { spaceId, environmentId, componentTypeId: entity.sys.id, version: entity.sys.version }
+          ))
+          if (published) results.push(published)
+        }
+        ctx.data.publishedComponentTypes = results
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.componentTypes || []).length
+    },
+    {
       title: 'Importing Templates',
       task: wrapTask(async (ctx) => {
         const results = await Promise.all((sourceData.templates || []).map(async (entity) => {
@@ -521,6 +553,19 @@ export default function pushToSpace({
         ctx.data.templates = results.filter(Boolean)
       }),
       skip: () => !includeExperienceOrchestration || !(sourceData.templates || []).length
+    },
+    {
+      title: 'Publishing Templates',
+      task: wrapTask(async (ctx) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.templates, sourceData.templates || [])
+        const results = await Promise.all(entitiesToPublish.map((entity) =>
+          publishExoEntity('Template', entity, () => plainClient.template.publish(
+            { spaceId, environmentId, templateId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+        ctx.data.publishedTemplates = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.templates || []).length
     },
     {
       title: 'Importing Fragments',
@@ -550,6 +595,24 @@ export default function pushToSpace({
       skip: () => !includeExperienceOrchestration || !(sourceData.fragments || []).length
     },
     {
+      title: 'Publishing Fragments',
+      task: wrapTask(async (ctx) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.fragments, sourceData.fragments || [])
+        // Sorted and sequential, same reasoning as Publishing Component Types: a Fragment
+        // can reference other Fragments in its slots, resolved against published state.
+        const sorted = sortFragments(entitiesToPublish)
+        const results: any[] = []
+        for (const entity of sorted) {
+          const published = await publishExoEntity('Fragment', entity, () => plainClient.fragment.publish(
+            { spaceId, environmentId, fragmentId: entity.sys.id, version: entity.sys.version }
+          ))
+          if (published) results.push(published)
+        }
+        ctx.data.publishedFragments = results
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.fragments || []).length
+    },
+    {
       title: 'Importing Experiences',
       task: wrapTask(async (ctx) => {
         const results = await Promise.all((sourceData.experiences || []).map(async (entity) => {
@@ -574,6 +637,19 @@ export default function pushToSpace({
         ctx.data.experiences = results.filter(Boolean)
       }),
       skip: () => !includeExperienceOrchestration || !(sourceData.experiences || []).length
+    },
+    {
+      title: 'Publishing Experiences',
+      task: wrapTask(async (ctx) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.experiences, sourceData.experiences || [])
+        const results = await Promise.all(entitiesToPublish.map((entity) =>
+          publishExoEntity('Experience', entity, () => plainClient.experience.publish(
+            { spaceId, environmentId, experienceId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+        ctx.data.publishedExperiences = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experiences || []).length
     }
   ], listrOptions)
 }
@@ -606,4 +682,29 @@ function publishEntities({ entities, sourceEntities, requestQueue }) {
     .filter((entity) => entityIdsToPublish.indexOf(entity.sys.id) !== -1)
 
   return publishing.publishEntities({ entities: entitiesToPublish, requestQueue })
+}
+
+// Find all ExO entities in source content which are published, and filter the
+// created/upserted destination entities down to just those. Mirrors publishEntities
+// above, but ExO source entities aren't wrapped in { original, transformed } and are
+// plain JSON rather than SDK-wrapped instances, so ExO entities get their own gate here.
+function filterExoEntitiesToPublish<T extends { sys: { id: string; version: number } }>(
+  entities: T[],
+  sourceEntities: Array<{ sys: { id: string; publishedVersion?: number } }>
+): T[] {
+  const entityIdsToPublish = new Set(
+    sourceEntities.filter((entity) => entity.sys.publishedVersion).map((entity) => entity.sys.id)
+  )
+  return entities.filter((entity) => entityIdsToPublish.has(entity.sys.id))
+}
+
+async function publishExoEntity<T>(type: string, entity: { sys: { id: string } }, publish: () => Promise<T>): Promise<T | null> {
+  try {
+    const result = await publish()
+    logEmitter.emit('info', `PUBLISH ${type} ${entity.sys.id}`)
+    return result
+  } catch (err) {
+    logEmitter.emit('error', err)
+    return null
+  }
 }
