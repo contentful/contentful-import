@@ -205,7 +205,7 @@ describe('Importing Fragments', () => {
     expect(payload.name).toBe('Hero Fragment')
   })
 
-  test('UPDATE: calls upsert with componentType hoisted and destination sys.version', async () => {
+  test('UPDATE: calls upsert with destination sys.version and omits componentType (immutable after creation)', async () => {
     const plainClient = makePlainClientMock()
     const destinationEntity: any = { sys: { id: 'frag-1', type: 'Fragment', version: 4 } }
     await pushToSpace({
@@ -222,7 +222,7 @@ describe('Importing Fragments', () => {
     const [params, payload] = plainClient.fragment.upsert.mock.calls[0] as unknown as [any, any]
     expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', fragmentId: 'frag-1' })
     expect(payload.sys.version).toBe(4)
-    expect(payload.componentType).toEqual(componentType)
+    expect(payload.componentType).toBeUndefined()
   })
 })
 
@@ -275,6 +275,38 @@ describe('Importing Data Assemblies', () => {
     expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', dataAssemblyId: 'da-1' })
     expect(payload.sys.version).toBe(9)
     expect(payload.name).toBe('My Assembly')
+  })
+
+  test('UPDATE: strips server-managed sys fields from a published source entity', async () => {
+    const plainClient = makePlainClientMock()
+    const publishedEntity: any = {
+      sys: {
+        id: 'da-1',
+        type: 'DataAssembly',
+        version: 3,
+        dataType: [{ id: 'headline', name: 'Headline', type: 'Symbol' }],
+        publishedVersion: 2,
+        publishedAt: '2026-01-01T00:00:00.000Z',
+        publishedCounter: 1,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        createdBy: { sys: { type: 'Link', linkType: 'User', id: 'user-1' } }
+      },
+      name: 'My Assembly'
+    }
+    const destinationEntity: any = { sys: { id: 'da-1', type: 'DataAssembly', version: 9 } }
+    await pushToSpace({
+      sourceData: { ...baseSourceData, dataAssemblies: [publishedEntity] } as any,
+      destinationData: { ...baseDestinationData, dataAssemblies: [destinationEntity] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })
+
+    const [, payload] = plainClient.dataAssembly.update.mock.calls[0] as unknown as [any, any]
+    expect(payload.sys).toEqual({ id: 'da-1', type: 'DataAssembly', dataType: publishedEntity.sys.dataType, version: 9 })
   })
 })
 
@@ -375,7 +407,7 @@ describe('Importing Experiences', () => {
     expect(payload.name).toBe('My Experience')
   })
 
-  test('UPDATE: calls upsert with template hoisted and destination sys.version', async () => {
+  test('UPDATE: calls upsert with destination sys.version and omits template (immutable after creation)', async () => {
     const plainClient = makePlainClientMock()
     const destinationEntity: any = { sys: { id: 'exp-1', type: 'Experience', version: 6 } }
     await pushToSpace({
@@ -392,7 +424,7 @@ describe('Importing Experiences', () => {
     const [params, payload] = plainClient.experience.upsert.mock.calls[0] as unknown as [any, any]
     expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', experienceId: 'exp-1' })
     expect(payload.sys.version).toBe(6)
-    expect(payload.template).toEqual(template)
+    expect(payload.template).toBeUndefined()
     expect(payload.name).toBe('My Experience')
   })
 })
