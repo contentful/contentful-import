@@ -532,7 +532,7 @@ export default function pushToSpace({
           try {
             const existing = destinationDataById.fragments?.get(entity.sys.id)
             if (existing) {
-              // componentType is immutable after creation; omit it from the update payload
+              // once a Fragment is created, its componentType cannot be changed to a different componentType
               const payload: UpsertFragmentProps = { ...entity, sys: { id: entity.sys.id, type: 'Fragment', version: existing.sys.version } }
               const result = await plainClient.fragment.upsert({ spaceId, environmentId, fragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Fragment ${entity.sys.id}`)
@@ -558,7 +558,7 @@ export default function pushToSpace({
           try {
             const existing = destinationDataById.experiences?.get(entity.sys.id)
             if (existing) {
-              // template is immutable after creation; omit it from the update payload
+              // once an Experience is created, its template cannot be changed to a different template
               const payload: UpsertExperienceProps = { ...entity, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
               const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Experience ${entity.sys.id}`)
