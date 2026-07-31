@@ -23,6 +23,7 @@ import * as publishing from './publishing'
 import type { DestinationData, TransformedSourceData, Resources, TransformedAsset } from '../../types'
 import { ContentfulEntityError } from '../../utils/errors'
 import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../../utils/graphql-schema-backoff'
+import { buildDataAssemblySys } from '../../utils/exo-entity-payloads'
 import sortComponentTypes from '../../utils/sort-component-types'
 import sortFragments from '../../utils/sort-fragments'
 import { filterExoEntitiesToPublish, publishExoEntity } from '../../utils/publish-exo-entities'
@@ -425,14 +426,14 @@ export default function pushToSpace({
             const existing = destinationDataById.dataAssemblies?.get(entity.sys.id)
             let result
             if (existing) {
-              const payload: UpdateDataAssemblyProps = { ...entity, sys: { ...entity.sys, version: existing.sys.version } }
+              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: buildDataAssemblySys(entity, existing.sys.version) }
               result = await withGraphQLSchemaBackoff(() => plainClient.dataAssembly.update(
                 { spaceId, environmentId, dataAssemblyId: entity.sys.id },
                 payload
               ))
               logEmitter.emit('info', `UPDATE DataAssembly ${entity.sys.id}`)
             } else {
-              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'DataAssembly', dataType: entity.sys.dataType, ...(entity.sys.variant ? { variant: entity.sys.variant } : {}), version: 0 } }
+              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: buildDataAssemblySys(entity, 0) }
               result = await withGraphQLSchemaBackoff(() => plainClient.dataAssembly.update(
                 { spaceId, environmentId, dataAssemblyId: entity.sys.id },
                 payload
@@ -582,7 +583,8 @@ export default function pushToSpace({
           try {
             const existing = destinationDataById.fragments?.get(entity.sys.id)
             if (existing) {
-              const payload: UpsertFragmentProps = { ...entity, componentType: entity.sys.componentType, sys: { id: entity.sys.id, type: 'Fragment', version: existing.sys.version } }
+              // once a Fragment is created, its componentType cannot be changed to a different componentType
+              const payload: UpsertFragmentProps = { ...entity, sys: { id: entity.sys.id, type: 'Fragment', version: existing.sys.version } }
               const result = await plainClient.fragment.upsert({ spaceId, environmentId, fragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Fragment ${entity.sys.id}`)
               results.push(result)
@@ -625,7 +627,8 @@ export default function pushToSpace({
           try {
             const existing = destinationDataById.experiences?.get(entity.sys.id)
             if (existing) {
-              const payload: UpsertExperienceProps = { ...entity, template: entity.sys.template, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
+              // once an Experience is created, its template cannot be changed to a different template
+              const payload: UpsertExperienceProps = { ...entity, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
               const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Experience ${entity.sys.id}`)
               return result
