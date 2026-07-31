@@ -28,6 +28,20 @@ import sortComponentTypes from '../../utils/sort-component-types'
 import sortFragments from '../../utils/sort-fragments'
 import { filterExoEntitiesToPublish, publishExoEntity } from '../../utils/publish-exo-entities'
 
+// sortComponentTypes/sortFragments run outside the per-entity try/catch below, directly
+// inside wrapTask. An uncaught throw here (e.g. malformed componentTree/slots data) would
+// bubble through wrapTask and abort the run without ever reaching the logEmitter-driven
+// report. This wrapper logs the failure before rethrowing, preserving today's abort-on-failure
+// behavior while ensuring the error is visible in the final report.
+function sortOrReport<T>(sortFn: () => T[]): T[] {
+  try {
+    return sortFn()
+  } catch (err) {
+    logEmitter.emit('error', err)
+    throw err
+  }
+}
+
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
   for (let attempt = 0; attempt <= GRAPHQL_SCHEMA_STALE_DELAYS_MS.length; attempt++) {
@@ -492,7 +506,7 @@ export default function pushToSpace({
     {
       title: 'Importing Component Types',
       task: wrapTask(async (ctx) => {
-        const sorted = sortComponentTypes(sourceData.componentTypes || [])
+        const sorted = sortOrReport(() => sortComponentTypes(sourceData.componentTypes || []))
         const results: any[] = []
         for (const entity of sorted) {
           try {
@@ -523,7 +537,7 @@ export default function pushToSpace({
         // Sorted and sequential: a ComponentType's publish validation resolves nested
         // ComponentType/DataAssembly references against their *published* state, so a
         // parent can't publish before the ComponentTypes it embeds are published.
-        const sorted = sortComponentTypes(entitiesToPublish)
+        const sorted = sortOrReport(() => sortComponentTypes(entitiesToPublish))
         const results: ComponentTypeProps[] = []
         for (const entity of sorted) {
           const published = await publishExoEntity<ComponentTypeProps>('ComponentType', entity, () => plainClient.componentType.publish(
@@ -577,7 +591,7 @@ export default function pushToSpace({
     {
       title: 'Importing Fragments',
       task: wrapTask(async (ctx) => {
-        const sorted = sortFragments(sourceData.fragments || [])
+        const sorted = sortOrReport(() => sortFragments(sourceData.fragments || []))
         const results: any[] = []
         for (const entity of sorted) {
           try {
@@ -608,7 +622,7 @@ export default function pushToSpace({
         const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.fragments, sourceData.fragments || [])
         // Sorted and sequential, same reasoning as Publishing Component Types: a Fragment
         // can reference other Fragments in its slots, resolved against published state.
-        const sorted = sortFragments(entitiesToPublish)
+        const sorted = sortOrReport(() => sortFragments(entitiesToPublish))
         const results: FragmentProps[] = []
         for (const entity of sorted) {
           const published = await publishExoEntity<FragmentProps>('Fragment', entity, () => plainClient.fragment.publish(
