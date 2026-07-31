@@ -27,20 +27,7 @@ import { buildDataAssemblySys } from '../../utils/exo-entity-payloads'
 import sortComponentTypes from '../../utils/sort-component-types'
 import sortFragments from '../../utils/sort-fragments'
 import { filterExoEntitiesToPublish, publishExoEntity } from '../../utils/publish-exo-entities'
-
-// sortComponentTypes/sortFragments run outside the per-entity try/catch below, directly
-// inside wrapTask. An uncaught throw here (e.g. malformed componentTree/slots data) would
-// bubble through wrapTask and abort the run without ever reaching the logEmitter-driven
-// report. This wrapper logs the failure before rethrowing, preserving today's abort-on-failure
-// behavior while ensuring the error is visible in the final report.
-function sortOrReport<T>(sortFn: () => T[]): T[] {
-  try {
-    return sortFn()
-  } catch (err) {
-    logEmitter.emit('error', err)
-    throw err
-  }
-}
+import { sortOrReport } from '../../utils/sort-or-report'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
