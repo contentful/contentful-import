@@ -10,7 +10,6 @@ import {
   UpsertExperienceProps,
   UpdateDataAssemblyProps,
   UpsertDesignTokenProps,
-  DataAssemblyProps,
 } from 'contentful-management'
 
 import * as assets from './assets'
@@ -19,6 +18,7 @@ import * as publishing from './publishing'
 import type { DestinationData, TransformedSourceData, Resources, TransformedAsset } from '../../types'
 import { ContentfulEntityError } from '../../utils/errors'
 import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../../utils/graphql-schema-backoff'
+import { buildDataAssemblySys } from '../../utils/exo-entity-payloads'
 import sortComponentTypes from '../../utils/sort-component-types'
 import sortFragments from '../../utils/sort-fragments'
 
@@ -585,16 +585,6 @@ function omitSys(entity) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { sys: _sys, ...rest } = entity
   return rest
-}
-
-function buildDataAssemblySys(entity: DataAssemblyProps, version: number) {
-  return {
-    id: entity.sys.id,
-    type: 'DataAssembly' as const,
-    dataType: entity.sys.dataType,
-    ...(entity.sys.variant ? { variant: entity.sys.variant } : {}),
-    version
-  }
 }
 
 function archiveEntities({ entities, sourceEntities, requestQueue }) {
