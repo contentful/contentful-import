@@ -18,8 +18,8 @@ import * as publishing from './publishing'
 import type { DestinationData, TransformedSourceData, Resources, TransformedAsset } from '../../types'
 import { ContentfulEntityError } from '../../utils/errors'
 import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../../utils/graphql-schema-backoff'
-import sortComponentTypes from '../../utils/sort-component-types'
-import sortFragments from '../../utils/sort-fragments'
+import sortComponents from '../../utils/sort-components'
+import sortExperienceFragments from '../../utils/sort-experience-fragments'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
@@ -470,13 +470,13 @@ export default function pushToSpace({
       skip: () => !includeExperienceOrchestration || !(sourceData.designTokens || []).length
     },
     {
-      title: 'Importing Component Types',
+      title: 'Importing Components',
       task: wrapTask(async (ctx) => {
-        const sorted = sortComponentTypes(sourceData.componentTypes || [])
+        const sorted = sortComponents(sourceData.components || [])
         const results: any[] = []
         for (const entity of sorted) {
           try {
-            const existing = destinationDataById.componentTypes?.get(entity.sys.id)
+            const existing = destinationDataById.components?.get(entity.sys.id)
             if (existing) {
               const payload: UpsertComponentTypeProps = { ...entity, sys: { id: entity.sys.id, type: 'ComponentType', version: existing.sys.version } }
               const result = await plainClient.componentType.upsert({ spaceId, environmentId, componentTypeId: entity.sys.id }, payload)
@@ -492,16 +492,16 @@ export default function pushToSpace({
             logEmitter.emit('error', err)
           }
         }
-        ctx.data.componentTypes = results
+        ctx.data.components = results
       }),
-      skip: () => !includeExperienceOrchestration || !(sourceData.componentTypes || []).length
+      skip: () => !includeExperienceOrchestration || !(sourceData.components || []).length
     },
     {
-      title: 'Importing Templates',
+      title: 'Importing Experience Templates',
       task: wrapTask(async (ctx) => {
-        const results = await Promise.all((sourceData.templates || []).map(async (entity) => {
+        const results = await Promise.all((sourceData.experienceTemplates || []).map(async (entity) => {
           try {
-            const existing = destinationDataById.templates?.get(entity.sys.id)
+            const existing = destinationDataById.experienceTemplates?.get(entity.sys.id)
             if (existing) {
               const payload: UpsertTemplateProps = { ...entity, sys: { id: entity.sys.id, type: 'Template', version: existing.sys.version } }
               const result = await plainClient.template.upsert({ spaceId, environmentId, templateId: entity.sys.id }, payload)
@@ -518,18 +518,18 @@ export default function pushToSpace({
             return null
           }
         }))
-        ctx.data.templates = results.filter(Boolean)
+        ctx.data.experienceTemplates = results.filter(Boolean)
       }),
-      skip: () => !includeExperienceOrchestration || !(sourceData.templates || []).length
+      skip: () => !includeExperienceOrchestration || !(sourceData.experienceTemplates || []).length
     },
     {
-      title: 'Importing Fragments',
+      title: 'Importing Experience Fragments',
       task: wrapTask(async (ctx) => {
-        const sorted = sortFragments(sourceData.fragments || [])
+        const sorted = sortExperienceFragments(sourceData.experienceFragments || [])
         const results: any[] = []
         for (const entity of sorted) {
           try {
-            const existing = destinationDataById.fragments?.get(entity.sys.id)
+            const existing = destinationDataById.experienceFragments?.get(entity.sys.id)
             if (existing) {
               const payload: UpsertFragmentProps = { ...entity, componentType: entity.sys.componentType, sys: { id: entity.sys.id, type: 'Fragment', version: existing.sys.version } }
               const result = await plainClient.fragment.upsert({ spaceId, environmentId, fragmentId: entity.sys.id }, payload)
@@ -545,9 +545,9 @@ export default function pushToSpace({
             logEmitter.emit('error', err)
           }
         }
-        ctx.data.fragments = results
+        ctx.data.experienceFragments = results
       }),
-      skip: () => !includeExperienceOrchestration || !(sourceData.fragments || []).length
+      skip: () => !includeExperienceOrchestration || !(sourceData.experienceFragments || []).length
     },
     {
       title: 'Importing Experiences',

@@ -17,10 +17,10 @@ const SUPPORTED_ENTITY_TYPES = [
   'webhooks',
   'editorInterfaces',
   'designTokens',
-  'componentTypes',
-  'templates',
+  'components',
+  'experienceTemplates',
   'dataAssemblies',
-  'fragments',
+  'experienceFragments',
   'experiences'
 ]
 

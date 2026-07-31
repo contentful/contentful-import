@@ -31,9 +31,9 @@ function makeOffsetResolver(items: any[]) {
 
 const exoItems = {
   designTokens: Array.from({ length: 7 }, (_, i) => makeEntity(`dt-${i}`)),
-  componentTypes: Array.from({ length: 5 }, (_, i) => makeEntity(`ct-${i}`)),
-  templates: Array.from({ length: 3 }, (_, i) => makeEntity(`tmpl-${i}`)),
-  fragments: Array.from({ length: 4 }, (_, i) => makeEntity(`frag-${i}`)),
+  components: Array.from({ length: 5 }, (_, i) => makeEntity(`ct-${i}`)),
+  experienceTemplates: Array.from({ length: 3 }, (_, i) => makeEntity(`tmpl-${i}`)),
+  experienceFragments: Array.from({ length: 4 }, (_, i) => makeEntity(`frag-${i}`)),
   dataAssemblies: Array.from({ length: 2 }, (_, i) => makeEntity(`da-${i}`)),
   experiences: Array.from({ length: 6 }, (_, i) => makeEntity(`exp-${i}`))
 }
@@ -41,9 +41,9 @@ const exoItems = {
 function makePlainClientMock() {
   return {
     designToken: { getMany: makeCursorResolver(exoItems.designTokens) },
-    componentType: { getMany: makeCursorResolver(exoItems.componentTypes) },
-    template: { getMany: makeCursorResolver(exoItems.templates) },
-    fragment: { getMany: makeCursorResolver(exoItems.fragments) },
+    componentType: { getMany: makeCursorResolver(exoItems.components) },
+    template: { getMany: makeCursorResolver(exoItems.experienceTemplates) },
+    fragment: { getMany: makeCursorResolver(exoItems.experienceFragments) },
     dataAssembly: { getMany: makeCursorResolver(exoItems.dataAssemblies) },
     experience: { getMany: makeCursorResolver(exoItems.experiences) }
   }
@@ -146,7 +146,7 @@ test('follows pageNext cursor across multiple pages', async () => {
   })
 
   expect(plainClient.componentType.getMany).toHaveBeenCalledTimes(2)
-  expect(result.componentTypes).toHaveLength(150)
+  expect(result.components).toHaveLength(150)
 })
 
 // ─── Returns destination data for all ExO entities ───────────────────────────
@@ -167,7 +167,7 @@ test('returns destination designTokens fetched via cursor pagination', async () 
   expect(result.designTokens![0].sys.id).toBe('dt-0')
 })
 
-test('returns destination componentTypes fetched via cursor pagination', async () => {
+test('returns destination components fetched via cursor pagination', async () => {
   const plainClient = makePlainClientMock()
   const result = await getDestinationData({
     client: mockClient,
@@ -179,11 +179,11 @@ test('returns destination componentTypes fetched via cursor pagination', async (
     requestQueue
   })
 
-  expect(result.componentTypes).toHaveLength(exoItems.componentTypes.length)
-  expect(result.componentTypes![0].sys.id).toBe('ct-0')
+  expect(result.components).toHaveLength(exoItems.components.length)
+  expect(result.components![0].sys.id).toBe('ct-0')
 })
 
-test('returns destination templates fetched via cursor pagination', async () => {
+test('returns destination experienceTemplates fetched via cursor pagination', async () => {
   const plainClient = makePlainClientMock()
   const result = await getDestinationData({
     client: mockClient,
@@ -195,11 +195,11 @@ test('returns destination templates fetched via cursor pagination', async () => 
     requestQueue
   })
 
-  expect(result.templates).toHaveLength(exoItems.templates.length)
-  expect(result.templates![0].sys.id).toBe('tmpl-0')
+  expect(result.experienceTemplates).toHaveLength(exoItems.experienceTemplates.length)
+  expect(result.experienceTemplates![0].sys.id).toBe('tmpl-0')
 })
 
-test('returns destination fragments fetched via cursor pagination', async () => {
+test('returns destination experienceFragments fetched via cursor pagination', async () => {
   const plainClient = makePlainClientMock()
   const result = await getDestinationData({
     client: mockClient,
@@ -211,8 +211,8 @@ test('returns destination fragments fetched via cursor pagination', async () => 
     requestQueue
   })
 
-  expect(result.fragments).toHaveLength(exoItems.fragments.length)
-  expect(result.fragments![0].sys.id).toBe('frag-0')
+  expect(result.experienceFragments).toHaveLength(exoItems.experienceFragments.length)
+  expect(result.experienceFragments![0].sys.id).toBe('frag-0')
 })
 
 test('returns destination dataAssemblies fetched via cursor pagination', async () => {
@@ -268,9 +268,9 @@ test('returns empty arrays for all ExO entities when none exist in destination',
   })
 
   expect(result.designTokens).toHaveLength(0)
-  expect(result.componentTypes).toHaveLength(0)
-  expect(result.templates).toHaveLength(0)
-  expect(result.fragments).toHaveLength(0)
+  expect(result.components).toHaveLength(0)
+  expect(result.experienceTemplates).toHaveLength(0)
+  expect(result.experienceFragments).toHaveLength(0)
   expect(result.dataAssemblies).toHaveLength(0)
   expect(result.experiences).toHaveLength(0)
 })

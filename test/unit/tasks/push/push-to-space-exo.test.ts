@@ -60,16 +60,16 @@ beforeEach(() => {
   requestQueue = new PQueue({ interval: 1000, intervalCap: 1000 })
 })
 
-// ─── ComponentType ────────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────
 
-describe('Importing Component Types', () => {
+describe('Importing Components', () => {
   const entity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 3 }, name: 'Hero' }
 
   test('CREATE: calls upsert with id in sys when entity does not exist in destination', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, componentTypes: [entity] } as any,
-      destinationData: { ...baseDestinationData, componentTypes: [] },
+      sourceData: { ...baseSourceData, components: [entity] } as any,
+      destinationData: { ...baseDestinationData, components: [] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -92,8 +92,8 @@ describe('Importing Component Types', () => {
     const plainClient = makePlainClientMock()
     const destinationEntity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 7 } }
     await pushToSpace({
-      sourceData: { ...baseSourceData, componentTypes: [entity] } as any,
-      destinationData: { ...baseDestinationData, componentTypes: [destinationEntity] },
+      sourceData: { ...baseSourceData, components: [entity] } as any,
+      destinationData: { ...baseDestinationData, components: [destinationEntity] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -112,7 +112,7 @@ describe('Importing Component Types', () => {
   test('skips task when includeExperienceOrchestration is false', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, componentTypes: [entity] } as any,
+      sourceData: { ...baseSourceData, components: [entity] } as any,
       destinationData: baseDestinationData,
       client: makeClientMock(),
       plainClient,
@@ -126,16 +126,16 @@ describe('Importing Component Types', () => {
   })
 })
 
-// ─── Template ─────────────────────────────────────────────────────────────────
+// ─── ExperienceTemplate ─────────────────────────────────────────────────────────────────
 
-describe('Importing Templates', () => {
+describe('Importing Experience Templates', () => {
   const entity: any = { sys: { id: 'tmpl-1', type: 'Template', version: 2 }, name: 'Landing Page' }
 
   test('CREATE: calls upsert with id in sys when entity does not exist in destination', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, templates: [entity] } as any,
-      destinationData: { ...baseDestinationData, templates: [] },
+      sourceData: { ...baseSourceData, experienceTemplates: [entity] } as any,
+      destinationData: { ...baseDestinationData, experienceTemplates: [] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -158,8 +158,8 @@ describe('Importing Templates', () => {
     const plainClient = makePlainClientMock()
     const destinationEntity: any = { sys: { id: 'tmpl-1', type: 'Template', version: 5 } }
     await pushToSpace({
-      sourceData: { ...baseSourceData, templates: [entity] } as any,
-      destinationData: { ...baseDestinationData, templates: [destinationEntity] },
+      sourceData: { ...baseSourceData, experienceTemplates: [entity] } as any,
+      destinationData: { ...baseDestinationData, experienceTemplates: [destinationEntity] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -175,17 +175,17 @@ describe('Importing Templates', () => {
   })
 })
 
-// ─── Fragment ─────────────────────────────────────────────────────────────────
+// ─── ExperienceFragment ─────────────────────────────────────────────────────────────────
 
-describe('Importing Fragments', () => {
+describe('Importing Experience Fragments', () => {
   const componentType = { sys: { type: 'ResourceLink', linkType: 'Contentful:ComponentType', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/componentTypes/hero' } }
   const entity: any = { sys: { id: 'frag-1', type: 'Fragment', version: 1, componentType }, name: 'Hero Fragment' }
 
   test('CREATE: calls upsert with id in sys and componentType hoisted from sys', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, fragments: [entity] } as any,
-      destinationData: { ...baseDestinationData, fragments: [] },
+      sourceData: { ...baseSourceData, experienceFragments: [entity] } as any,
+      destinationData: { ...baseDestinationData, experienceFragments: [] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -209,8 +209,8 @@ describe('Importing Fragments', () => {
     const plainClient = makePlainClientMock()
     const destinationEntity: any = { sys: { id: 'frag-1', type: 'Fragment', version: 4 } }
     await pushToSpace({
-      sourceData: { ...baseSourceData, fragments: [entity] } as any,
-      destinationData: { ...baseDestinationData, fragments: [destinationEntity] },
+      sourceData: { ...baseSourceData, experienceFragments: [entity] } as any,
+      destinationData: { ...baseDestinationData, experienceFragments: [destinationEntity] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
