@@ -21,7 +21,6 @@ import * as assets from './assets'
 import * as creation from './creation'
 import * as publishing from './publishing'
 import type { DestinationData, TransformedSourceData, Resources, TransformedAsset } from '../../types'
-import { ContentfulEntityError } from '../../utils/errors'
 import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../../utils/graphql-schema-backoff'
 import { buildDataAssemblySys } from '../../utils/exo-entity-payloads'
 import sortComponentTypes from '../../utils/sort-component-types'
@@ -259,10 +258,9 @@ export default function pushToSpace({
             const updatedEditorInterface = await requestQueue.add(() => ctEditorInterface.update())
             return updatedEditorInterface
           } catch (err: any) {
-            if (err instanceof ContentfulEntityError) {
-              err.entity = editorInterface
-            }
-            throw err
+            err.entity = editorInterface
+            logEmitter.emit('error', err)
+            return null
           }
         })
 
