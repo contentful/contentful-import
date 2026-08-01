@@ -4,9 +4,9 @@ import verboseRenderer from 'listr-verbose-renderer'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
 import {
-  UpsertComponentTypeProps,
-  UpsertTemplateProps,
-  UpsertFragmentProps,
+  UpsertComponentProps,
+  UpsertExperienceTemplateProps,
+  UpsertExperienceFragmentProps,
   UpsertExperienceProps,
   UpdateDataAssemblyProps,
   UpsertDesignTokenProps,
@@ -478,14 +478,14 @@ export default function pushToSpace({
           try {
             const existing = destinationDataById.components?.get(entity.sys.id)
             if (existing) {
-              const payload: UpsertComponentTypeProps = { ...entity, sys: { id: entity.sys.id, type: 'ComponentType', version: existing.sys.version } }
-              const result = await plainClient.componentType.upsert({ spaceId, environmentId, componentTypeId: entity.sys.id }, payload)
-              logEmitter.emit('info', `UPDATE ComponentType ${entity.sys.id}`)
+              const payload: UpsertComponentProps = { ...entity, sys: { id: entity.sys.id, type: 'Component', version: existing.sys.version } }
+              const result = await plainClient.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
+              logEmitter.emit('info', `UPDATE Component ${entity.sys.id}`)
               results.push(result)
             } else {
-              const payload: UpsertComponentTypeProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'ComponentType' } }
-              const result = await plainClient.componentType.upsert({ spaceId, environmentId, componentTypeId: entity.sys.id }, payload)
-              logEmitter.emit('info', `CREATE ComponentType ${entity.sys.id}`)
+              const payload: UpsertComponentProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'Component' } }
+              const result = await plainClient.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
+              logEmitter.emit('info', `CREATE Component ${entity.sys.id}`)
               results.push(result)
             }
           } catch (err) {
@@ -503,14 +503,14 @@ export default function pushToSpace({
           try {
             const existing = destinationDataById.experienceTemplates?.get(entity.sys.id)
             if (existing) {
-              const payload: UpsertTemplateProps = { ...entity, sys: { id: entity.sys.id, type: 'Template', version: existing.sys.version } }
-              const result = await plainClient.template.upsert({ spaceId, environmentId, templateId: entity.sys.id }, payload)
-              logEmitter.emit('info', `UPDATE Template ${entity.sys.id}`)
+              const payload: UpsertExperienceTemplateProps = { ...entity, sys: { id: entity.sys.id, type: 'ExperienceTemplate', version: existing.sys.version } }
+              const result = await plainClient.experienceTemplate.upsert({ spaceId, environmentId, experienceTemplateId: entity.sys.id }, payload)
+              logEmitter.emit('info', `UPDATE ExperienceTemplate ${entity.sys.id}`)
               return result
             } else {
-              const payload: UpsertTemplateProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'Template' } }
-              const result = await plainClient.template.upsert({ spaceId, environmentId, templateId: entity.sys.id }, payload)
-              logEmitter.emit('info', `CREATE Template ${entity.sys.id}`)
+              const payload: UpsertExperienceTemplateProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'ExperienceTemplate' } }
+              const result = await plainClient.experienceTemplate.upsert({ spaceId, environmentId, experienceTemplateId: entity.sys.id }, payload)
+              logEmitter.emit('info', `CREATE ExperienceTemplate ${entity.sys.id}`)
               return result
             }
           } catch (err) {
@@ -531,14 +531,14 @@ export default function pushToSpace({
           try {
             const existing = destinationDataById.experienceFragments?.get(entity.sys.id)
             if (existing) {
-              const payload: UpsertFragmentProps = { ...entity, componentType: entity.sys.componentType, sys: { id: entity.sys.id, type: 'Fragment', version: existing.sys.version } }
-              const result = await plainClient.fragment.upsert({ spaceId, environmentId, fragmentId: entity.sys.id }, payload)
-              logEmitter.emit('info', `UPDATE Fragment ${entity.sys.id}`)
+              const payload: UpsertExperienceFragmentProps = { ...entity, component: entity.sys.component, sys: { id: entity.sys.id, type: 'ExperienceFragment', version: existing.sys.version } }
+              const result = await plainClient.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
+              logEmitter.emit('info', `UPDATE ExperienceFragment ${entity.sys.id}`)
               results.push(result)
             } else {
-              const payload: UpsertFragmentProps = { ...omitSys(entity), componentType: entity.sys.componentType, sys: { id: entity.sys.id, type: 'Fragment' } }
-              const result = await plainClient.fragment.upsert({ spaceId, environmentId, fragmentId: entity.sys.id }, payload)
-              logEmitter.emit('info', `CREATE Fragment ${entity.sys.id}`)
+              const payload: UpsertExperienceFragmentProps = { ...omitSys(entity), component: entity.sys.component, sys: { id: entity.sys.id, type: 'ExperienceFragment' } }
+              const result = await plainClient.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
+              logEmitter.emit('info', `CREATE ExperienceFragment ${entity.sys.id}`)
               results.push(result)
             }
           } catch (err) {
@@ -556,12 +556,12 @@ export default function pushToSpace({
           try {
             const existing = destinationDataById.experiences?.get(entity.sys.id)
             if (existing) {
-              const payload: UpsertExperienceProps = { ...entity, template: entity.sys.template, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
+              const payload: UpsertExperienceProps = { ...entity, experienceTemplate: entity.sys.experienceTemplate, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
               const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Experience ${entity.sys.id}`)
               return result
             } else {
-              const payload: UpsertExperienceProps = { ...omitSys(entity), template: entity.sys.template, sys: { id: entity.sys.id, type: 'Experience' } }
+              const payload: UpsertExperienceProps = { ...omitSys(entity), experienceTemplate: entity.sys.experienceTemplate, sys: { id: entity.sys.id, type: 'Experience' } }
               const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE Experience ${entity.sys.id}`)
               return result

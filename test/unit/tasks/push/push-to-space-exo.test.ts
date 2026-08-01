@@ -31,15 +31,15 @@ function makePlainClientMock() {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'dt-1' } })),
       upsert: jest.fn(() => Promise.resolve({ sys: { id: 'dt-1' } })),
     },
-    componentType: {
+    component: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } })),
       upsert: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } })),
     },
-    template: {
+    experienceTemplate: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'tmpl-1' } })),
       upsert: jest.fn(() => Promise.resolve({ sys: { id: 'tmpl-1' } })),
     },
-    fragment: {
+    experienceFragment: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'frag-1' } })),
       upsert: jest.fn(() => Promise.resolve({ sys: { id: 'frag-1' } })),
     },
@@ -63,7 +63,7 @@ beforeEach(() => {
 // ─── Component ────────────────────────────────────────────────────────────
 
 describe('Importing Components', () => {
-  const entity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 3 }, name: 'Hero' }
+  const entity: any = { sys: { id: 'ct-1', type: 'Component', version: 3 }, name: 'Hero' }
 
   test('CREATE: calls upsert with id in sys when entity does not exist in destination', async () => {
     const plainClient = makePlainClientMock()
@@ -78,19 +78,19 @@ describe('Importing Components', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.componentType.upsert).toHaveBeenCalledTimes(1)
-    expect(plainClient.componentType.create).not.toHaveBeenCalled()
-    const [params, payload] = plainClient.componentType.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', componentTypeId: 'ct-1' })
+    expect(plainClient.component.upsert).toHaveBeenCalledTimes(1)
+    expect(plainClient.component.create).not.toHaveBeenCalled()
+    const [params, payload] = plainClient.component.upsert.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', componentId: 'ct-1' })
     expect(payload.sys.id).toBe('ct-1')
-    expect(payload.sys.type).toBe('ComponentType')
+    expect(payload.sys.type).toBe('Component')
     expect(payload.sys).not.toHaveProperty('version')
     expect(payload.name).toBe('Hero')
   })
 
   test('UPDATE: calls upsert with destination sys.version when entity exists in destination', async () => {
     const plainClient = makePlainClientMock()
-    const destinationEntity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 7 } }
+    const destinationEntity: any = { sys: { id: 'ct-1', type: 'Component', version: 7 } }
     await pushToSpace({
       sourceData: { ...baseSourceData, components: [entity] } as any,
       destinationData: { ...baseDestinationData, components: [destinationEntity] },
@@ -102,9 +102,9 @@ describe('Importing Components', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.componentType.upsert).toHaveBeenCalledTimes(1)
-    const [params, payload] = plainClient.componentType.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', componentTypeId: 'ct-1' })
+    expect(plainClient.component.upsert).toHaveBeenCalledTimes(1)
+    const [params, payload] = plainClient.component.upsert.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', componentId: 'ct-1' })
     expect(payload.sys.version).toBe(7)
     expect(payload.name).toBe('Hero')
   })
@@ -122,14 +122,14 @@ describe('Importing Components', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.componentType.upsert).not.toHaveBeenCalled()
+    expect(plainClient.component.upsert).not.toHaveBeenCalled()
   })
 })
 
 // ─── ExperienceTemplate ─────────────────────────────────────────────────────────────────
 
 describe('Importing Experience Templates', () => {
-  const entity: any = { sys: { id: 'tmpl-1', type: 'Template', version: 2 }, name: 'Landing Page' }
+  const entity: any = { sys: { id: 'tmpl-1', type: 'ExperienceTemplate', version: 2 }, name: 'Landing Page' }
 
   test('CREATE: calls upsert with id in sys when entity does not exist in destination', async () => {
     const plainClient = makePlainClientMock()
@@ -144,19 +144,19 @@ describe('Importing Experience Templates', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.template.upsert).toHaveBeenCalledTimes(1)
-    expect(plainClient.template.create).not.toHaveBeenCalled()
-    const [params, payload] = plainClient.template.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', templateId: 'tmpl-1' })
+    expect(plainClient.experienceTemplate.upsert).toHaveBeenCalledTimes(1)
+    expect(plainClient.experienceTemplate.create).not.toHaveBeenCalled()
+    const [params, payload] = plainClient.experienceTemplate.upsert.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', experienceTemplateId: 'tmpl-1' })
     expect(payload.sys.id).toBe('tmpl-1')
-    expect(payload.sys.type).toBe('Template')
+    expect(payload.sys.type).toBe('ExperienceTemplate')
     expect(payload.sys).not.toHaveProperty('version')
     expect(payload.name).toBe('Landing Page')
   })
 
   test('UPDATE: calls upsert with destination sys.version when entity exists in destination', async () => {
     const plainClient = makePlainClientMock()
-    const destinationEntity: any = { sys: { id: 'tmpl-1', type: 'Template', version: 5 } }
+    const destinationEntity: any = { sys: { id: 'tmpl-1', type: 'ExperienceTemplate', version: 5 } }
     await pushToSpace({
       sourceData: { ...baseSourceData, experienceTemplates: [entity] } as any,
       destinationData: { ...baseDestinationData, experienceTemplates: [destinationEntity] },
@@ -168,8 +168,8 @@ describe('Importing Experience Templates', () => {
       requestQueue
     }).run({ data: {} })
 
-    const [params, payload] = plainClient.template.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', templateId: 'tmpl-1' })
+    const [params, payload] = plainClient.experienceTemplate.upsert.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', experienceTemplateId: 'tmpl-1' })
     expect(payload.sys.version).toBe(5)
     expect(payload.name).toBe('Landing Page')
   })
@@ -178,10 +178,10 @@ describe('Importing Experience Templates', () => {
 // ─── ExperienceFragment ─────────────────────────────────────────────────────────────────
 
 describe('Importing Experience Fragments', () => {
-  const componentType = { sys: { type: 'ResourceLink', linkType: 'Contentful:ComponentType', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/componentTypes/hero' } }
-  const entity: any = { sys: { id: 'frag-1', type: 'Fragment', version: 1, componentType }, name: 'Hero Fragment' }
+  const component = { sys: { type: 'ResourceLink', linkType: 'Contentful:Component', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/components/hero' } }
+  const entity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 1, component }, name: 'Hero Fragment' }
 
-  test('CREATE: calls upsert with id in sys and componentType hoisted from sys', async () => {
+  test('CREATE: calls upsert with id in sys and component hoisted from sys', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
       sourceData: { ...baseSourceData, experienceFragments: [entity] } as any,
@@ -194,20 +194,20 @@ describe('Importing Experience Fragments', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.fragment.upsert).toHaveBeenCalledTimes(1)
-    expect(plainClient.fragment.create).not.toHaveBeenCalled()
-    const [params, payload] = plainClient.fragment.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', fragmentId: 'frag-1' })
+    expect(plainClient.experienceFragment.upsert).toHaveBeenCalledTimes(1)
+    expect(plainClient.experienceFragment.create).not.toHaveBeenCalled()
+    const [params, payload] = plainClient.experienceFragment.upsert.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', experienceFragmentId: 'frag-1' })
     expect(payload.sys.id).toBe('frag-1')
-    expect(payload.sys.type).toBe('Fragment')
+    expect(payload.sys.type).toBe('ExperienceFragment')
     expect(payload.sys).not.toHaveProperty('version')
-    expect(payload.componentType).toEqual(componentType)
+    expect(payload.component).toEqual(component)
     expect(payload.name).toBe('Hero Fragment')
   })
 
-  test('UPDATE: calls upsert with componentType hoisted and destination sys.version', async () => {
+  test('UPDATE: calls upsert with component hoisted and destination sys.version', async () => {
     const plainClient = makePlainClientMock()
-    const destinationEntity: any = { sys: { id: 'frag-1', type: 'Fragment', version: 4 } }
+    const destinationEntity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 4 } }
     await pushToSpace({
       sourceData: { ...baseSourceData, experienceFragments: [entity] } as any,
       destinationData: { ...baseDestinationData, experienceFragments: [destinationEntity] },
@@ -219,10 +219,10 @@ describe('Importing Experience Fragments', () => {
       requestQueue
     }).run({ data: {} })
 
-    const [params, payload] = plainClient.fragment.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', fragmentId: 'frag-1' })
+    const [params, payload] = plainClient.experienceFragment.upsert.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', experienceFragmentId: 'frag-1' })
     expect(payload.sys.version).toBe(4)
-    expect(payload.componentType).toEqual(componentType)
+    expect(payload.component).toEqual(component)
   })
 })
 
@@ -348,10 +348,10 @@ describe('Importing Design Tokens', () => {
 // ─── Experience ───────────────────────────────────────────────────────────────
 
 describe('Importing Experiences', () => {
-  const template = { sys: { type: 'ResourceLink', linkType: 'Contentful:Template', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/templates/press-release' } }
-  const entity: any = { sys: { id: 'exp-1', type: 'Experience', version: 1, template }, name: 'My Experience' }
+  const experienceTemplate = { sys: { type: 'ResourceLink', linkType: 'Contentful:ExperienceTemplate', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/experienceTemplates/press-release' } }
+  const entity: any = { sys: { id: 'exp-1', type: 'Experience', version: 1, experienceTemplate }, name: 'My Experience' }
 
-  test('CREATE: calls upsert with id in sys and template hoisted from sys', async () => {
+  test('CREATE: calls upsert with id in sys and experienceTemplate hoisted from sys', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
       sourceData: { ...baseSourceData, experiences: [entity] } as any,
@@ -371,11 +371,11 @@ describe('Importing Experiences', () => {
     expect(payload.sys.id).toBe('exp-1')
     expect(payload.sys.type).toBe('Experience')
     expect(payload.sys).not.toHaveProperty('version')
-    expect(payload.template).toEqual(template)
+    expect(payload.experienceTemplate).toEqual(experienceTemplate)
     expect(payload.name).toBe('My Experience')
   })
 
-  test('UPDATE: calls upsert with template hoisted and destination sys.version', async () => {
+  test('UPDATE: calls upsert with experienceTemplate hoisted and destination sys.version', async () => {
     const plainClient = makePlainClientMock()
     const destinationEntity: any = { sys: { id: 'exp-1', type: 'Experience', version: 6 } }
     await pushToSpace({
@@ -392,7 +392,7 @@ describe('Importing Experiences', () => {
     const [params, payload] = plainClient.experience.upsert.mock.calls[0] as unknown as [any, any]
     expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', experienceId: 'exp-1' })
     expect(payload.sys.version).toBe(6)
-    expect(payload.template).toEqual(template)
+    expect(payload.experienceTemplate).toEqual(experienceTemplate)
     expect(payload.name).toBe('My Experience')
   })
 })

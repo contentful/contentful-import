@@ -1,7 +1,7 @@
 import type { AssetProps, ContentTypeProps, EditorInterfaceProps, EntryProps, Link, LocaleProps, TagProps, WebhookProps } from 'contentful-management'
-import type { ComponentTypeProps, DataAssemblyProps, DesignTokenProps, ExperienceProps, FragmentProps, TemplateProps } from 'contentful-management'
+import type { ComponentProps, DataAssemblyProps, DesignTokenProps, ExperienceProps, ExperienceFragmentProps, ExperienceTemplateProps } from 'contentful-management'
 
-export type { ComponentTypeProps, DataAssemblyProps, DesignTokenProps, ExperienceProps, FragmentProps, TemplateProps }
+export type { ComponentProps, DataAssemblyProps, DesignTokenProps, ExperienceProps, ExperienceFragmentProps, ExperienceTemplateProps }
 
 export type Resources = {
   contentTypes?: ContentTypeProps[]
@@ -11,9 +11,9 @@ export type Resources = {
   assets?: AssetProps[]
   editorInterfaces?: EditorInterfaceProps[]
   webhooks?: WebhookProps[]
-  components?: ComponentTypeProps[]
-  experienceTemplates?: TemplateProps[]
-  experienceFragments?: FragmentProps[]
+  components?: ComponentProps[]
+  experienceTemplates?: ExperienceTemplateProps[]
+  experienceFragments?: ExperienceFragmentProps[]
   dataAssemblies?: DataAssemblyProps[]
   experiences?: ExperienceProps[]
   designTokens?: DesignTokenProps[]
@@ -45,9 +45,9 @@ export type TransformedSourceData = {
   tags: EntityTransformed<TagProps, any>[]
   webhooks: EntityTransformed<WebhookProps, any>[]
   editorInterfaces: EditorInterfaceProps[]
-  components?: ComponentTypeProps[]
-  experienceTemplates?: TemplateProps[]
-  experienceFragments?: FragmentProps[]
+  components?: ComponentProps[]
+  experienceTemplates?: ExperienceTemplateProps[]
+  experienceFragments?: ExperienceFragmentProps[]
   dataAssemblies?: DataAssemblyProps[]
   experiences?: ExperienceProps[]
   designTokens?: DesignTokenProps[]

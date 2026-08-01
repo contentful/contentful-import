@@ -12,7 +12,9 @@ export default function sortComponents<T extends ComponentLike>(components: T[])
   const idToIndex = new Map<string, number>()
   components.forEach((ct, i) => idToIndex.set(ct.sys.id, i))
 
-  const URN_PATTERN = /componentTypes\/([^"\\]+)/g
+  // Match both the current (`components/`) and legacy (`componentTypes/`) URN
+  // path segments so exports from either environment version sort correctly.
+  const URN_PATTERN = /(?:components|componentTypes)\/([^"\\]+)/g
 
   function getDeps(ct: any): string[] {
     const ids = new Set<string>()

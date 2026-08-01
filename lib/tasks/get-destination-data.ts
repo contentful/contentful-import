@@ -1,7 +1,7 @@
 import Promise from 'bluebird'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
-import type { AssetProps, ComponentTypeProps, ContentTypeProps, DataAssemblyProps, DesignTokenProps, EntryProps, ExperienceProps, FragmentProps, LocaleProps, TagProps, TemplateProps, WebhookProps } from 'contentful-management'
+import type { AssetProps, ComponentProps, ContentTypeProps, DataAssemblyProps, DesignTokenProps, EntryProps, ExperienceProps, ExperienceFragmentProps, LocaleProps, TagProps, ExperienceTemplateProps, WebhookProps } from 'contentful-management'
 import { OriginalSourceData } from '../types'
 import PQueue from 'p-queue'
 
@@ -18,9 +18,9 @@ const OFFSET_QUERY_METHODS = {
 
 const CURSOR_QUERY_METHODS = {
   designTokens: { name: 'design tokens', namespace: 'designToken' },
-  components: { name: 'components', namespace: 'componentType' },
-  experienceTemplates: { name: 'experience templates', namespace: 'template' },
-  experienceFragments: { name: 'experience fragments', namespace: 'fragment' },
+  components: { name: 'components', namespace: 'component' },
+  experienceTemplates: { name: 'experience templates', namespace: 'experienceTemplate' },
+  experienceFragments: { name: 'experience fragments', namespace: 'experienceFragment' },
   dataAssemblies: { name: 'data assemblies', namespace: 'dataAssembly' },
   experiences: { name: 'experiences', namespace: 'experience' }
 }
@@ -168,9 +168,9 @@ type AllDestinationData = {
   entries: Promise<EntryProps[]>
   assets: Promise<AssetProps[]>
   webhooks?: Promise<WebhookProps[]>
-  components?: Promise<ComponentTypeProps[]>
-  experienceTemplates?: Promise<TemplateProps[]>
-  experienceFragments?: Promise<FragmentProps[]>
+  components?: Promise<ComponentProps[]>
+  experienceTemplates?: Promise<ExperienceTemplateProps[]>
+  experienceFragments?: Promise<ExperienceFragmentProps[]>
   dataAssemblies?: Promise<DataAssemblyProps[]>
   experiences?: Promise<ExperienceProps[]>
   designTokens?: Promise<DesignTokenProps[]>

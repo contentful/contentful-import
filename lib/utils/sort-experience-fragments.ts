@@ -11,7 +11,9 @@ export default function sortExperienceFragments<T extends ExperienceFragmentLike
   const idToIndex = new Map<string, number>()
   experienceFragments.forEach((f, i) => idToIndex.set(f.sys.id, i))
 
-  const FRAGMENT_URN_PATTERN = /fragments\/([^"\\]+)/g
+  // Match both the current (`experienceFragments/`) and legacy (`fragments/`)
+  // URN path segments so exports from either environment version sort correctly.
+  const FRAGMENT_URN_PATTERN = /(?:experienceFragments|fragments)\/([^"\\]+)/g
 
   function getDeps(fragment: T): string[] {
     const ids = new Set<string>()

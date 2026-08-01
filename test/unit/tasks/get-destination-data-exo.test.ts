@@ -41,9 +41,9 @@ const exoItems = {
 function makePlainClientMock() {
   return {
     designToken: { getMany: makeCursorResolver(exoItems.designTokens) },
-    componentType: { getMany: makeCursorResolver(exoItems.components) },
-    template: { getMany: makeCursorResolver(exoItems.experienceTemplates) },
-    fragment: { getMany: makeCursorResolver(exoItems.experienceFragments) },
+    component: { getMany: makeCursorResolver(exoItems.components) },
+    experienceTemplate: { getMany: makeCursorResolver(exoItems.experienceTemplates) },
+    experienceFragment: { getMany: makeCursorResolver(exoItems.experienceFragments) },
     dataAssembly: { getMany: makeCursorResolver(exoItems.dataAssemblies) },
     experience: { getMany: makeCursorResolver(exoItems.experiences) }
   }
@@ -100,9 +100,9 @@ test('uses cursor pagination for ExO entities, not for standard entities', async
   // Standard entity: environment method was called (offset-based)
   expect(mockEnvironment.getContentTypes).toHaveBeenCalled()
   // ExO entity: plainClient cursor method was called, NOT an environment method
-  expect(plainClient.componentType.getMany).toHaveBeenCalled()
+  expect(plainClient.component.getMany).toHaveBeenCalled()
   // Cursor query shape: must include a `limit`, never a `skip`
-  const callArg = plainClient.componentType.getMany.mock.calls[0][0] as any
+  const callArg = plainClient.component.getMany.mock.calls[0][0] as any
   expect(callArg.query).toHaveProperty('limit')
   expect(callArg.query).not.toHaveProperty('skip')
 })
@@ -120,9 +120,9 @@ test('does NOT call plainClient ExO methods when includeExperienceOrchestration 
   })
 
   expect(plainClient.designToken.getMany).not.toHaveBeenCalled()
-  expect(plainClient.componentType.getMany).not.toHaveBeenCalled()
-  expect(plainClient.template.getMany).not.toHaveBeenCalled()
-  expect(plainClient.fragment.getMany).not.toHaveBeenCalled()
+  expect(plainClient.component.getMany).not.toHaveBeenCalled()
+  expect(plainClient.experienceTemplate.getMany).not.toHaveBeenCalled()
+  expect(plainClient.experienceFragment.getMany).not.toHaveBeenCalled()
   expect(plainClient.dataAssembly.getMany).not.toHaveBeenCalled()
   expect(plainClient.experience.getMany).not.toHaveBeenCalled()
 })
@@ -132,7 +132,7 @@ test('follows pageNext cursor across multiple pages', async () => {
   const manyItems = Array.from({ length: 150 }, (_, i) => makeEntity(`ct-${i}`))
   const plainClient = {
     ...makePlainClientMock(),
-    componentType: { getMany: makeCursorResolver(manyItems, 100) }
+    component: { getMany: makeCursorResolver(manyItems, 100) }
   }
 
   const result = await getDestinationData({
@@ -145,7 +145,7 @@ test('follows pageNext cursor across multiple pages', async () => {
     requestQueue
   })
 
-  expect(plainClient.componentType.getMany).toHaveBeenCalledTimes(2)
+  expect(plainClient.component.getMany).toHaveBeenCalledTimes(2)
   expect(result.components).toHaveLength(150)
 })
 
@@ -250,9 +250,9 @@ test('returns destination experiences fetched via cursor pagination', async () =
 test('returns empty arrays for all ExO entities when none exist in destination', async () => {
   const emptyPlainClient = {
     designToken: { getMany: jest.fn(() => Promise.resolve({ items: [] })) },
-    componentType: { getMany: jest.fn(() => Promise.resolve({ items: [] })) },
-    template: { getMany: jest.fn(() => Promise.resolve({ items: [] })) },
-    fragment: { getMany: jest.fn(() => Promise.resolve({ items: [] })) },
+    component: { getMany: jest.fn(() => Promise.resolve({ items: [] })) },
+    experienceTemplate: { getMany: jest.fn(() => Promise.resolve({ items: [] })) },
+    experienceFragment: { getMany: jest.fn(() => Promise.resolve({ items: [] })) },
     dataAssembly: { getMany: jest.fn(() => Promise.resolve({ items: [] })) },
     experience: { getMany: jest.fn(() => Promise.resolve({ items: [] })) }
   }
