@@ -12,7 +12,6 @@
  * content-property `TypeRef`s.
  *
  * This is intentionally UPGRADE-ONLY: import always writes the new form, so
- * (unlike the bidirectional transformer in the experiences-api-schemas package)
  * there is no downgrade path. Every function is idempotent — data already in the
  * new form passes through unchanged — so it is safe to run on mixed input.
  */
