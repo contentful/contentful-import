@@ -1,14 +1,14 @@
 import sortComponents from '../../../lib/utils/sort-components'
 
 function makeRef(id: string) {
-  return { sys: { type: 'ResourceLink', urn: `crn:..../componentTypes/${id}` } }
+  return { sys: { type: 'ResourceLink', urn: `crn:..../components/${id}` } }
 }
 
 function makeCT(id: string, deps: string[] = []) {
   return {
     sys: { id },
     componentTree: deps.map((dep) => ({
-      componentType: makeRef(dep)
+      component: makeRef(dep)
     }))
   }
 }

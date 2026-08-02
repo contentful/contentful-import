@@ -10,7 +10,7 @@ function frag(id: string, slots?: object, componentTree?: object) {
 
 // Embed a fragment URN reference into a slots/componentTree structure
 function ref(id: string) {
-  return [{ urn: `urn:contentful:fragments/${id}` }]
+  return [{ urn: `urn:contentful:experienceFragments/${id}` }]
 }
 
 test('returns empty array when given empty input', () => {
