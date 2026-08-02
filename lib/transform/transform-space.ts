@@ -21,7 +21,7 @@ export default function (
   // ExO entities (components, experienceTemplates, experienceFragments,
   // experiences) are not handled by the per-entity transformers above; they
   // pass through as-is except for a rename upgrade so exports taken before the
-  // ExO field rename (AIS-387) can still be imported. Upgrading here — before
+  // ExO field rename can still be imported. Upgrading here — before
   // sorting and push — means the rest of the pipeline only ever sees the new
   // form. The upgrade is idempotent, so already-new-form data is untouched.
   const baseSpaceData = upgradeExoResources(omit(sourceData, ...entities))

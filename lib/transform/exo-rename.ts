@@ -3,7 +3,7 @@
  * form the current API expects, so exports taken before the rename can still be
  * imported without hand-editing the JSON.
  *
- * The rename (see AIS-387 / contentful-management >= 12.13.0):
+ * The rename (see contentful-management >= 12.13.0):
  *   ComponentType      -> Component
  *   Fragment           -> ExperienceFragment
  *   Template           -> ExperienceTemplate
