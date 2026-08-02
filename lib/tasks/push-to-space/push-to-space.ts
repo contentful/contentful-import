@@ -4,6 +4,11 @@ import verboseRenderer from 'listr-verbose-renderer'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
 import {
+  ComponentProps,
+  DataAssemblyProps,
+  ExperienceProps,
+  ExperienceFragmentProps,
+  ExperienceTemplateProps,
   UpsertComponentProps,
   UpsertExperienceTemplateProps,
   UpsertExperienceFragmentProps,
@@ -18,8 +23,10 @@ import * as publishing from './publishing'
 import type { DestinationData, TransformedSourceData, Resources, TransformedAsset } from '../../types'
 import { ContentfulEntityError } from '../../utils/errors'
 import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../../utils/graphql-schema-backoff'
+import { buildDataAssemblySys } from '../../utils/exo-entity-payloads'
 import sortComponents from '../../utils/sort-components'
 import sortExperienceFragments from '../../utils/sort-experience-fragments'
+import { filterExoEntitiesToPublish, publishExoEntity } from '../../utils/publish-exo-entities'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
@@ -419,14 +426,14 @@ export default function pushToSpace({
             const existing = destinationDataById.dataAssemblies?.get(entity.sys.id)
             let result
             if (existing) {
-              const payload: UpdateDataAssemblyProps = { ...entity, sys: { ...entity.sys, version: existing.sys.version } }
+              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: buildDataAssemblySys(entity, existing.sys.version) }
               result = await withGraphQLSchemaBackoff(() => plainClient.dataAssembly.update(
                 { spaceId, environmentId, dataAssemblyId: entity.sys.id },
                 payload
               ))
               logEmitter.emit('info', `UPDATE DataAssembly ${entity.sys.id}`)
             } else {
-              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'DataAssembly', dataType: entity.sys.dataType, ...(entity.sys.variant ? { variant: entity.sys.variant } : {}), version: 0 } }
+              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: buildDataAssemblySys(entity, 0) }
               result = await withGraphQLSchemaBackoff(() => plainClient.dataAssembly.update(
                 { spaceId, environmentId, dataAssemblyId: entity.sys.id },
                 payload
@@ -442,6 +449,19 @@ export default function pushToSpace({
         ctx.data.dataAssemblies = results.filter(Boolean)
       }),
       skip: () => !includeExperienceOrchestration || !(sourceData.dataAssemblies || []).length
+    },
+    {
+      title: 'Publishing Data Assemblies',
+      task: wrapTask(async (ctx: { data: { dataAssemblies: DataAssemblyProps[], publishedDataAssemblies: DataAssemblyProps[] } }) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.dataAssemblies, sourceData.dataAssemblies || [])
+        const results = await Promise.all(entitiesToPublish.map((entity) =>
+          publishExoEntity<DataAssemblyProps>('DataAssembly', entity, () => plainClient.dataAssembly.publish(
+            { spaceId, environmentId, dataAssemblyId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+        ctx.data.publishedDataAssemblies = results.filter((entity): entity is DataAssemblyProps => entity !== null)
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.dataAssemblies || []).length
     },
     {
       title: 'Importing Design Tokens',
@@ -497,6 +517,25 @@ export default function pushToSpace({
       skip: () => !includeExperienceOrchestration || !(sourceData.components || []).length
     },
     {
+      title: 'Publishing Components',
+      task: wrapTask(async (ctx) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.components, sourceData.components || [])
+        // Sorted and sequential: a Component's publish validation resolves nested
+        // Component/DataAssembly references against their *published* state, so a
+        // parent can't publish before the Components it embeds are published.
+        const sorted = sortComponents(entitiesToPublish)
+        const results: ComponentProps[] = []
+        for (const entity of sorted) {
+          const published = await publishExoEntity<ComponentProps>('Component', entity, () => plainClient.component.publish(
+            { spaceId, environmentId, componentId: entity.sys.id, version: entity.sys.version }
+          ))
+          if (published) results.push(published)
+        }
+        ctx.data.publishedComponents = results
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.components || []).length
+    },
+    {
       title: 'Importing Experience Templates',
       task: wrapTask(async (ctx) => {
         const results = await Promise.all((sourceData.experienceTemplates || []).map(async (entity) => {
@@ -523,6 +562,19 @@ export default function pushToSpace({
       skip: () => !includeExperienceOrchestration || !(sourceData.experienceTemplates || []).length
     },
     {
+      title: 'Publishing Experience Templates',
+      task: wrapTask(async (ctx: { data: { experienceTemplates: ExperienceTemplateProps[], publishedExperienceTemplates: ExperienceTemplateProps[] } }) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.experienceTemplates, sourceData.experienceTemplates || [])
+        const results = await Promise.all(entitiesToPublish.map((entity) =>
+          publishExoEntity<ExperienceTemplateProps>('ExperienceTemplate', entity, () => plainClient.experienceTemplate.publish(
+            { spaceId, environmentId, experienceTemplateId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+        ctx.data.publishedExperienceTemplates = results.filter((entity): entity is ExperienceTemplateProps => entity !== null)
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experienceTemplates || []).length
+    },
+    {
       title: 'Importing Experience Fragments',
       task: wrapTask(async (ctx) => {
         const sorted = sortExperienceFragments(sourceData.experienceFragments || [])
@@ -531,6 +583,7 @@ export default function pushToSpace({
           try {
             const existing = destinationDataById.experienceFragments?.get(entity.sys.id)
             if (existing) {
+              // once an ExperienceFragment is created, its component cannot be changed to a different component
               const payload: UpsertExperienceFragmentProps = { ...entity, component: entity.sys.component, sys: { id: entity.sys.id, type: 'ExperienceFragment', version: existing.sys.version } }
               const result = await plainClient.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE ExperienceFragment ${entity.sys.id}`)
@@ -550,12 +603,31 @@ export default function pushToSpace({
       skip: () => !includeExperienceOrchestration || !(sourceData.experienceFragments || []).length
     },
     {
+      title: 'Publishing Experience Fragments',
+      task: wrapTask(async (ctx) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.experienceFragments, sourceData.experienceFragments || [])
+        // Sorted and sequential, same reasoning as Publishing Components: an ExperienceFragment
+        // can reference other ExperienceFragments in its slots, resolved against published state.
+        const sorted = sortExperienceFragments(entitiesToPublish)
+        const results: ExperienceFragmentProps[] = []
+        for (const entity of sorted) {
+          const published = await publishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => plainClient.experienceFragment.publish(
+            { spaceId, environmentId, experienceFragmentId: entity.sys.id, version: entity.sys.version }
+          ))
+          if (published) results.push(published)
+        }
+        ctx.data.publishedExperienceFragments = results
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experienceFragments || []).length
+    },
+    {
       title: 'Importing Experiences',
       task: wrapTask(async (ctx) => {
         const results = await Promise.all((sourceData.experiences || []).map(async (entity) => {
           try {
             const existing = destinationDataById.experiences?.get(entity.sys.id)
             if (existing) {
+              // once an Experience is created, its experienceTemplate cannot be changed to a different experienceTemplate
               const payload: UpsertExperienceProps = { ...entity, experienceTemplate: entity.sys.experienceTemplate, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
               const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Experience ${entity.sys.id}`)
@@ -574,6 +646,19 @@ export default function pushToSpace({
         ctx.data.experiences = results.filter(Boolean)
       }),
       skip: () => !includeExperienceOrchestration || !(sourceData.experiences || []).length
+    },
+    {
+      title: 'Publishing Experiences',
+      task: wrapTask(async (ctx: { data: { experiences: ExperienceProps[], publishedExperiences: ExperienceProps[] } }) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.experiences, sourceData.experiences || [])
+        const results = await Promise.all(entitiesToPublish.map((entity) =>
+          publishExoEntity<ExperienceProps>('Experience', entity, () => plainClient.experience.publish(
+            { spaceId, environmentId, experienceId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+        ctx.data.publishedExperiences = results.filter((entity): entity is ExperienceProps => entity !== null)
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experiences || []).length
     }
   ], listrOptions)
 }
