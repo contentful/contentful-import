@@ -1,7 +1,7 @@
 import Promise from 'bluebird'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
-import type { AssetProps, ComponentTypeProps, ContentTypeProps, DataAssemblyProps, DesignTokenProps, EntryProps, ExperienceProps, FragmentProps, LocaleProps, TagProps, TemplateProps, WebhookProps } from 'contentful-management'
+import type { AssetProps, ComponentProps, ContentTypeProps, DataAssemblyProps, DesignTokenProps, EntryProps, ExperienceProps, ExperienceFragmentProps, LocaleProps, TagProps, ExperienceTemplateProps, WebhookProps } from 'contentful-management'
 import { OriginalSourceData } from '../types'
 import PQueue from 'p-queue'
 
@@ -18,9 +18,9 @@ const OFFSET_QUERY_METHODS = {
 
 const CURSOR_QUERY_METHODS = {
   designTokens: { name: 'design tokens', namespace: 'designToken' },
-  componentTypes: { name: 'component types', namespace: 'componentType' },
-  templates: { name: 'templates', namespace: 'template' },
-  fragments: { name: 'fragments', namespace: 'fragment' },
+  components: { name: 'components', namespace: 'component' },
+  experienceTemplates: { name: 'experience templates', namespace: 'experienceTemplate' },
+  experienceFragments: { name: 'experience fragments', namespace: 'experienceFragment' },
   dataAssemblies: { name: 'data assemblies', namespace: 'dataAssembly' },
   experiences: { name: 'experiences', namespace: 'experience' }
 }
@@ -168,9 +168,9 @@ type AllDestinationData = {
   entries: Promise<EntryProps[]>
   assets: Promise<AssetProps[]>
   webhooks?: Promise<WebhookProps[]>
-  componentTypes?: Promise<ComponentTypeProps[]>
-  templates?: Promise<TemplateProps[]>
-  fragments?: Promise<FragmentProps[]>
+  components?: Promise<ComponentProps[]>
+  experienceTemplates?: Promise<ExperienceTemplateProps[]>
+  experienceFragments?: Promise<ExperienceFragmentProps[]>
   dataAssemblies?: Promise<DataAssemblyProps[]>
   experiences?: Promise<ExperienceProps[]>
   designTokens?: Promise<DesignTokenProps[]>
@@ -219,9 +219,9 @@ export default async function getDestinationData({
     entries: [],
     assets: [],
     experiences: [],
-    templates: [],
-    componentTypes: [],
-    fragments: [],
+    experienceTemplates: [],
+    components: [],
+    experienceFragments: [],
     dataAssemblies: [],
     designTokens: [],
     webhooks: [],
@@ -290,9 +290,9 @@ export default async function getDestinationData({
 
   if (includeExperienceOrchestration && plainClient) {
     result.designTokens = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'designTokens', requestQueue })
-    result.componentTypes = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'componentTypes', requestQueue })
-    result.templates = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'templates', requestQueue })
-    result.fragments = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'fragments', requestQueue })
+    result.components = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'components', requestQueue })
+    result.experienceTemplates = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'experienceTemplates', requestQueue })
+    result.experienceFragments = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'experienceFragments', requestQueue })
     result.dataAssemblies = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'dataAssemblies', requestQueue })
     result.experiences = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'experiences', requestQueue })
   }

@@ -43,17 +43,17 @@ function makePlainClientMock() {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'dt-1' } })),
       upsert: echoVersion('dt-1')
     },
-    componentType: {
+    component: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } })),
       upsert: echoVersion('ct-1'),
       publish: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } }))
     },
-    template: {
+    experienceTemplate: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'tmpl-1' } })),
       upsert: echoVersion('tmpl-1'),
       publish: jest.fn(() => Promise.resolve({ sys: { id: 'tmpl-1' } }))
     },
-    fragment: {
+    experienceFragment: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'frag-1' } })),
       upsert: echoVersion('frag-1'),
       publish: jest.fn(() => Promise.resolve({ sys: { id: 'frag-1' } }))
@@ -77,16 +77,16 @@ beforeEach(() => {
   requestQueue = new PQueue({ interval: 1000, intervalCap: 1000 })
 })
 
-// ─── ComponentType ────────────────────────────────────────────────────────────
+// ─── Component ────────────────────────────────────────────────────────────
 
-describe('Importing Component Types', () => {
-  const entity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 3 }, name: 'Hero' }
+describe('Importing Components', () => {
+  const entity: any = { sys: { id: 'ct-1', type: 'Component', version: 3 }, name: 'Hero' }
 
   test('CREATE: calls upsert with id in sys when entity does not exist in destination', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, componentTypes: [entity] } as any,
-      destinationData: { ...baseDestinationData, componentTypes: [] },
+      sourceData: { ...baseSourceData, components: [entity] } as any,
+      destinationData: { ...baseDestinationData, components: [] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -95,22 +95,22 @@ describe('Importing Component Types', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.componentType.upsert).toHaveBeenCalledTimes(1)
-    expect(plainClient.componentType.create).not.toHaveBeenCalled()
-    const [params, payload] = plainClient.componentType.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', componentTypeId: 'ct-1' })
+    expect(plainClient.component.upsert).toHaveBeenCalledTimes(1)
+    expect(plainClient.component.create).not.toHaveBeenCalled()
+    const [params, payload] = plainClient.component.upsert.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', componentId: 'ct-1' })
     expect(payload.sys.id).toBe('ct-1')
-    expect(payload.sys.type).toBe('ComponentType')
+    expect(payload.sys.type).toBe('Component')
     expect(payload.sys).not.toHaveProperty('version')
     expect(payload.name).toBe('Hero')
   })
 
   test('UPDATE: calls upsert with destination sys.version when entity exists in destination', async () => {
     const plainClient = makePlainClientMock()
-    const destinationEntity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 7 } }
+    const destinationEntity: any = { sys: { id: 'ct-1', type: 'Component', version: 7 } }
     await pushToSpace({
-      sourceData: { ...baseSourceData, componentTypes: [entity] } as any,
-      destinationData: { ...baseDestinationData, componentTypes: [destinationEntity] },
+      sourceData: { ...baseSourceData, components: [entity] } as any,
+      destinationData: { ...baseDestinationData, components: [destinationEntity] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -119,9 +119,9 @@ describe('Importing Component Types', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.componentType.upsert).toHaveBeenCalledTimes(1)
-    const [params, payload] = plainClient.componentType.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', componentTypeId: 'ct-1' })
+    expect(plainClient.component.upsert).toHaveBeenCalledTimes(1)
+    const [params, payload] = plainClient.component.upsert.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', componentId: 'ct-1' })
     expect(payload.sys.version).toBe(7)
     expect(payload.name).toBe('Hero')
   })
@@ -129,7 +129,7 @@ describe('Importing Component Types', () => {
   test('skips task when includeExperienceOrchestration is false', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, componentTypes: [entity] } as any,
+      sourceData: { ...baseSourceData, components: [entity] } as any,
       destinationData: baseDestinationData,
       client: makeClientMock(),
       plainClient,
@@ -139,20 +139,20 @@ describe('Importing Component Types', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.componentType.upsert).not.toHaveBeenCalled()
+    expect(plainClient.component.upsert).not.toHaveBeenCalled()
   })
 })
 
-describe('Publishing Component Types', () => {
-  const publishedEntity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 2, publishedVersion: 2 }, name: 'Hero' }
-  const draftEntity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 3 }, name: 'Hero' }
-  const destinationEntity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 7 } }
+describe('Publishing Components', () => {
+  const publishedEntity: any = { sys: { id: 'ct-1', type: 'Component', version: 2, publishedVersion: 2 }, name: 'Hero' }
+  const draftEntity: any = { sys: { id: 'ct-1', type: 'Component', version: 3 }, name: 'Hero' }
+  const destinationEntity: any = { sys: { id: 'ct-1', type: 'Component', version: 7 } }
 
   test('publishes an entity that was published in the source, at the destination version', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, componentTypes: [publishedEntity] } as any,
-      destinationData: { ...baseDestinationData, componentTypes: [destinationEntity] },
+      sourceData: { ...baseSourceData, components: [publishedEntity] } as any,
+      destinationData: { ...baseDestinationData, components: [destinationEntity] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -161,17 +161,17 @@ describe('Publishing Component Types', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.componentType.publish).toHaveBeenCalledTimes(1)
-    expect(plainClient.componentType.publish).toHaveBeenCalledWith(
-      { spaceId: 'space-1', environmentId: 'master', componentTypeId: 'ct-1', version: 7 }
+    expect(plainClient.component.publish).toHaveBeenCalledTimes(1)
+    expect(plainClient.component.publish).toHaveBeenCalledWith(
+      { spaceId: 'space-1', environmentId: 'master', componentId: 'ct-1', version: 7 }
     )
   })
 
   test('does not publish an entity that was draft in the source', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, componentTypes: [draftEntity] } as any,
-      destinationData: { ...baseDestinationData, componentTypes: [destinationEntity] },
+      sourceData: { ...baseSourceData, components: [draftEntity] } as any,
+      destinationData: { ...baseDestinationData, components: [destinationEntity] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -180,14 +180,14 @@ describe('Publishing Component Types', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.componentType.publish).not.toHaveBeenCalled()
+    expect(plainClient.component.publish).not.toHaveBeenCalled()
   })
 
   test('skips publishing when skipContentPublishing is set', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, componentTypes: [publishedEntity] } as any,
-      destinationData: { ...baseDestinationData, componentTypes: [destinationEntity] },
+      sourceData: { ...baseSourceData, components: [publishedEntity] } as any,
+      destinationData: { ...baseDestinationData, components: [destinationEntity] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -197,15 +197,15 @@ describe('Publishing Component Types', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.componentType.publish).not.toHaveBeenCalled()
+    expect(plainClient.component.publish).not.toHaveBeenCalled()
   })
 
   test('logs and continues when publish fails, without throwing', async () => {
     const plainClient = makePlainClientMock()
-    plainClient.componentType.publish = jest.fn(() => Promise.reject(new Error('422 validation failed')))
+    plainClient.component.publish = jest.fn(() => Promise.reject(new Error('422 validation failed')))
     await expect(pushToSpace({
-      sourceData: { ...baseSourceData, componentTypes: [publishedEntity] } as any,
-      destinationData: { ...baseDestinationData, componentTypes: [destinationEntity] },
+      sourceData: { ...baseSourceData, components: [publishedEntity] } as any,
+      destinationData: { ...baseDestinationData, components: [destinationEntity] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -216,16 +216,16 @@ describe('Publishing Component Types', () => {
   })
 })
 
-// ─── Template ─────────────────────────────────────────────────────────────────
+// ─── ExperienceTemplate ─────────────────────────────────────────────────────────────────
 
-describe('Importing Templates', () => {
-  const entity: any = { sys: { id: 'tmpl-1', type: 'Template', version: 2 }, name: 'Landing Page' }
+describe('Importing Experience Templates', () => {
+  const entity: any = { sys: { id: 'tmpl-1', type: 'ExperienceTemplate', version: 2 }, name: 'Landing Page' }
 
   test('CREATE: calls upsert with id in sys when entity does not exist in destination', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, templates: [entity] } as any,
-      destinationData: { ...baseDestinationData, templates: [] },
+      sourceData: { ...baseSourceData, experienceTemplates: [entity] } as any,
+      destinationData: { ...baseDestinationData, experienceTemplates: [] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -234,22 +234,22 @@ describe('Importing Templates', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.template.upsert).toHaveBeenCalledTimes(1)
-    expect(plainClient.template.create).not.toHaveBeenCalled()
-    const [params, payload] = plainClient.template.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', templateId: 'tmpl-1' })
+    expect(plainClient.experienceTemplate.upsert).toHaveBeenCalledTimes(1)
+    expect(plainClient.experienceTemplate.create).not.toHaveBeenCalled()
+    const [params, payload] = plainClient.experienceTemplate.upsert.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', experienceTemplateId: 'tmpl-1' })
     expect(payload.sys.id).toBe('tmpl-1')
-    expect(payload.sys.type).toBe('Template')
+    expect(payload.sys.type).toBe('ExperienceTemplate')
     expect(payload.sys).not.toHaveProperty('version')
     expect(payload.name).toBe('Landing Page')
   })
 
   test('UPDATE: calls upsert with destination sys.version when entity exists in destination', async () => {
     const plainClient = makePlainClientMock()
-    const destinationEntity: any = { sys: { id: 'tmpl-1', type: 'Template', version: 5 } }
+    const destinationEntity: any = { sys: { id: 'tmpl-1', type: 'ExperienceTemplate', version: 5 } }
     await pushToSpace({
-      sourceData: { ...baseSourceData, templates: [entity] } as any,
-      destinationData: { ...baseDestinationData, templates: [destinationEntity] },
+      sourceData: { ...baseSourceData, experienceTemplates: [entity] } as any,
+      destinationData: { ...baseDestinationData, experienceTemplates: [destinationEntity] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -258,23 +258,23 @@ describe('Importing Templates', () => {
       requestQueue
     }).run({ data: {} })
 
-    const [params, payload] = plainClient.template.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', templateId: 'tmpl-1' })
+    const [params, payload] = plainClient.experienceTemplate.upsert.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', experienceTemplateId: 'tmpl-1' })
     expect(payload.sys.version).toBe(5)
     expect(payload.name).toBe('Landing Page')
   })
 })
 
-describe('Publishing Templates', () => {
-  const publishedEntity: any = { sys: { id: 'tmpl-1', type: 'Template', version: 1, publishedVersion: 1 }, name: 'Landing Page' }
-  const draftEntity: any = { sys: { id: 'tmpl-1', type: 'Template', version: 2 }, name: 'Landing Page' }
-  const destinationEntity: any = { sys: { id: 'tmpl-1', type: 'Template', version: 5 } }
+describe('Publishing Experience Templates', () => {
+  const publishedEntity: any = { sys: { id: 'tmpl-1', type: 'ExperienceTemplate', version: 1, publishedVersion: 1 }, name: 'Landing Page' }
+  const draftEntity: any = { sys: { id: 'tmpl-1', type: 'ExperienceTemplate', version: 2 }, name: 'Landing Page' }
+  const destinationEntity: any = { sys: { id: 'tmpl-1', type: 'ExperienceTemplate', version: 5 } }
 
   test('publishes an entity that was published in the source, at the destination version', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, templates: [publishedEntity] } as any,
-      destinationData: { ...baseDestinationData, templates: [destinationEntity] },
+      sourceData: { ...baseSourceData, experienceTemplates: [publishedEntity] } as any,
+      destinationData: { ...baseDestinationData, experienceTemplates: [destinationEntity] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -283,16 +283,16 @@ describe('Publishing Templates', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.template.publish).toHaveBeenCalledWith(
-      { spaceId: 'space-1', environmentId: 'master', templateId: 'tmpl-1', version: 5 }
+    expect(plainClient.experienceTemplate.publish).toHaveBeenCalledWith(
+      { spaceId: 'space-1', environmentId: 'master', experienceTemplateId: 'tmpl-1', version: 5 }
     )
   })
 
   test('does not publish an entity that was draft in the source', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, templates: [draftEntity] } as any,
-      destinationData: { ...baseDestinationData, templates: [destinationEntity] },
+      sourceData: { ...baseSourceData, experienceTemplates: [draftEntity] } as any,
+      destinationData: { ...baseDestinationData, experienceTemplates: [destinationEntity] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -301,21 +301,21 @@ describe('Publishing Templates', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.template.publish).not.toHaveBeenCalled()
+    expect(plainClient.experienceTemplate.publish).not.toHaveBeenCalled()
   })
 })
 
-// ─── Fragment ─────────────────────────────────────────────────────────────────
+// ─── ExperienceFragment ─────────────────────────────────────────────────────────────────
 
-describe('Importing Fragments', () => {
-  const componentType = { sys: { type: 'ResourceLink', linkType: 'Contentful:ComponentType', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/componentTypes/hero' } }
-  const entity: any = { sys: { id: 'frag-1', type: 'Fragment', version: 1, componentType }, name: 'Hero Fragment' }
+describe('Importing Experience Fragments', () => {
+  const component = { sys: { type: 'ResourceLink', linkType: 'Contentful:Component', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/components/hero' } }
+  const entity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 1, component }, name: 'Hero Fragment' }
 
-  test('CREATE: calls upsert with id in sys and componentType hoisted from sys', async () => {
+  test('CREATE: calls upsert with id in sys and component hoisted from sys', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, fragments: [entity] } as any,
-      destinationData: { ...baseDestinationData, fragments: [] },
+      sourceData: { ...baseSourceData, experienceFragments: [entity] } as any,
+      destinationData: { ...baseDestinationData, experienceFragments: [] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -324,23 +324,23 @@ describe('Importing Fragments', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.fragment.upsert).toHaveBeenCalledTimes(1)
-    expect(plainClient.fragment.create).not.toHaveBeenCalled()
-    const [params, payload] = plainClient.fragment.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', fragmentId: 'frag-1' })
+    expect(plainClient.experienceFragment.upsert).toHaveBeenCalledTimes(1)
+    expect(plainClient.experienceFragment.create).not.toHaveBeenCalled()
+    const [params, payload] = plainClient.experienceFragment.upsert.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', experienceFragmentId: 'frag-1' })
     expect(payload.sys.id).toBe('frag-1')
-    expect(payload.sys.type).toBe('Fragment')
+    expect(payload.sys.type).toBe('ExperienceFragment')
     expect(payload.sys).not.toHaveProperty('version')
-    expect(payload.componentType).toEqual(componentType)
+    expect(payload.component).toEqual(component)
     expect(payload.name).toBe('Hero Fragment')
   })
 
-  test('UPDATE: calls upsert with destination sys.version and omits componentType (immutable after creation)', async () => {
+  test('UPDATE: calls upsert with component hoisted and destination sys.version', async () => {
     const plainClient = makePlainClientMock()
-    const destinationEntity: any = { sys: { id: 'frag-1', type: 'Fragment', version: 4 } }
+    const destinationEntity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 4 } }
     await pushToSpace({
-      sourceData: { ...baseSourceData, fragments: [entity] } as any,
-      destinationData: { ...baseDestinationData, fragments: [destinationEntity] },
+      sourceData: { ...baseSourceData, experienceFragments: [entity] } as any,
+      destinationData: { ...baseDestinationData, experienceFragments: [destinationEntity] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -349,23 +349,23 @@ describe('Importing Fragments', () => {
       requestQueue
     }).run({ data: {} })
 
-    const [params, payload] = plainClient.fragment.upsert.mock.calls[0] as unknown as [any, any]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', fragmentId: 'frag-1' })
+    const [params, payload] = plainClient.experienceFragment.upsert.mock.calls[0] as unknown as [any, any]
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', experienceFragmentId: 'frag-1' })
     expect(payload.sys.version).toBe(4)
-    expect(payload.componentType).toBeUndefined()
+    expect(payload.component).toEqual(component)
   })
 })
 
-describe('Publishing Fragments', () => {
-  const publishedEntity: any = { sys: { id: 'frag-1', type: 'Fragment', version: 1, publishedVersion: 1 }, name: 'Hero Fragment' }
-  const draftEntity: any = { sys: { id: 'frag-1', type: 'Fragment', version: 1 }, name: 'Hero Fragment' }
-  const destinationEntity: any = { sys: { id: 'frag-1', type: 'Fragment', version: 4 } }
+describe('Publishing Experience Fragments', () => {
+  const publishedEntity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 1, publishedVersion: 1 }, name: 'Hero Fragment' }
+  const draftEntity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 1 }, name: 'Hero Fragment' }
+  const destinationEntity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 4 } }
 
   test('publishes an entity that was published in the source, at the destination version', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, fragments: [publishedEntity] } as any,
-      destinationData: { ...baseDestinationData, fragments: [destinationEntity] },
+      sourceData: { ...baseSourceData, experienceFragments: [publishedEntity] } as any,
+      destinationData: { ...baseDestinationData, experienceFragments: [destinationEntity] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -374,16 +374,16 @@ describe('Publishing Fragments', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.fragment.publish).toHaveBeenCalledWith(
-      { spaceId: 'space-1', environmentId: 'master', fragmentId: 'frag-1', version: 4 }
+    expect(plainClient.experienceFragment.publish).toHaveBeenCalledWith(
+      { spaceId: 'space-1', environmentId: 'master', experienceFragmentId: 'frag-1', version: 4 }
     )
   })
 
   test('does not publish an entity that was draft in the source', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
-      sourceData: { ...baseSourceData, fragments: [draftEntity] } as any,
-      destinationData: { ...baseDestinationData, fragments: [destinationEntity] },
+      sourceData: { ...baseSourceData, experienceFragments: [draftEntity] } as any,
+      destinationData: { ...baseDestinationData, experienceFragments: [destinationEntity] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -392,7 +392,7 @@ describe('Publishing Fragments', () => {
       requestQueue
     }).run({ data: {} })
 
-    expect(plainClient.fragment.publish).not.toHaveBeenCalled()
+    expect(plainClient.experienceFragment.publish).not.toHaveBeenCalled()
   })
 })
 
@@ -590,10 +590,10 @@ describe('Importing Design Tokens', () => {
 // ─── Experience ───────────────────────────────────────────────────────────────
 
 describe('Importing Experiences', () => {
-  const template = { sys: { type: 'ResourceLink', linkType: 'Contentful:Template', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/templates/press-release' } }
-  const entity: any = { sys: { id: 'exp-1', type: 'Experience', version: 1, template }, name: 'My Experience' }
+  const experienceTemplate = { sys: { type: 'ResourceLink', linkType: 'Contentful:ExperienceTemplate', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/experienceTemplates/press-release' } }
+  const entity: any = { sys: { id: 'exp-1', type: 'Experience', version: 1, experienceTemplate }, name: 'My Experience' }
 
-  test('CREATE: calls upsert with id in sys and template hoisted from sys', async () => {
+  test('CREATE: calls upsert with id in sys and experienceTemplate hoisted from sys', async () => {
     const plainClient = makePlainClientMock()
     await pushToSpace({
       sourceData: { ...baseSourceData, experiences: [entity] } as any,
@@ -613,11 +613,11 @@ describe('Importing Experiences', () => {
     expect(payload.sys.id).toBe('exp-1')
     expect(payload.sys.type).toBe('Experience')
     expect(payload.sys).not.toHaveProperty('version')
-    expect(payload.template).toEqual(template)
+    expect(payload.experienceTemplate).toEqual(experienceTemplate)
     expect(payload.name).toBe('My Experience')
   })
 
-  test('UPDATE: calls upsert with destination sys.version and omits template (immutable after creation)', async () => {
+  test('UPDATE: calls upsert with experienceTemplate hoisted and destination sys.version', async () => {
     const plainClient = makePlainClientMock()
     const destinationEntity: any = { sys: { id: 'exp-1', type: 'Experience', version: 6 } }
     await pushToSpace({
@@ -634,15 +634,15 @@ describe('Importing Experiences', () => {
     const [params, payload] = plainClient.experience.upsert.mock.calls[0] as unknown as [any, any]
     expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', experienceId: 'exp-1' })
     expect(payload.sys.version).toBe(6)
-    expect(payload.template).toBeUndefined()
+    expect(payload.experienceTemplate).toEqual(experienceTemplate)
     expect(payload.name).toBe('My Experience')
   })
 })
 
 describe('Publishing Experiences', () => {
-  const template = { sys: { type: 'ResourceLink', linkType: 'Contentful:Template', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/templates/press-release' } }
-  const publishedEntity: any = { sys: { id: 'exp-1', type: 'Experience', version: 1, publishedVersion: 1, template }, name: 'My Experience' }
-  const draftEntity: any = { sys: { id: 'exp-1', type: 'Experience', version: 1, template }, name: 'My Experience' }
+  const experienceTemplate = { sys: { type: 'ResourceLink', linkType: 'Contentful:ExperienceTemplate', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/experienceTemplates/press-release' } }
+  const publishedEntity: any = { sys: { id: 'exp-1', type: 'Experience', version: 1, publishedVersion: 1, experienceTemplate }, name: 'My Experience' }
+  const draftEntity: any = { sys: { id: 'exp-1', type: 'Experience', version: 1, experienceTemplate }, name: 'My Experience' }
   const destinationEntity: any = { sys: { id: 'exp-1', type: 'Experience', version: 6 } }
 
   test('publishes an entity that was published in the source, at the destination version', async () => {

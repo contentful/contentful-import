@@ -1,7 +1,7 @@
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
-import { ComponentTypeProps, DataAssemblyProps, ExperienceProps, FragmentProps, TemplateProps } from 'contentful-management'
+import { ComponentProps, DataAssemblyProps, ExperienceProps, ExperienceFragmentProps, ExperienceTemplateProps } from 'contentful-management'
 
-type PublishableExoEntity = ComponentTypeProps | TemplateProps | FragmentProps | DataAssemblyProps | ExperienceProps
+type PublishableExoEntity = ComponentProps | ExperienceTemplateProps | ExperienceFragmentProps | DataAssemblyProps | ExperienceProps
 
 /**
  * Find all ExO entities in source content which are published, and filter the
