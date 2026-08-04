@@ -335,7 +335,7 @@ describe('Importing Experience Fragments', () => {
     expect(payload.name).toBe('Hero Fragment')
   })
 
-  test('UPDATE: calls upsert with destination sys.version and omits component (immutable after creation - the API rejects it on UPDATE even when unchanged)', async () => {
+  test('UPDATE: calls upsert with destination sys.version and omits component (once an ExperienceFragment is created, its component cannot be changed to a different component)', async () => {
     const plainClient = makePlainClientMock()
     const destinationEntity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 4 } }
     await pushToSpace({
@@ -617,7 +617,7 @@ describe('Importing Experiences', () => {
     expect(payload.name).toBe('My Experience')
   })
 
-  test('UPDATE: calls upsert with destination sys.version and omits experienceTemplate (immutable after creation - the API rejects it on UPDATE even when unchanged)', async () => {
+  test('UPDATE: calls upsert with destination sys.version and omits experienceTemplate (once an Experience is created, its experienceTemplate cannot be changed to a different experienceTemplate)', async () => {
     const plainClient = makePlainClientMock()
     const destinationEntity: any = { sys: { id: 'exp-1', type: 'Experience', version: 6 } }
     await pushToSpace({
