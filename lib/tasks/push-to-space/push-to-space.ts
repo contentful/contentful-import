@@ -583,8 +583,9 @@ export default function pushToSpace({
           try {
             const existing = destinationDataById.experienceFragments?.get(entity.sys.id)
             if (existing) {
-              // once an ExperienceFragment is created, its component cannot be changed to a different component
-              const payload: UpsertExperienceFragmentProps = { ...entity, component: entity.sys.component, sys: { id: entity.sys.id, type: 'ExperienceFragment', version: existing.sys.version } }
+              // once an ExperienceFragment is created, its component cannot be changed to a different component -
+              // the API rejects `component` on UPDATE even when the value is unchanged, so omit it entirely
+              const payload: UpsertExperienceFragmentProps = { ...entity, sys: { id: entity.sys.id, type: 'ExperienceFragment', version: existing.sys.version } }
               const result = await plainClient.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE ExperienceFragment ${entity.sys.id}`)
               results.push(result)
@@ -627,8 +628,9 @@ export default function pushToSpace({
           try {
             const existing = destinationDataById.experiences?.get(entity.sys.id)
             if (existing) {
-              // once an Experience is created, its experienceTemplate cannot be changed to a different experienceTemplate
-              const payload: UpsertExperienceProps = { ...entity, experienceTemplate: entity.sys.experienceTemplate, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
+              // once an Experience is created, its experienceTemplate cannot be changed to a different experienceTemplate -
+              // the API rejects `experienceTemplate` on UPDATE even when the value is unchanged, so omit it entirely
+              const payload: UpsertExperienceProps = { ...entity, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
               const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Experience ${entity.sys.id}`)
               return result
