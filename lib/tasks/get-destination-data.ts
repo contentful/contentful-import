@@ -161,6 +161,20 @@ async function cursorPaginatedQuery ({ plainClient, spaceId, environmentId, type
   return allItems
 }
 
+// A destination space without the ExO entitlement 403s on every ExO endpoint. That's a normal,
+// expected outcome (most spaces don't have ExO enabled) rather than a fatal error, so it's
+// handled the same way the `tags` fetch above handles spaces without Tags access: warn and
+// fall back to an empty array instead of failing the whole destination-data fetch.
+async function cursorPaginatedQueryOrWarn (params: CursorPaginatedQueryParams): Promise<any[]> {
+  try {
+    return await cursorPaginatedQuery(params)
+  } catch (err) {
+    const { name: entityTypeName } = CURSOR_QUERY_METHODS[params.type]
+    logEmitter.emit('warning', `Skipping ${entityTypeName} import: ${err instanceof Error ? err.message : err}`)
+    return []
+  }
+}
+
 type AllDestinationData = {
   contentTypes: Promise<ContentTypeProps[]>
   tags: Promise<TagProps[]>
@@ -289,12 +303,12 @@ export default async function getDestinationData({
   }
 
   if (includeExperienceOrchestration && plainClient) {
-    result.designTokens = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'designTokens', requestQueue })
-    result.components = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'components', requestQueue })
-    result.experienceTemplates = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'experienceTemplates', requestQueue })
-    result.experienceFragments = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'experienceFragments', requestQueue })
-    result.dataAssemblies = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'dataAssemblies', requestQueue })
-    result.experiences = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'experiences', requestQueue })
+    result.designTokens = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'designTokens', requestQueue })
+    result.components = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'components', requestQueue })
+    result.experienceTemplates = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'experienceTemplates', requestQueue })
+    result.experienceFragments = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'experienceFragments', requestQueue })
+    result.dataAssemblies = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'dataAssemblies', requestQueue })
+    result.experiences = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'experiences', requestQueue })
   }
 
   return Promise.props(result)

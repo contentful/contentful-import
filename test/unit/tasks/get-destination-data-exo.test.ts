@@ -1,5 +1,7 @@
 import PQueue from 'p-queue'
 
+import { logEmitter } from 'contentful-batch-libs/dist/logging'
+
 import getDestinationData from '../../../lib/tasks/get-destination-data'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -273,4 +275,108 @@ test('returns empty arrays for all ExO entities when none exist in destination',
   expect(result.experienceFragments).toHaveLength(0)
   expect(result.dataAssemblies).toHaveLength(0)
   expect(result.experiences).toHaveLength(0)
+})
+
+// ─── Destination space without the ExO entitlement (AIS-141) ────────────────
+// A destination space without exoM1 403s on every ExO endpoint. This must not abort the
+// whole destination-data fetch, since the rest of the import (entries, assets, content
+// types, etc.) has nothing to do with ExO.
+
+function makeForbiddenPlainClientMock() {
+  const forbidden = jest.fn(() => Promise.reject(new Error('exoM1 entitlement required')))
+  return {
+    designToken: { getMany: forbidden },
+    component: { getMany: forbidden },
+    experienceTemplate: { getMany: forbidden },
+    experienceFragment: { getMany: forbidden },
+    dataAssembly: { getMany: forbidden },
+    experience: { getMany: forbidden }
+  }
+}
+
+test('does not abort destination-data fetch when the destination space lacks the ExO entitlement', async () => {
+  const plainClient = makeForbiddenPlainClientMock()
+
+  const result = await getDestinationData({
+    client: mockClient,
+    plainClient,
+    spaceId: 'space-1',
+    environmentId: 'master',
+    sourceData: {},
+    includeExperienceOrchestration: true,
+    requestQueue
+  })
+
+  expect(result.designTokens).toEqual([])
+  expect(result.components).toEqual([])
+  expect(result.experienceTemplates).toEqual([])
+  expect(result.experienceFragments).toEqual([])
+  expect(result.dataAssemblies).toEqual([])
+  expect(result.experiences).toEqual([])
+})
+
+test('warns once per ExO entity type when the destination space lacks the ExO entitlement', async () => {
+  const plainClient = makeForbiddenPlainClientMock()
+  const warnings: string[] = []
+  const onWarning = (message: string) => warnings.push(message)
+  logEmitter.on('warning', onWarning)
+
+  try {
+    await getDestinationData({
+      client: mockClient,
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      sourceData: {},
+      includeExperienceOrchestration: true,
+      requestQueue
+    })
+  } finally {
+    logEmitter.off('warning', onWarning)
+  }
+
+  expect(warnings).toHaveLength(6)
+  expect(warnings.some((w) => w.includes('design tokens') && w.includes('exoM1 entitlement required'))).toBe(true)
+  expect(warnings.some((w) => w.includes('components'))).toBe(true)
+  expect(warnings.some((w) => w.includes('experience templates'))).toBe(true)
+  expect(warnings.some((w) => w.includes('experience fragments'))).toBe(true)
+  expect(warnings.some((w) => w.includes('data assemblies'))).toBe(true)
+  expect(warnings.some((w) => w.includes('experiences'))).toBe(true)
+})
+
+test('still fetches non-ExO destination content when the destination space lacks the ExO entitlement', async () => {
+  const plainClient = makeForbiddenPlainClientMock()
+
+  const result = await getDestinationData({
+    client: mockClient,
+    plainClient,
+    spaceId: 'space-1',
+    environmentId: 'master',
+    sourceData: { contentTypes: [makeEntity('ct-x') as any] },
+    includeExperienceOrchestration: true,
+    requestQueue
+  })
+
+  expect(mockEnvironment.getContentTypes).toHaveBeenCalled()
+  expect(result.contentTypes).toHaveLength(1)
+})
+
+test('a non-entitlement error on one ExO type does not block the others from resolving', async () => {
+  const plainClient = {
+    ...makePlainClientMock(),
+    designToken: { getMany: jest.fn(() => Promise.reject(new Error('exoM1 entitlement required'))) }
+  }
+
+  const result = await getDestinationData({
+    client: mockClient,
+    plainClient,
+    spaceId: 'space-1',
+    environmentId: 'master',
+    sourceData: {},
+    includeExperienceOrchestration: true,
+    requestQueue
+  })
+
+  expect(result.designTokens).toEqual([])
+  expect(result.components).toHaveLength(exoItems.components.length)
 })
