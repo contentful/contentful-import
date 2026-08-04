@@ -335,7 +335,7 @@ describe('Importing Experience Fragments', () => {
     expect(payload.name).toBe('Hero Fragment')
   })
 
-  test('UPDATE: calls upsert with component hoisted and destination sys.version', async () => {
+  test('UPDATE: calls upsert with destination sys.version and omits component (immutable after creation - the API rejects it on UPDATE even when unchanged)', async () => {
     const plainClient = makePlainClientMock()
     const destinationEntity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 4 } }
     await pushToSpace({
@@ -352,7 +352,7 @@ describe('Importing Experience Fragments', () => {
     const [params, payload] = plainClient.experienceFragment.upsert.mock.calls[0] as unknown as [any, any]
     expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', experienceFragmentId: 'frag-1' })
     expect(payload.sys.version).toBe(4)
-    expect(payload.component).toEqual(component)
+    expect(payload).not.toHaveProperty('component')
   })
 })
 
@@ -617,7 +617,7 @@ describe('Importing Experiences', () => {
     expect(payload.name).toBe('My Experience')
   })
 
-  test('UPDATE: calls upsert with experienceTemplate hoisted and destination sys.version', async () => {
+  test('UPDATE: calls upsert with destination sys.version and omits experienceTemplate (immutable after creation - the API rejects it on UPDATE even when unchanged)', async () => {
     const plainClient = makePlainClientMock()
     const destinationEntity: any = { sys: { id: 'exp-1', type: 'Experience', version: 6 } }
     await pushToSpace({
@@ -634,7 +634,7 @@ describe('Importing Experiences', () => {
     const [params, payload] = plainClient.experience.upsert.mock.calls[0] as unknown as [any, any]
     expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', experienceId: 'exp-1' })
     expect(payload.sys.version).toBe(6)
-    expect(payload.experienceTemplate).toEqual(experienceTemplate)
+    expect(payload).not.toHaveProperty('experienceTemplate')
     expect(payload.name).toBe('My Experience')
   })
 })
