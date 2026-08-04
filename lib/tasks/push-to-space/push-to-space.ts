@@ -26,7 +26,7 @@ import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../..
 import { buildDataAssemblySys } from '../../utils/exo-entity-payloads'
 import sortComponents from '../../utils/sort-components'
 import sortExperienceFragments from '../../utils/sort-experience-fragments'
-import { filterExoEntitiesToPublish, publishExoEntity } from '../../utils/publish-exo-entities'
+import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity } from '../../utils/publish-exo-entities'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
@@ -661,6 +661,76 @@ export default function pushToSpace({
         ctx.data.publishedExperiences = results.filter((entity): entity is ExperienceProps => entity !== null)
       }),
       skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experiences || []).length
+    },
+    // Unpublishing runs after all Importing/Publishing tasks, in reverse dependency order
+    // (Experience first, DataAssembly last) - the API rejects unpublishing an entity that a
+    // still-published parent references, so parents must unpublish before the children they embed.
+    {
+      title: 'Unpublishing Experiences',
+      task: wrapTask(async (ctx: { data: { experiences: ExperienceProps[] } }) => {
+        const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.experiences, sourceData.experiences || [])
+        await Promise.all(entitiesToUnpublish.map((entity) =>
+          unpublishExoEntity<ExperienceProps>('Experience', entity, () => plainClient.experience.unpublish(
+            { spaceId, environmentId, experienceId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experiences || []).length
+    },
+    {
+      title: 'Unpublishing Experience Fragments',
+      task: wrapTask(async (ctx) => {
+        const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.experienceFragments, sourceData.experienceFragments || [])
+        // Sorted and sequential, reverse of Publishing Experience Fragments: the API rejects
+        // unpublishing a fragment that a still-published parent references, so ancestors must
+        // unpublish first.
+        const sorted = sortExperienceFragments(entitiesToUnpublish).reverse()
+        for (const entity of sorted) {
+          await unpublishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => plainClient.experienceFragment.unpublish(
+            { spaceId, environmentId, experienceFragmentId: entity.sys.id, version: entity.sys.version }
+          ))
+        }
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experienceFragments || []).length
+    },
+    {
+      title: 'Unpublishing Experience Templates',
+      task: wrapTask(async (ctx: { data: { experienceTemplates: ExperienceTemplateProps[] } }) => {
+        const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.experienceTemplates, sourceData.experienceTemplates || [])
+        await Promise.all(entitiesToUnpublish.map((entity) =>
+          unpublishExoEntity<ExperienceTemplateProps>('ExperienceTemplate', entity, () => plainClient.experienceTemplate.unpublish(
+            { spaceId, environmentId, experienceTemplateId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experienceTemplates || []).length
+    },
+    {
+      title: 'Unpublishing Components',
+      task: wrapTask(async (ctx) => {
+        const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.components, sourceData.components || [])
+        // Sorted and sequential, reverse of Publishing Components: the API rejects unpublishing
+        // a Component that a still-published parent references, so ancestors must unpublish first.
+        const sorted = sortComponents(entitiesToUnpublish).reverse()
+        for (const entity of sorted) {
+          await unpublishExoEntity<ComponentProps>('Component', entity, () => plainClient.component.unpublish(
+            { spaceId, environmentId, componentId: entity.sys.id, version: entity.sys.version }
+          ))
+        }
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.components || []).length
+    },
+    {
+      title: 'Unpublishing Data Assemblies',
+      task: wrapTask(async (ctx: { data: { dataAssemblies: DataAssemblyProps[] } }) => {
+        const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.dataAssemblies, sourceData.dataAssemblies || [])
+        await Promise.all(entitiesToUnpublish.map((entity) =>
+          unpublishExoEntity<DataAssemblyProps>('DataAssembly', entity, () => plainClient.dataAssembly.unpublish(
+            { spaceId, environmentId, dataAssemblyId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.dataAssemblies || []).length
     }
   ], listrOptions)
 }
