@@ -46,27 +46,32 @@ function makePlainClientMock() {
     component: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } })),
       upsert: echoVersion('ct-1'),
-      publish: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } }))
+      publish: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } })),
+      unpublish: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } }))
     },
     experienceTemplate: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'tmpl-1' } })),
       upsert: echoVersion('tmpl-1'),
-      publish: jest.fn(() => Promise.resolve({ sys: { id: 'tmpl-1' } }))
+      publish: jest.fn(() => Promise.resolve({ sys: { id: 'tmpl-1' } })),
+      unpublish: jest.fn(() => Promise.resolve({ sys: { id: 'tmpl-1' } }))
     },
     experienceFragment: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'frag-1' } })),
       upsert: echoVersion('frag-1'),
-      publish: jest.fn(() => Promise.resolve({ sys: { id: 'frag-1' } }))
+      publish: jest.fn(() => Promise.resolve({ sys: { id: 'frag-1' } })),
+      unpublish: jest.fn(() => Promise.resolve({ sys: { id: 'frag-1' } }))
     },
     dataAssembly: {
       update: echoVersion('da-1'),
       create: jest.fn(() => Promise.resolve({ sys: { id: 'da-1' } })),
-      publish: jest.fn(() => Promise.resolve({ sys: { id: 'da-1' } }))
+      publish: jest.fn(() => Promise.resolve({ sys: { id: 'da-1' } })),
+      unpublish: jest.fn(() => Promise.resolve({ sys: { id: 'da-1' } }))
     },
     experience: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'exp-1' } })),
       upsert: echoVersion('exp-1'),
-      publish: jest.fn(() => Promise.resolve({ sys: { id: 'exp-1' } }))
+      publish: jest.fn(() => Promise.resolve({ sys: { id: 'exp-1' } })),
+      unpublish: jest.fn(() => Promise.resolve({ sys: { id: 'exp-1' } }))
     }
   }
 }
@@ -693,5 +698,192 @@ describe('Publishing Experiences', () => {
     }).run({ data: {} })
 
     expect(plainClient.experience.publish).not.toHaveBeenCalled()
+  })
+})
+
+// ─── Unpublishing ───────────────────────────────────────────────────────────────────────
+// Covers the fix for the bug where a source-side unpublish never propagated on re-import:
+// no unpublish task existed at all for any ExO entity type before this change.
+
+describe('Unpublishing Components', () => {
+  const draftInSource: any = { sys: { id: 'ct-1', type: 'Component', version: 3 }, name: 'Hero' }
+  const publishedInSource: any = { sys: { id: 'ct-1', type: 'Component', version: 3, publishedVersion: 3 }, name: 'Hero' }
+
+  function makePlainClientWithPublishedDestination() {
+    const plainClient = makePlainClientMock()
+    plainClient.component.upsert = jest.fn((_params: any, _payload: any) => Promise.resolve({ sys: { id: 'ct-1', version: 7, publishedVersion: 7 } }))
+    return plainClient
+  }
+
+  test('unpublishes an entity that is published at the destination but draft in the source', async () => {
+    const plainClient = makePlainClientWithPublishedDestination()
+    const destinationEntity: any = { sys: { id: 'ct-1', type: 'Component', version: 7, publishedVersion: 7 } }
+    await pushToSpace({
+      sourceData: { ...baseSourceData, components: [draftInSource] } as any,
+      destinationData: { ...baseDestinationData, components: [destinationEntity] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })
+
+    expect(plainClient.component.unpublish).toHaveBeenCalledTimes(1)
+    expect(plainClient.component.unpublish).toHaveBeenCalledWith(
+      { spaceId: 'space-1', environmentId: 'master', componentId: 'ct-1', version: 7 }
+    )
+  })
+
+  test('does not unpublish an entity that is published in both source and destination', async () => {
+    const plainClient = makePlainClientWithPublishedDestination()
+    const destinationEntity: any = { sys: { id: 'ct-1', type: 'Component', version: 7, publishedVersion: 7 } }
+    await pushToSpace({
+      sourceData: { ...baseSourceData, components: [publishedInSource] } as any,
+      destinationData: { ...baseDestinationData, components: [destinationEntity] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })
+
+    expect(plainClient.component.unpublish).not.toHaveBeenCalled()
+  })
+
+  test('does not unpublish an entity that was never published at the destination', async () => {
+    const plainClient = makePlainClientMock()
+    const destinationEntity: any = { sys: { id: 'ct-1', type: 'Component', version: 3 } }
+    await pushToSpace({
+      sourceData: { ...baseSourceData, components: [draftInSource] } as any,
+      destinationData: { ...baseDestinationData, components: [destinationEntity] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })
+
+    expect(plainClient.component.unpublish).not.toHaveBeenCalled()
+  })
+
+  test('skips unpublishing when skipContentPublishing is set', async () => {
+    const plainClient = makePlainClientWithPublishedDestination()
+    const destinationEntity: any = { sys: { id: 'ct-1', type: 'Component', version: 7, publishedVersion: 7 } }
+    await pushToSpace({
+      sourceData: { ...baseSourceData, components: [draftInSource] } as any,
+      destinationData: { ...baseDestinationData, components: [destinationEntity] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      skipContentPublishing: true,
+      requestQueue
+    }).run({ data: {} })
+
+    expect(plainClient.component.unpublish).not.toHaveBeenCalled()
+  })
+})
+
+describe('Unpublishing Data Assemblies', () => {
+  test('unpublishes an entity that is published at the destination but draft in the source', async () => {
+    const plainClient = makePlainClientMock()
+    plainClient.dataAssembly.update = jest.fn((_params: any, _payload: any) => Promise.resolve({ sys: { id: 'da-1', version: 5, publishedVersion: 5 } }))
+    const draftInSource: any = { sys: { id: 'da-1', type: 'DataAssembly', version: 5, dataType: [] }, name: 'Assembly', metadata: { tags: [] }, parameters: {}, resolvers: {}, return: { $literal: null } }
+    const destinationEntity: any = { sys: { id: 'da-1', type: 'DataAssembly', version: 5, publishedVersion: 5, dataType: [] } }
+    await pushToSpace({
+      sourceData: { ...baseSourceData, dataAssemblies: [draftInSource] } as any,
+      destinationData: { ...baseDestinationData, dataAssemblies: [destinationEntity] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })
+
+    expect(plainClient.dataAssembly.unpublish).toHaveBeenCalledTimes(1)
+    expect(plainClient.dataAssembly.unpublish).toHaveBeenCalledWith(
+      { spaceId: 'space-1', environmentId: 'master', dataAssemblyId: 'da-1', version: 5 }
+    )
+  })
+})
+
+describe('Unpublishing Experience Templates', () => {
+  test('unpublishes an entity that is published at the destination but draft in the source', async () => {
+    const plainClient = makePlainClientMock()
+    plainClient.experienceTemplate.upsert = jest.fn((_params: any, _payload: any) => Promise.resolve({ sys: { id: 'tmpl-1', version: 4, publishedVersion: 4 } }))
+    const draftInSource: any = { sys: { id: 'tmpl-1', type: 'ExperienceTemplate', version: 4 }, name: 'Press Release' }
+    const destinationEntity: any = { sys: { id: 'tmpl-1', type: 'ExperienceTemplate', version: 4, publishedVersion: 4 } }
+    await pushToSpace({
+      sourceData: { ...baseSourceData, experienceTemplates: [draftInSource] } as any,
+      destinationData: { ...baseDestinationData, experienceTemplates: [destinationEntity] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })
+
+    expect(plainClient.experienceTemplate.unpublish).toHaveBeenCalledTimes(1)
+    expect(plainClient.experienceTemplate.unpublish).toHaveBeenCalledWith(
+      { spaceId: 'space-1', environmentId: 'master', experienceTemplateId: 'tmpl-1', version: 4 }
+    )
+  })
+})
+
+describe('Unpublishing Experience Fragments', () => {
+  const component = { sys: { type: 'ResourceLink', linkType: 'Contentful:Component', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/components/hero' } }
+
+  test('unpublishes an entity that is published at the destination but draft in the source', async () => {
+    const plainClient = makePlainClientMock()
+    plainClient.experienceFragment.upsert = jest.fn((_params: any, _payload: any) => Promise.resolve({ sys: { id: 'frag-1', version: 4, publishedVersion: 4 } }))
+    const draftInSource: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 4, component }, name: 'Hero Fragment' }
+    const destinationEntity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 4, publishedVersion: 4 } }
+    await pushToSpace({
+      sourceData: { ...baseSourceData, experienceFragments: [draftInSource] } as any,
+      destinationData: { ...baseDestinationData, experienceFragments: [destinationEntity] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })
+
+    expect(plainClient.experienceFragment.unpublish).toHaveBeenCalledTimes(1)
+    expect(plainClient.experienceFragment.unpublish).toHaveBeenCalledWith(
+      { spaceId: 'space-1', environmentId: 'master', experienceFragmentId: 'frag-1', version: 4 }
+    )
+  })
+})
+
+describe('Unpublishing Experiences', () => {
+  const experienceTemplate = { sys: { type: 'ResourceLink', linkType: 'Contentful:ExperienceTemplate', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/experienceTemplates/press-release' } }
+
+  test('unpublishes an entity that is published at the destination but draft in the source', async () => {
+    const plainClient = makePlainClientMock()
+    plainClient.experience.upsert = jest.fn((_params: any, _payload: any) => Promise.resolve({ sys: { id: 'exp-1', version: 8, publishedVersion: 8 } }))
+    const draftInSource: any = { sys: { id: 'exp-1', type: 'Experience', version: 8, experienceTemplate }, name: 'My Experience' }
+    const destinationEntity: any = { sys: { id: 'exp-1', type: 'Experience', version: 8, publishedVersion: 8 } }
+    await pushToSpace({
+      sourceData: { ...baseSourceData, experiences: [draftInSource] } as any,
+      destinationData: { ...baseDestinationData, experiences: [destinationEntity] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })
+
+    expect(plainClient.experience.unpublish).toHaveBeenCalledTimes(1)
+    expect(plainClient.experience.unpublish).toHaveBeenCalledWith(
+      { spaceId: 'space-1', environmentId: 'master', experienceId: 'exp-1', version: 8 }
+    )
   })
 })
