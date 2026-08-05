@@ -38,8 +38,22 @@ function echoVersion(id: string) {
   return jest.fn((_params: any, payload: any) => Promise.resolve({ sys: { id, version: payload.sys.version ?? 1 } }))
 }
 
+const ALL_PARENT_GROUP_IDS = [
+  'contentful.folder-group-designToken',
+  'contentful.folder-group-componentType',
+  'contentful.folder-group-template',
+  'contentful.folder-group-fragment',
+  'contentful.folder-group-experience',
+]
+
 function makePlainClientMock() {
   return {
+    conceptScheme: {
+      getMany: jest.fn(() => Promise.resolve({
+        items: ALL_PARENT_GROUP_IDS.map((id) => ({ sys: { id, version: 1 }, concepts: [] }))
+      })),
+      patch: jest.fn(({ version }: any) => Promise.resolve({ sys: { version: version + 1 }, concepts: [] })),
+    },
     designToken: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'dt-1' } })),
       upsert: echoVersion('dt-1')

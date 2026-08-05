@@ -67,13 +67,13 @@ ExO folders are built entirely on Contentful's Taxonomy system and have two laye
 
 Five well-known, fixed-ID concept schemes act as the registry for each entity type's folders:
 
-| Scheme ID | Entity type |
-|---|---|
-| `contentful.folder-group-componentType` | ComponentTypes |
-| `contentful.folder-group-template` | Templates |
-| `contentful.folder-group-experience` | Experiences |
-| `contentful.folder-group-fragment` | Fragments |
-| `contentful.folder-group-designToken` | DesignTokens |
+| Scheme ID                               | Entity type     |
+|-----------------------------------------|-----------------|
+| `contentful.folder-group-componentType` | ComponentTypes  |
+| `contentful.folder-group-template`      | Templates       |
+| `contentful.folder-group-experience`    | Experiences     |
+| `contentful.folder-group-fragment`      | Fragments       |
+| `contentful.folder-group-designToken`   | DesignTokens    |
 
 These schemes are org-scoped (shared across all spaces in the org). Their `concepts[]` field is the registry of all child folder concepts for that entity type. They must be queried and created with `purpose: 'internal'`.
 
