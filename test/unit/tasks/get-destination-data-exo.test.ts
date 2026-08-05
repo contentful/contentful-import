@@ -40,6 +40,18 @@ const exoItems = {
   experiences: Array.from({ length: 6 }, (_, i) => makeEntity(`exp-${i}`))
 }
 
+// The ExO fetch block is now gated on the source content actually containing that entity
+// type (mirrors how entries/assets/locales are gated), so tests that expect a given ExO
+// fetch to fire must include a source entity of that type.
+const exoSourceData = {
+  designTokens: [makeEntity('src-dt') as any],
+  components: [makeEntity('src-ct') as any],
+  experienceTemplates: [makeEntity('src-tmpl') as any],
+  experienceFragments: [makeEntity('src-frag') as any],
+  dataAssemblies: [makeEntity('src-da') as any],
+  experiences: [makeEntity('src-exp') as any]
+}
+
 function makePlainClientMock() {
   return {
     designToken: { getMany: makeCursorResolver(exoItems.designTokens) },
@@ -94,7 +106,7 @@ test('uses cursor pagination for ExO entities, not for standard entities', async
     plainClient,
     spaceId: 'space-1',
     environmentId: 'master',
-    sourceData: { contentTypes: [makeEntity('ct-x') as any] },
+    sourceData: { contentTypes: [makeEntity('ct-x') as any], ...exoSourceData },
     includeExperienceOrchestration: true,
     requestQueue
   })
@@ -116,7 +128,7 @@ test('does NOT call plainClient ExO methods when includeExperienceOrchestration 
     plainClient,
     spaceId: 'space-1',
     environmentId: 'master',
-    sourceData: {},
+    sourceData: exoSourceData,
     includeExperienceOrchestration: false,
     requestQueue
   })
@@ -142,7 +154,7 @@ test('follows pageNext cursor across multiple pages', async () => {
     plainClient,
     spaceId: 'space-1',
     environmentId: 'master',
-    sourceData: {},
+    sourceData: { components: exoSourceData.components },
     includeExperienceOrchestration: true,
     requestQueue
   })
@@ -160,7 +172,7 @@ test('returns destination designTokens fetched via cursor pagination', async () 
     plainClient,
     spaceId: 'space-1',
     environmentId: 'master',
-    sourceData: {},
+    sourceData: { designTokens: exoSourceData.designTokens },
     includeExperienceOrchestration: true,
     requestQueue
   })
@@ -176,7 +188,7 @@ test('returns destination components fetched via cursor pagination', async () =>
     plainClient,
     spaceId: 'space-1',
     environmentId: 'master',
-    sourceData: {},
+    sourceData: { components: exoSourceData.components },
     includeExperienceOrchestration: true,
     requestQueue
   })
@@ -192,7 +204,7 @@ test('returns destination experienceTemplates fetched via cursor pagination', as
     plainClient,
     spaceId: 'space-1',
     environmentId: 'master',
-    sourceData: {},
+    sourceData: { experienceTemplates: exoSourceData.experienceTemplates },
     includeExperienceOrchestration: true,
     requestQueue
   })
@@ -208,7 +220,7 @@ test('returns destination experienceFragments fetched via cursor pagination', as
     plainClient,
     spaceId: 'space-1',
     environmentId: 'master',
-    sourceData: {},
+    sourceData: { experienceFragments: exoSourceData.experienceFragments },
     includeExperienceOrchestration: true,
     requestQueue
   })
@@ -224,7 +236,7 @@ test('returns destination dataAssemblies fetched via cursor pagination', async (
     plainClient,
     spaceId: 'space-1',
     environmentId: 'master',
-    sourceData: {},
+    sourceData: { dataAssemblies: exoSourceData.dataAssemblies },
     includeExperienceOrchestration: true,
     requestQueue
   })
@@ -240,7 +252,7 @@ test('returns destination experiences fetched via cursor pagination', async () =
     plainClient,
     spaceId: 'space-1',
     environmentId: 'master',
-    sourceData: {},
+    sourceData: { experiences: exoSourceData.experiences },
     includeExperienceOrchestration: true,
     requestQueue
   })
@@ -264,7 +276,7 @@ test('returns empty arrays for all ExO entities when none exist in destination',
     plainClient: emptyPlainClient,
     spaceId: 'space-1',
     environmentId: 'master',
-    sourceData: {},
+    sourceData: exoSourceData,
     includeExperienceOrchestration: true,
     requestQueue
   })
@@ -277,13 +289,71 @@ test('returns empty arrays for all ExO entities when none exist in destination',
   expect(result.experiences).toHaveLength(0)
 })
 
+// ─── ExO fetches are gated on source content, like entries/assets/locales ────
+
+test('does not call any plainClient ExO methods when the source content has no ExO entities', async () => {
+  const plainClient = makePlainClientMock()
+
+  await getDestinationData({
+    client: mockClient,
+    plainClient,
+    spaceId: 'space-1',
+    environmentId: 'master',
+    sourceData: { contentTypes: [makeEntity('ct-x') as any] },
+    includeExperienceOrchestration: true,
+    requestQueue
+  })
+
+  expect(plainClient.designToken.getMany).not.toHaveBeenCalled()
+  expect(plainClient.component.getMany).not.toHaveBeenCalled()
+  expect(plainClient.experienceTemplate.getMany).not.toHaveBeenCalled()
+  expect(plainClient.experienceFragment.getMany).not.toHaveBeenCalled()
+  expect(plainClient.dataAssembly.getMany).not.toHaveBeenCalled()
+  expect(plainClient.experience.getMany).not.toHaveBeenCalled()
+})
+
+test('only fetches the ExO entity types actually present in source content', async () => {
+  const plainClient = makePlainClientMock()
+
+  const result = await getDestinationData({
+    client: mockClient,
+    plainClient,
+    spaceId: 'space-1',
+    environmentId: 'master',
+    sourceData: { designTokens: exoSourceData.designTokens },
+    includeExperienceOrchestration: true,
+    requestQueue
+  })
+
+  expect(plainClient.designToken.getMany).toHaveBeenCalled()
+  expect(plainClient.component.getMany).not.toHaveBeenCalled()
+  expect(plainClient.experienceTemplate.getMany).not.toHaveBeenCalled()
+  expect(plainClient.experienceFragment.getMany).not.toHaveBeenCalled()
+  expect(plainClient.dataAssembly.getMany).not.toHaveBeenCalled()
+  expect(plainClient.experience.getMany).not.toHaveBeenCalled()
+  expect(result.designTokens).toHaveLength(exoItems.designTokens.length)
+  expect(result.components).toEqual([])
+})
+
 // ─── Destination space without the ExO entitlement (AIS-141) ────────────────
 // A destination space without exoM1 403s on every ExO endpoint. This must not abort the
 // whole destination-data fetch, since the rest of the import (entries, assets, content
 // types, etc.) has nothing to do with ExO.
 
+// Mirrors the real CMA SDK error shape confirmed live against a space without exoM1 (AIS-141):
+// error.message is a JSON-stringified envelope, not a plain string.
+function makeExoEntitlementError() {
+  return new Error(JSON.stringify({
+    status: 403,
+    statusText: '',
+    message: 'Forbidden',
+    details: { reasons: 'exoM1 entitlement required' },
+    request: { url: 'https://api.contentful.com/spaces/space-1/environments/master/components' }
+  }))
+}
+
 function makeForbiddenPlainClientMock() {
-  const forbidden = jest.fn(() => Promise.reject(new Error('exoM1 entitlement required')))
+  const forbidden = jest.fn(() => Promise.reject(makeExoEntitlementError()))
   return {
     designToken: { getMany: forbidden },
     component: { getMany: forbidden },
@@ -296,16 +366,23 @@ function makeForbiddenPlainClientMock() {
 
 test('does not abort destination-data fetch when the destination space lacks the ExO entitlement', async () => {
   const plainClient = makeForbiddenPlainClientMock()
+  const onError = () => {}
+  logEmitter.on('error', onError)
 
-  const result = await getDestinationData({
-    client: mockClient,
-    plainClient,
-    spaceId: 'space-1',
-    environmentId: 'master',
-    sourceData: {},
-    includeExperienceOrchestration: true,
-    requestQueue
-  })
+  let result
+  try {
+    result = await getDestinationData({
+      client: mockClient,
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      sourceData: exoSourceData,
+      includeExperienceOrchestration: true,
+      requestQueue
+    })
+  } finally {
+    logEmitter.off('error', onError)
+  }
 
   expect(result.designTokens).toEqual([])
   expect(result.components).toEqual([])
@@ -315,11 +392,11 @@ test('does not abort destination-data fetch when the destination space lacks the
   expect(result.experiences).toEqual([])
 })
 
-test('warns once per ExO entity type when the destination space lacks the ExO entitlement', async () => {
+test('logs once per ExO entity type as an error when the destination space lacks the ExO entitlement', async () => {
   const plainClient = makeForbiddenPlainClientMock()
-  const warnings: string[] = []
-  const onWarning = (message: string) => warnings.push(message)
-  logEmitter.on('warning', onWarning)
+  const errors: Error[] = []
+  const onError = (error: Error) => errors.push(error)
+  logEmitter.on('error', onError)
 
   try {
     await getDestinationData({
@@ -327,35 +404,97 @@ test('warns once per ExO entity type when the destination space lacks the ExO en
       plainClient,
       spaceId: 'space-1',
       environmentId: 'master',
-      sourceData: {},
+      sourceData: exoSourceData,
       includeExperienceOrchestration: true,
       requestQueue
     })
   } finally {
-    logEmitter.off('warning', onWarning)
+    logEmitter.off('error', onError)
   }
 
-  expect(warnings).toHaveLength(6)
-  expect(warnings.some((w) => w.includes('design tokens') && w.includes('exoM1 entitlement required'))).toBe(true)
-  expect(warnings.some((w) => w.includes('components'))).toBe(true)
-  expect(warnings.some((w) => w.includes('experience templates'))).toBe(true)
-  expect(warnings.some((w) => w.includes('experience fragments'))).toBe(true)
-  expect(warnings.some((w) => w.includes('data assemblies'))).toBe(true)
-  expect(warnings.some((w) => w.includes('experiences'))).toBe(true)
+  expect(errors).toHaveLength(6)
+  expect(errors.some((e) => e.message.includes('design tokens') && e.message.includes('Experience Orchestration (ExO) is not enabled for this space'))).toBe(true)
+  expect(errors.some((e) => e.message.includes('components'))).toBe(true)
+  expect(errors.some((e) => e.message.includes('experience templates'))).toBe(true)
+  expect(errors.some((e) => e.message.includes('experience fragments'))).toBe(true)
+  expect(errors.some((e) => e.message.includes('data assemblies'))).toBe(true)
+  expect(errors.some((e) => e.message.includes('experiences'))).toBe(true)
+})
+
+test('translates the exoM1-entitlement 403 into a friendly message, not the raw JSON error blob', async () => {
+  const plainClient = makeForbiddenPlainClientMock()
+  const errors: Error[] = []
+  const onError = (error: Error) => errors.push(error)
+  logEmitter.on('error', onError)
+
+  try {
+    await getDestinationData({
+      client: mockClient,
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      sourceData: exoSourceData,
+      includeExperienceOrchestration: true,
+      requestQueue
+    })
+  } finally {
+    logEmitter.off('error', onError)
+  }
+
+  for (const error of errors) {
+    expect(error.message).toContain('Experience Orchestration (ExO) is not enabled for this space')
+    expect(error.message).not.toContain('exoM1 entitlement required')
+    expect(error.message).not.toContain('{"status":403')
+  }
+})
+
+test('leaves non-entitlement errors as-is instead of swallowing them into the friendly message', async () => {
+  const plainClient = {
+    ...makePlainClientMock(),
+    designToken: { getMany: jest.fn(() => Promise.reject(new Error('socket hang up'))) }
+  }
+  const errors: Error[] = []
+  const onError = (error: Error) => errors.push(error)
+  logEmitter.on('error', onError)
+
+  try {
+    await getDestinationData({
+      client: mockClient,
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      sourceData: { designTokens: exoSourceData.designTokens },
+      includeExperienceOrchestration: true,
+      requestQueue
+    })
+  } finally {
+    logEmitter.off('error', onError)
+  }
+
+  expect(errors).toHaveLength(1)
+  expect(errors[0].message).toContain('socket hang up')
+  expect(errors[0].message).not.toContain('Experience Orchestration (ExO) is not enabled for this space')
 })
 
 test('still fetches non-ExO destination content when the destination space lacks the ExO entitlement', async () => {
   const plainClient = makeForbiddenPlainClientMock()
+  const onError = () => {}
+  logEmitter.on('error', onError)
 
-  const result = await getDestinationData({
-    client: mockClient,
-    plainClient,
-    spaceId: 'space-1',
-    environmentId: 'master',
-    sourceData: { contentTypes: [makeEntity('ct-x') as any] },
-    includeExperienceOrchestration: true,
-    requestQueue
-  })
+  let result
+  try {
+    result = await getDestinationData({
+      client: mockClient,
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      sourceData: { contentTypes: [makeEntity('ct-x') as any], ...exoSourceData },
+      includeExperienceOrchestration: true,
+      requestQueue
+    })
+  } finally {
+    logEmitter.off('error', onError)
+  }
 
   expect(mockEnvironment.getContentTypes).toHaveBeenCalled()
   expect(result.contentTypes).toHaveLength(1)
@@ -366,17 +505,151 @@ test('a non-entitlement error on one ExO type does not block the others from res
     ...makePlainClientMock(),
     designToken: { getMany: jest.fn(() => Promise.reject(new Error('exoM1 entitlement required'))) }
   }
+  const onError = () => {}
+  logEmitter.on('error', onError)
+
+  let result
+  try {
+    result = await getDestinationData({
+      client: mockClient,
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      sourceData: { designTokens: exoSourceData.designTokens, components: exoSourceData.components },
+      includeExperienceOrchestration: true,
+      requestQueue
+    })
+  } finally {
+    logEmitter.off('error', onError)
+  }
+
+  expect(result.designTokens).toEqual([])
+  expect(result.components).toHaveLength(exoItems.components.length)
+})
+
+// ─── Proactive entitlement check (AIS-141 / AIS-191 pattern) ────────────────
+// Composes with, and is nested inside, the content gate above: the entitlement check
+// only runs at all when source has at least one of the 5 exoM1-gated types, and its
+// "definitely missing" answer short-circuits those 5 in one shot instead of letting
+// each 403 independently. dataAssemblies is excluded — confirmed live (AIS-141) that
+// it isn't actually gated by exoM1 the same way, so it always fetches independently.
+
+function makePlainClientWithEntitlement(entitledResponse: () => Promise<any>) {
+  return {
+    ...makePlainClientMock(),
+    space: { get: jest.fn(() => Promise.resolve({ sys: { organization: { sys: { id: 'org-1' } } } })) },
+    raw: { get: jest.fn(entitledResponse) }
+  }
+}
+
+test('skips all exoM1-gated types with a single error when the entitlement check confirms it is missing', async () => {
+  const plainClient = makePlainClientWithEntitlement(() => Promise.resolve({ features: { exoM1: { value: false } } }))
+  const errors: Error[] = []
+  const onError = (error: Error) => errors.push(error)
+  logEmitter.on('error', onError)
+
+  let result
+  try {
+    result = await getDestinationData({
+      client: mockClient,
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      sourceData: { designTokens: exoSourceData.designTokens, components: exoSourceData.components, experiences: exoSourceData.experiences },
+      includeExperienceOrchestration: true,
+      requestQueue
+    })
+  } finally {
+    logEmitter.off('error', onError)
+  }
+
+  expect(plainClient.designToken.getMany).not.toHaveBeenCalled()
+  expect(plainClient.component.getMany).not.toHaveBeenCalled()
+  expect(plainClient.experience.getMany).not.toHaveBeenCalled()
+  expect(result.designTokens).toEqual([])
+  expect(result.components).toEqual([])
+  expect(result.experiences).toEqual([])
+  expect(errors).toHaveLength(1)
+  expect(errors[0].message).toContain('Experience Orchestration (ExO) is not enabled for this space')
+})
+
+test('still fetches dataAssemblies independently when the entitlement check confirms exoM1 is missing for the other types', async () => {
+  const plainClient = makePlainClientWithEntitlement(() => Promise.resolve({ features: { exoM1: { value: false } } }))
+  const onError = () => {}
+  logEmitter.on('error', onError)
+
+  let result
+  try {
+    result = await getDestinationData({
+      client: mockClient,
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      sourceData: { designTokens: exoSourceData.designTokens, dataAssemblies: exoSourceData.dataAssemblies },
+      includeExperienceOrchestration: true,
+      requestQueue
+    })
+  } finally {
+    logEmitter.off('error', onError)
+  }
+
+  expect(plainClient.designToken.getMany).not.toHaveBeenCalled()
+  expect(plainClient.dataAssembly.getMany).toHaveBeenCalled()
+  expect(result.dataAssemblies).toHaveLength(exoItems.dataAssemblies.length)
+})
+
+test('does not call the entitlement check at all when source has only dataAssemblies', async () => {
+  const plainClient = makePlainClientWithEntitlement(() => Promise.resolve({ features: { exoM1: { value: false } } }))
 
   const result = await getDestinationData({
     client: mockClient,
     plainClient,
     spaceId: 'space-1',
     environmentId: 'master',
-    sourceData: {},
+    sourceData: { dataAssemblies: exoSourceData.dataAssemblies },
     includeExperienceOrchestration: true,
     requestQueue
   })
 
-  expect(result.designTokens).toEqual([])
-  expect(result.components).toHaveLength(exoItems.components.length)
+  expect(plainClient.space.get).not.toHaveBeenCalled()
+  expect(plainClient.dataAssembly.getMany).toHaveBeenCalled()
+  expect(result.dataAssemblies).toHaveLength(exoItems.dataAssemblies.length)
+})
+
+test('proceeds with the normal per-type fetches when the entitlement check confirms exoM1 is present', async () => {
+  const plainClient = makePlainClientWithEntitlement(() => Promise.resolve({ features: { exoM1: { value: true } } }))
+
+  const result = await getDestinationData({
+    client: mockClient,
+    plainClient,
+    spaceId: 'space-1',
+    environmentId: 'master',
+    sourceData: { designTokens: exoSourceData.designTokens },
+    includeExperienceOrchestration: true,
+    requestQueue
+  })
+
+  expect(plainClient.designToken.getMany).toHaveBeenCalled()
+  expect(result.designTokens).toHaveLength(exoItems.designTokens.length)
+})
+
+test('falls back to the per-type fetch-and-catch when the entitlement check itself is inconclusive', async () => {
+  const plainClient = {
+    ...makePlainClientMock(),
+    space: { get: jest.fn(() => Promise.reject(new Error('network error'))) },
+    raw: { get: jest.fn() }
+  }
+
+  const result = await getDestinationData({
+    client: mockClient,
+    plainClient,
+    spaceId: 'space-1',
+    environmentId: 'master',
+    sourceData: { designTokens: exoSourceData.designTokens },
+    includeExperienceOrchestration: true,
+    requestQueue
+  })
+
+  expect(plainClient.designToken.getMany).toHaveBeenCalled()
+  expect(result.designTokens).toHaveLength(exoItems.designTokens.length)
 })
