@@ -142,11 +142,10 @@ export async function createOrPatchChildConcepts(
     try {
       existing = await plainClient.concept.get({ organizationId, conceptId: destConceptId })
     } catch (err: any) {
-      if (err?.status !== 404 && err?.sys?.id !== 'NotFound') {
-        // Fail silently as 404 error is expected when the concept doesn't exist yet.
-      } else {
+      if (err?.name !== 'NotFound') {
         logEmitter.emit('warning', `Could not fetch destination child concept ${destConceptId}: ${err?.message ?? err}`)
       }
+      // Ignore 404 errors — they just mean the concept doesn't exist yet. Log any other errors.
     }
 
     if (!existing) {
