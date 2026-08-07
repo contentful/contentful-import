@@ -21,12 +21,12 @@ import * as assets from './assets'
 import * as creation from './creation'
 import * as publishing from './publishing'
 import type { DestinationData, TransformedSourceData, Resources, TransformedAsset } from '../../types'
-import { ContentfulEntityError } from '../../utils/errors'
 import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../../utils/graphql-schema-backoff'
 import { buildDataAssemblySys } from '../../utils/exo-entity-payloads'
 import sortComponents from '../../utils/sort-components'
 import sortExperienceFragments from '../../utils/sort-experience-fragments'
 import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity } from '../../utils/publish-exo-entities'
+import { sortOrReport } from '../../utils/sort-or-report'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
@@ -259,10 +259,9 @@ export default function pushToSpace({
             const updatedEditorInterface = await requestQueue.add(() => ctEditorInterface.update())
             return updatedEditorInterface
           } catch (err: any) {
-            if (err instanceof ContentfulEntityError) {
-              err.entity = editorInterface
-            }
-            throw err
+            err.entity = editorInterface
+            logEmitter.emit('error', err)
+            return null
           }
         })
 
@@ -441,7 +440,8 @@ export default function pushToSpace({
               logEmitter.emit('info', `CREATE DataAssembly ${entity.sys.id}`)
             }
             return result
-          } catch (err) {
+          } catch (err: any) {
+            err.entity = entity
             logEmitter.emit('error', err)
             return null
           }
@@ -480,7 +480,8 @@ export default function pushToSpace({
               logEmitter.emit('info', `CREATE DesignToken ${entity.sys.id}`)
               return result
             }
-          } catch (err) {
+          } catch (err: any) {
+            err.entity = entity
             logEmitter.emit('error', err)
             return null
           }
@@ -492,7 +493,7 @@ export default function pushToSpace({
     {
       title: 'Importing Components',
       task: wrapTask(async (ctx) => {
-        const sorted = sortComponents(sourceData.components || [])
+        const sorted = sortOrReport(() => sortComponents(sourceData.components || []))
         const results: any[] = []
         for (const entity of sorted) {
           try {
@@ -508,7 +509,8 @@ export default function pushToSpace({
               logEmitter.emit('info', `CREATE Component ${entity.sys.id}`)
               results.push(result)
             }
-          } catch (err) {
+          } catch (err: any) {
+            err.entity = entity
             logEmitter.emit('error', err)
           }
         }
@@ -523,7 +525,7 @@ export default function pushToSpace({
         // Sorted and sequential: a Component's publish validation resolves nested
         // Component/DataAssembly references against their *published* state, so a
         // parent can't publish before the Components it embeds are published.
-        const sorted = sortComponents(entitiesToPublish)
+        const sorted = sortOrReport(() => sortComponents(entitiesToPublish))
         const results: ComponentProps[] = []
         for (const entity of sorted) {
           const published = await publishExoEntity<ComponentProps>('Component', entity, () => plainClient.component.publish(
@@ -552,7 +554,8 @@ export default function pushToSpace({
               logEmitter.emit('info', `CREATE ExperienceTemplate ${entity.sys.id}`)
               return result
             }
-          } catch (err) {
+          } catch (err: any) {
+            err.entity = entity
             logEmitter.emit('error', err)
             return null
           }
@@ -577,7 +580,7 @@ export default function pushToSpace({
     {
       title: 'Importing Experience Fragments',
       task: wrapTask(async (ctx) => {
-        const sorted = sortExperienceFragments(sourceData.experienceFragments || [])
+        const sorted = sortOrReport(() => sortExperienceFragments(sourceData.experienceFragments || []))
         const results: any[] = []
         for (const entity of sorted) {
           try {
@@ -595,7 +598,8 @@ export default function pushToSpace({
               logEmitter.emit('info', `CREATE ExperienceFragment ${entity.sys.id}`)
               results.push(result)
             }
-          } catch (err) {
+          } catch (err: any) {
+            err.entity = entity
             logEmitter.emit('error', err)
           }
         }
@@ -609,7 +613,7 @@ export default function pushToSpace({
         const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.experienceFragments, sourceData.experienceFragments || [])
         // Sorted and sequential, same reasoning as Publishing Components: an ExperienceFragment
         // can reference other ExperienceFragments in its slots, resolved against published state.
-        const sorted = sortExperienceFragments(entitiesToPublish)
+        const sorted = sortOrReport(() => sortExperienceFragments(entitiesToPublish))
         const results: ExperienceFragmentProps[] = []
         for (const entity of sorted) {
           const published = await publishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => plainClient.experienceFragment.publish(
@@ -640,7 +644,8 @@ export default function pushToSpace({
               logEmitter.emit('info', `CREATE Experience ${entity.sys.id}`)
               return result
             }
-          } catch (err) {
+          } catch (err: any) {
+            err.entity = entity
             logEmitter.emit('error', err)
             return null
           }
