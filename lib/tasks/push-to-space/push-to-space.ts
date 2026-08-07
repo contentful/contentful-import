@@ -442,7 +442,8 @@ export default function pushToSpace({
               logEmitter.emit('info', `CREATE DataAssembly ${entity.sys.id}`)
             }
             return result
-          } catch (err) {
+          } catch (err: any) {
+            err.entity = entity
             logEmitter.emit('error', err)
             return null
           }
@@ -481,7 +482,8 @@ export default function pushToSpace({
               logEmitter.emit('info', `CREATE DesignToken ${entity.sys.id}`)
               return result
             }
-          } catch (err) {
+          } catch (err: any) {
+            err.entity = entity
             logEmitter.emit('error', err)
             return null
           }
@@ -509,7 +511,8 @@ export default function pushToSpace({
               logEmitter.emit('info', `CREATE Component ${entity.sys.id}`)
               results.push(result)
             }
-          } catch (err) {
+          } catch (err: any) {
+            err.entity = entity
             logEmitter.emit('error', err)
           }
         }
@@ -553,7 +556,8 @@ export default function pushToSpace({
               logEmitter.emit('info', `CREATE ExperienceTemplate ${entity.sys.id}`)
               return result
             }
-          } catch (err) {
+          } catch (err: any) {
+            err.entity = entity
             logEmitter.emit('error', err)
             return null
           }
@@ -596,7 +600,8 @@ export default function pushToSpace({
               logEmitter.emit('info', `CREATE ExperienceFragment ${entity.sys.id}`)
               results.push(result)
             }
-          } catch (err) {
+          } catch (err: any) {
+            err.entity = entity
             logEmitter.emit('error', err)
           }
         }
@@ -641,7 +646,8 @@ export default function pushToSpace({
               logEmitter.emit('info', `CREATE Experience ${entity.sys.id}`)
               return result
             }
-          } catch (err) {
+          } catch (err: any) {
+            err.entity = entity
             logEmitter.emit('error', err)
             return null
           }
