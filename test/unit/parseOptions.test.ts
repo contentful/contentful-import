@@ -95,17 +95,17 @@ test('parseOptions sets correct default options', async () => {
   expect(options.uploadAssets).toBe(false)
   expect(options.content).toEqual({
     assets: [],
-    componentTypes: [],
+    components: [],
     contentTypes: [],
     dataAssemblies: [],
     designTokens: [],
     editorInterfaces: [],
     entries: [],
+    experienceFragments: [],
+    experienceTemplates: [],
     experiences: [],
-    fragments: [],
     locales: [],
     tags: [],
-    templates: [],
     webhooks: [],
     ...require(contentFile)
   })

@@ -1,4 +1,4 @@
-import sortFragments from '../../lib/utils/sort-fragments'
+import sortExperienceFragments from '../../lib/utils/sort-experience-fragments'
 
 function idx(sorted: { sys: { id: string } }[], id: string) {
   return sorted.findIndex((f) => f.sys.id === id)
@@ -10,15 +10,15 @@ function frag(id: string, slots?: object, componentTree?: object) {
 
 // Embed a fragment URN reference into a slots/componentTree structure
 function ref(id: string) {
-  return [{ urn: `urn:contentful:fragments/${id}` }]
+  return [{ urn: `urn:contentful:experienceFragments/${id}` }]
 }
 
 test('returns empty array when given empty input', () => {
-  expect(sortFragments([])).toEqual([])
+  expect(sortExperienceFragments([])).toEqual([])
 })
 
 test('returns single fragment unchanged', () => {
-  const result = sortFragments([frag('a')])
+  const result = sortExperienceFragments([frag('a')])
   expect(result).toHaveLength(1)
   expect(result[0].sys.id).toBe('a')
 })
@@ -26,7 +26,7 @@ test('returns single fragment unchanged', () => {
 test('sorts two fragments so dependency via slots comes first', () => {
   const a = frag('a', ref('b'))
   const b = frag('b')
-  const result = sortFragments([a, b])
+  const result = sortExperienceFragments([a, b])
   expect(idx(result, 'b')).toBeLessThan(idx(result, 'a'))
   expect(result).toHaveLength(2)
 })
@@ -34,7 +34,7 @@ test('sorts two fragments so dependency via slots comes first', () => {
 test('sorts two fragments so dependency via componentTree comes first', () => {
   const a = frag('a', undefined, ref('b'))
   const b = frag('b')
-  const result = sortFragments([a, b])
+  const result = sortExperienceFragments([a, b])
   expect(idx(result, 'b')).toBeLessThan(idx(result, 'a'))
 })
 
@@ -42,7 +42,7 @@ test('sorts a linear chain A→B→C so C comes first', () => {
   const a = frag('a', ref('b'))
   const b = frag('b', ref('c'))
   const c = frag('c')
-  const result = sortFragments([a, b, c])
+  const result = sortExperienceFragments([a, b, c])
   expect(idx(result, 'c')).toBeLessThan(idx(result, 'b'))
   expect(idx(result, 'b')).toBeLessThan(idx(result, 'a'))
   expect(result).toHaveLength(3)
@@ -52,14 +52,14 @@ test('preserves relative order of independent fragments', () => {
   const a = frag('a')
   const b = frag('b')
   const c = frag('c')
-  const result = sortFragments([a, b, c])
+  const result = sortExperienceFragments([a, b, c])
   expect(idx(result, 'a')).toBeLessThan(idx(result, 'b'))
   expect(idx(result, 'b')).toBeLessThan(idx(result, 'c'))
 })
 
 test('ignores self-references', () => {
   const a = frag('a', ref('a'))
-  const result = sortFragments([a])
+  const result = sortExperienceFragments([a])
   expect(result).toHaveLength(1)
   expect(result[0].sys.id).toBe('a')
 })
@@ -67,14 +67,14 @@ test('ignores self-references', () => {
 test('ignores references to fragments not in the list', () => {
   const a = frag('a', ref('unknown'))
   const b = frag('b')
-  const result = sortFragments([a, b])
+  const result = sortExperienceFragments([a, b])
   expect(result).toHaveLength(2)
 })
 
 test('handles a cycle without throwing and includes all fragments', () => {
   const a = frag('a', ref('b'))
   const b = frag('b', ref('a'))
-  const result = sortFragments([a, b])
+  const result = sortExperienceFragments([a, b])
   expect(result).toHaveLength(2)
   expect(result.map((f) => f.sys.id)).toEqual(expect.arrayContaining(['a', 'b']))
 })
@@ -84,7 +84,7 @@ test('diamond dependency: A and B both depend on C, D depends on A and B', () =>
   const a = frag('a', ref('c'))
   const b = frag('b', ref('c'))
   const d = frag('d', [...ref('a'), ...ref('b')])
-  const result = sortFragments([d, b, a, c])
+  const result = sortExperienceFragments([d, b, a, c])
   expect(idx(result, 'c')).toBeLessThan(idx(result, 'a'))
   expect(idx(result, 'c')).toBeLessThan(idx(result, 'b'))
   expect(idx(result, 'a')).toBeLessThan(idx(result, 'd'))
@@ -95,6 +95,6 @@ test('diamond dependency: A and B both depend on C, D depends on A and B', () =>
 test('fragment with no slots or componentTree fields is treated as having no deps', () => {
   const a = frag('a')
   const b = frag('b', ref('a'))
-  const result = sortFragments([b, a])
+  const result = sortExperienceFragments([b, a])
   expect(idx(result, 'a')).toBeLessThan(idx(result, 'b'))
 })

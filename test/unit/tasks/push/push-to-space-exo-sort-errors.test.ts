@@ -7,13 +7,13 @@ import { logEmitter } from 'contentful-batch-libs/dist/logging'
 // register a no-op listener before any test exercises an error/log-and-continue path.
 logEmitter.on('error', () => {})
 
-jest.mock('../../../../lib/utils/sort-component-types', () => ({
+jest.mock('../../../../lib/utils/sort-components', () => ({
   __esModule: true,
   default: jest.fn(() => {
     throw new Error('malformed componentTree')
   })
 }))
-jest.mock('../../../../lib/utils/sort-fragments', () => ({
+jest.mock('../../../../lib/utils/sort-experience-fragments', () => ({
   __esModule: true,
   default: jest.fn(() => {
     throw new Error('malformed slots')
@@ -47,8 +47,8 @@ function makeClientMock() {
 
 function makePlainClientMock() {
   return {
-    componentType: { upsert: jest.fn(), publish: jest.fn() },
-    fragment: { upsert: jest.fn(), publish: jest.fn() }
+    component: { upsert: jest.fn(), publish: jest.fn() },
+    experienceFragment: { upsert: jest.fn(), publish: jest.fn() }
   }
 }
 
@@ -58,16 +58,16 @@ beforeEach(() => {
   requestQueue = new PQueue({ interval: 1000, intervalCap: 1000 })
 })
 
-describe('Importing Component Types: setup-code failures', () => {
-  const entity: any = { sys: { id: 'ct-1', type: 'ComponentType', version: 1 }, name: 'Hero' }
+describe('Importing Components: setup-code failures', () => {
+  const entity: any = { sys: { id: 'ct-1', type: 'Component', version: 1 }, name: 'Hero' }
 
   test('logs the sort failure via logEmitter and still aborts the run', async () => {
     const plainClient = makePlainClientMock()
     const emitSpy = jest.spyOn(logEmitter, 'emit')
 
     await expect(pushToSpace({
-      sourceData: { ...baseSourceData, componentTypes: [entity] } as any,
-      destinationData: { ...baseDestinationData, componentTypes: [] },
+      sourceData: { ...baseSourceData, components: [entity] } as any,
+      destinationData: { ...baseDestinationData, components: [] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -79,21 +79,21 @@ describe('Importing Component Types: setup-code failures', () => {
     const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
     expect(errorCall?.[1]).toBeInstanceOf(Error)
     expect((errorCall?.[1] as Error).message).toBe('malformed componentTree')
-    expect(plainClient.componentType.upsert).not.toHaveBeenCalled()
+    expect(plainClient.component.upsert).not.toHaveBeenCalled()
     emitSpy.mockRestore()
   })
 })
 
-describe('Importing Fragments: setup-code failures', () => {
-  const entity: any = { sys: { id: 'frag-1', type: 'Fragment', version: 1 }, name: 'Hero Fragment' }
+describe('Importing Experience Fragments: setup-code failures', () => {
+  const entity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 1 }, name: 'Hero Fragment' }
 
   test('logs the sort failure via logEmitter and still aborts the run', async () => {
     const plainClient = makePlainClientMock()
     const emitSpy = jest.spyOn(logEmitter, 'emit')
 
     await expect(pushToSpace({
-      sourceData: { ...baseSourceData, fragments: [entity] } as any,
-      destinationData: { ...baseDestinationData, fragments: [] },
+      sourceData: { ...baseSourceData, experienceFragments: [entity] } as any,
+      destinationData: { ...baseDestinationData, experienceFragments: [] },
       client: makeClientMock(),
       plainClient,
       spaceId: 'space-1',
@@ -105,7 +105,7 @@ describe('Importing Fragments: setup-code failures', () => {
     const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
     expect(errorCall?.[1]).toBeInstanceOf(Error)
     expect((errorCall?.[1] as Error).message).toBe('malformed slots')
-    expect(plainClient.fragment.upsert).not.toHaveBeenCalled()
+    expect(plainClient.experienceFragment.upsert).not.toHaveBeenCalled()
     emitSpy.mockRestore()
   })
 })
