@@ -146,6 +146,29 @@ describe('Importing Components', () => {
 
     expect(plainClient.component.upsert).not.toHaveBeenCalled()
   })
+
+  test('attaches the entity to the error before emitting, and continues on failure', async () => {
+    const plainClient = makePlainClientMock()
+    const upsertError = new Error('422 validation failed')
+    plainClient.component.upsert = jest.fn((_params, _payload) => Promise.reject(upsertError))
+    const emitSpy = jest.spyOn(logEmitter, 'emit')
+
+    await expect(pushToSpace({
+      sourceData: { ...baseSourceData, components: [entity] } as any,
+      destinationData: { ...baseDestinationData, components: [] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })).resolves.not.toThrow()
+
+    const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
+    expect(errorCall?.[1]).toBe(upsertError)
+    expect((errorCall?.[1] as any).entity).toBe(entity)
+    emitSpy.mockRestore()
+  })
 })
 
 describe('Publishing Components', () => {
@@ -207,7 +230,10 @@ describe('Publishing Components', () => {
 
   test('logs and continues when publish fails, without throwing', async () => {
     const plainClient = makePlainClientMock()
-    plainClient.component.publish = jest.fn(() => Promise.reject(new Error('422 validation failed')))
+    const publishError = new Error('422 validation failed')
+    plainClient.component.publish = jest.fn(() => Promise.reject(publishError))
+    const emitSpy = jest.spyOn(logEmitter, 'emit')
+
     await expect(pushToSpace({
       sourceData: { ...baseSourceData, components: [publishedEntity] } as any,
       destinationData: { ...baseDestinationData, components: [destinationEntity] },
@@ -218,6 +244,11 @@ describe('Publishing Components', () => {
       includeExperienceOrchestration: true,
       requestQueue
     }).run({ data: {} })).resolves.not.toThrow()
+
+    const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
+    expect(errorCall?.[1]).toBe(publishError)
+    expect((errorCall?.[1] as any).entity.sys.id).toBe('ct-1')
+    emitSpy.mockRestore()
   })
 })
 
@@ -268,6 +299,29 @@ describe('Importing Experience Templates', () => {
     expect(payload.sys.version).toBe(5)
     expect(payload.name).toBe('Landing Page')
   })
+
+  test('attaches the entity to the error before emitting, and continues on failure', async () => {
+    const plainClient = makePlainClientMock()
+    const upsertError = new Error('422 validation failed')
+    plainClient.experienceTemplate.upsert = jest.fn((_params, _payload) => Promise.reject(upsertError))
+    const emitSpy = jest.spyOn(logEmitter, 'emit')
+
+    await expect(pushToSpace({
+      sourceData: { ...baseSourceData, experienceTemplates: [entity] } as any,
+      destinationData: { ...baseDestinationData, experienceTemplates: [] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })).resolves.not.toThrow()
+
+    const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
+    expect(errorCall?.[1]).toBe(upsertError)
+    expect((errorCall?.[1] as any).entity).toBe(entity)
+    emitSpy.mockRestore()
+  })
 })
 
 describe('Publishing Experience Templates', () => {
@@ -307,6 +361,29 @@ describe('Publishing Experience Templates', () => {
     }).run({ data: {} })
 
     expect(plainClient.experienceTemplate.publish).not.toHaveBeenCalled()
+  })
+
+  test('logs and continues when publish fails, without throwing', async () => {
+    const plainClient = makePlainClientMock()
+    const publishError = new Error('422 validation failed')
+    plainClient.experienceTemplate.publish = jest.fn(() => Promise.reject(publishError))
+    const emitSpy = jest.spyOn(logEmitter, 'emit')
+
+    await expect(pushToSpace({
+      sourceData: { ...baseSourceData, experienceTemplates: [publishedEntity] } as any,
+      destinationData: { ...baseDestinationData, experienceTemplates: [destinationEntity] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })).resolves.not.toThrow()
+
+    const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
+    expect(errorCall?.[1]).toBe(publishError)
+    expect((errorCall?.[1] as any).entity.sys.id).toBe('tmpl-1')
+    emitSpy.mockRestore()
   })
 })
 
@@ -359,6 +436,29 @@ describe('Importing Experience Fragments', () => {
     expect(payload.sys.version).toBe(4)
     expect(payload).not.toHaveProperty('component')
   })
+
+  test('attaches the entity to the error before emitting, and continues on failure', async () => {
+    const plainClient = makePlainClientMock()
+    const upsertError = new Error('422 validation failed')
+    plainClient.experienceFragment.upsert = jest.fn((_params, _payload) => Promise.reject(upsertError))
+    const emitSpy = jest.spyOn(logEmitter, 'emit')
+
+    await expect(pushToSpace({
+      sourceData: { ...baseSourceData, experienceFragments: [entity] } as any,
+      destinationData: { ...baseDestinationData, experienceFragments: [] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })).resolves.not.toThrow()
+
+    const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
+    expect(errorCall?.[1]).toBe(upsertError)
+    expect((errorCall?.[1] as any).entity).toBe(entity)
+    emitSpy.mockRestore()
+  })
 })
 
 describe('Publishing Experience Fragments', () => {
@@ -398,6 +498,29 @@ describe('Publishing Experience Fragments', () => {
     }).run({ data: {} })
 
     expect(plainClient.experienceFragment.publish).not.toHaveBeenCalled()
+  })
+
+  test('logs and continues when publish fails, without throwing', async () => {
+    const plainClient = makePlainClientMock()
+    const publishError = new Error('422 validation failed')
+    plainClient.experienceFragment.publish = jest.fn(() => Promise.reject(publishError))
+    const emitSpy = jest.spyOn(logEmitter, 'emit')
+
+    await expect(pushToSpace({
+      sourceData: { ...baseSourceData, experienceFragments: [publishedEntity] } as any,
+      destinationData: { ...baseDestinationData, experienceFragments: [destinationEntity] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })).resolves.not.toThrow()
+
+    const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
+    expect(errorCall?.[1]).toBe(publishError)
+    expect((errorCall?.[1] as any).entity.sys.id).toBe('frag-1')
+    emitSpy.mockRestore()
   })
 })
 
@@ -483,6 +606,29 @@ describe('Importing Data Assemblies', () => {
     const [, payload] = plainClient.dataAssembly.update.mock.calls[0] as unknown as [any, any]
     expect(payload.sys).toEqual({ id: 'da-1', type: 'DataAssembly', dataType: publishedEntity.sys.dataType, version: 9 })
   })
+
+  test('attaches the entity to the error before emitting, and continues on failure', async () => {
+    const plainClient = makePlainClientMock()
+    const updateError = new Error('422 validation failed')
+    plainClient.dataAssembly.update = jest.fn((_params, _payload) => Promise.reject(updateError))
+    const emitSpy = jest.spyOn(logEmitter, 'emit')
+
+    await expect(pushToSpace({
+      sourceData: { ...baseSourceData, dataAssemblies: [entity] } as any,
+      destinationData: { ...baseDestinationData, dataAssemblies: [] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })).resolves.not.toThrow()
+
+    const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
+    expect(errorCall?.[1]).toBe(updateError)
+    expect((errorCall?.[1] as any).entity).toBe(entity)
+    emitSpy.mockRestore()
+  })
 })
 
 describe('Publishing Data Assemblies', () => {
@@ -522,6 +668,29 @@ describe('Publishing Data Assemblies', () => {
     }).run({ data: {} })
 
     expect(plainClient.dataAssembly.publish).not.toHaveBeenCalled()
+  })
+
+  test('logs and continues when publish fails, without throwing', async () => {
+    const plainClient = makePlainClientMock()
+    const publishError = new Error('422 validation failed')
+    plainClient.dataAssembly.publish = jest.fn(() => Promise.reject(publishError))
+    const emitSpy = jest.spyOn(logEmitter, 'emit')
+
+    await expect(pushToSpace({
+      sourceData: { ...baseSourceData, dataAssemblies: [publishedEntity] } as any,
+      destinationData: { ...baseDestinationData, dataAssemblies: [destinationEntity] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })).resolves.not.toThrow()
+
+    const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
+    expect(errorCall?.[1]).toBe(publishError)
+    expect((errorCall?.[1] as any).entity.sys.id).toBe('da-1')
+    emitSpy.mockRestore()
   })
 })
 
@@ -590,6 +759,29 @@ describe('Importing Design Tokens', () => {
 
     expect(plainClient.designToken.upsert).not.toHaveBeenCalled()
   })
+
+  test('attaches the entity to the error before emitting, and continues on failure', async () => {
+    const plainClient = makePlainClientMock()
+    const upsertError = new Error('422 validation failed')
+    plainClient.designToken.upsert = jest.fn((_params, _payload) => Promise.reject(upsertError))
+    const emitSpy = jest.spyOn(logEmitter, 'emit')
+
+    await expect(pushToSpace({
+      sourceData: { ...baseSourceData, designTokens: [entity] } as any,
+      destinationData: { ...baseDestinationData, designTokens: [] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })).resolves.not.toThrow()
+
+    const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
+    expect(errorCall?.[1]).toBe(upsertError)
+    expect((errorCall?.[1] as any).entity).toBe(entity)
+    emitSpy.mockRestore()
+  })
 })
 
 // ─── Experience ───────────────────────────────────────────────────────────────
@@ -641,6 +833,29 @@ describe('Importing Experiences', () => {
     expect(payload.sys.version).toBe(6)
     expect(payload).not.toHaveProperty('experienceTemplate')
     expect(payload.name).toBe('My Experience')
+  })
+
+  test('attaches the entity to the error before emitting, and continues on failure', async () => {
+    const plainClient = makePlainClientMock()
+    const upsertError = new Error('422 validation failed')
+    plainClient.experience.upsert = jest.fn((_params, _payload) => Promise.reject(upsertError))
+    const emitSpy = jest.spyOn(logEmitter, 'emit')
+
+    await expect(pushToSpace({
+      sourceData: { ...baseSourceData, experiences: [entity] } as any,
+      destinationData: { ...baseDestinationData, experiences: [] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })).resolves.not.toThrow()
+
+    const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
+    expect(errorCall?.[1]).toBe(upsertError)
+    expect((errorCall?.[1] as any).entity).toBe(entity)
+    emitSpy.mockRestore()
   })
 })
 
@@ -698,6 +913,29 @@ describe('Publishing Experiences', () => {
     }).run({ data: {} })
 
     expect(plainClient.experience.publish).not.toHaveBeenCalled()
+  })
+
+  test('logs and continues when publish fails, without throwing', async () => {
+    const plainClient = makePlainClientMock()
+    const publishError = new Error('422 validation failed')
+    plainClient.experience.publish = jest.fn(() => Promise.reject(publishError))
+    const emitSpy = jest.spyOn(logEmitter, 'emit')
+
+    await expect(pushToSpace({
+      sourceData: { ...baseSourceData, experiences: [publishedEntity] } as any,
+      destinationData: { ...baseDestinationData, experiences: [destinationEntity] },
+      client: makeClientMock(),
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })).resolves.not.toThrow()
+
+    const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
+    expect(errorCall?.[1]).toBe(publishError)
+    expect((errorCall?.[1] as any).entity.sys.id).toBe('exp-1')
+    emitSpy.mockRestore()
   })
 })
 

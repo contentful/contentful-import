@@ -38,7 +38,8 @@ export async function publishExoEntity<T>(type: string, entity: { sys: { id: str
     const result = await publish()
     logEmitter.emit('info', `PUBLISH ${type} ${entity.sys.id}`)
     return result
-  } catch (err) {
+  } catch (err: any) {
+    err.entity = entity
     logEmitter.emit('error', err)
     return null
   }
