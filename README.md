@@ -213,6 +213,12 @@ Display progress in new lines instead of displaying a busy spinner and the statu
 
 Path to a JSON file with the configuration options. This file will be merged with the options passed to the function. The options passed to the function will take precedence over the ones in the config file.
 
+### Experience Orchestration
+
+#### `includeExperienceOrchestration` [boolean] [default: false]
+
+Opt-in flag to import Experience Orchestration (ExO) entities — Design Tokens, Components, Experience Templates, Experience Fragments, Data Assemblies, and Experiences — when present in the source content. Requires the `exoM1` entitlement on the destination space's organization. See the "Experience Orchestration (ExO) entities" section below for what happens when the destination isn't entitled.
+
 ## :rescue_worker_helmet: Troubleshooting
 
 ### Proxy
@@ -258,11 +264,62 @@ The data to import should be structured like this:
   "webhooks": [],
   "roles": [],
   "tags": [],
-  "editorInterfaces": []
+  "editorInterfaces": [],
+  "designTokens": [],
+  "components": [],
+  "experienceTemplates": [],
+  "dataAssemblies": [],
+  "experienceFragments": [],
+  "experiences": []
 }
 ```
 
 Note: `tags` are not available for all users. If you do not have access to this feature, any tags included in your import data will be skipped.
+
+The `designTokens`, `components`, `experienceTemplates`, `dataAssemblies`, `experienceFragments`, and `experiences` keys are Experience Orchestration (ExO) entities — see the "Experience Orchestration (ExO) entities" section below.
+
+## :test_tube: Experience Orchestration (ExO) entities
+
+> **Experimental:** ExO entities (`designTokens`, `components`, `experienceTemplates`, `dataAssemblies`, `experienceFragments`, `experiences`) are `@internal` and considered experimental. Their shape and import behavior are subject to change without notice.
+
+ExO import is opt-in via the `includeExperienceOrchestration` option (see "Configuration options" above) and only runs against destination spaces with the `exoM1` entitlement.
+
+```javascript
+const contentfulImport = require('contentful-import')
+
+const options = {
+  contentFile: '/path/to/result/of/contentful-export.json',
+  spaceId: '<space_id>',
+  managementToken: '<content_management_api_key>',
+  includeExperienceOrchestration: true,
+  ...
+}
+
+contentfulImport(options)
+```
+
+> **Module only:** `includeExperienceOrchestration` is not currently exposed by [contentful-cli](https://github.com/contentful/contentful-cli)'s `space import` command. Until that lands, ExO import is only available through the module API shown above, not the CLI.
+
+If the destination space isn't entitled, ExO import for that space is skipped and the rest of the content (content types, entries, assets, etc.) still imports normally — but the missing-entitlement notice is logged at error level, not warning. That means `contentfulImport()` still rejects with a `ContentfulMultiError` at the end, even though the non-ExO content imported successfully. Don't treat a rejected promise as proof the whole import failed — check `err.errors` (or the `errorLogFile`) for `Experience Orchestration (ExO) is not enabled for this space` before assuming something is actually broken.
+
+### Import order
+
+ExO entities are created and published in dependency order, then unpublished in reverse order once every other import step has finished:
+
+1. Data Assemblies — create, then publish
+2. Design Tokens — create only (no publish/unpublish step; a Design Token is live as soon as it's created or updated)
+3. Components — create, then publish
+4. Experience Templates — create, then publish
+5. Experience Fragments — create, then publish
+6. Experiences — create, then publish
+7. Unpublish pass, in reverse: Experiences → Experience Fragments → Experience Templates → Components → Data Assemblies
+
+An entity that's published in the source is published in the destination on import. An entity that's unpublished (or removed) in the source but still published in the destination is unpublished on re-import — this propagates in both directions, so reverting a published ExO entity back to draft in the source and re-running the import will unpublish it in the destination too.
+
+### URN rewriting / backward compatibility
+
+- Export files taken before the ExO entity rename (`ComponentType` → `Component`, `Fragment` → `ExperienceFragment`, `Template` → `ExperienceTemplate`) are upgraded automatically on import, including the corresponding resource-link `linkType`s and URN path segments. This upgrade is upgrade-only (there's no downgrade path) and idempotent, so it's safe to run against already-upgraded data.
+- Export files that predate ExO entirely (no ExO keys, or empty ExO arrays) import unchanged — no extra configuration is needed to import older export files.
 
 ## :bulb: Importing to a space with existing content
 
