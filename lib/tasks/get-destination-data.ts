@@ -3,6 +3,7 @@ import Promise from 'bluebird'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import type { AssetProps, ComponentProps, ContentTypeProps, DataAssemblyProps, DesignTokenProps, EntryProps, ExperienceProps, ExperienceFragmentProps, LocaleProps, TagProps, ExperienceTemplateProps, WebhookProps } from 'contentful-management'
 import { OriginalSourceData } from '../types'
+import { isExoEntitlementError, spaceHasExoM1Entitlement } from '../utils/publish-exo-entities'
 import PQueue from 'p-queue'
 
 const BATCH_CHAR_LIMIT = 1990
@@ -161,6 +162,24 @@ async function cursorPaginatedQuery ({ plainClient, spaceId, environmentId, type
   return allItems
 }
 
+// A destination space without the ExO entitlement 403s on every ExO endpoint. That's a normal,
+// expected outcome (most spaces don't have ExO enabled) rather than a fatal error, so it's
+// handled the same way the `tags` fetch above handles spaces without Tags access: warn and
+// fall back to an empty array instead of failing the whole destination-data fetch.
+async function cursorPaginatedQueryOrWarn (params: CursorPaginatedQueryParams): Promise<any[]> {
+  try {
+    return await cursorPaginatedQuery(params)
+  } catch (err) {
+    const { name: entityTypeName } = CURSOR_QUERY_METHODS[params.type]
+    if (isExoEntitlementError(err)) {
+      logEmitter.emit('error', new Error(`Skipping ${entityTypeName} import: Experience Orchestration (ExO) is not enabled for this space`))
+    } else {
+      logEmitter.emit('error', err instanceof Error ? err : new Error(String(err)))
+    }
+    return []
+  }
+}
+
 type AllDestinationData = {
   contentTypes: Promise<ContentTypeProps[]>
   tags: Promise<TagProps[]>
@@ -289,12 +308,43 @@ export default async function getDestinationData({
   }
 
   if (includeExperienceOrchestration && plainClient) {
-    result.designTokens = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'designTokens', requestQueue })
-    result.components = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'components', requestQueue })
-    result.experienceTemplates = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'experienceTemplates', requestQueue })
-    result.experienceFragments = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'experienceFragments', requestQueue })
-    result.dataAssemblies = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'dataAssemblies', requestQueue })
-    result.experiences = cursorPaginatedQuery({ plainClient, spaceId, environmentId, type: 'experiences', requestQueue })
+    // dataAssemblies is excluded here — confirmed live it isn't actually gated by exoM1,
+    // unlike the other 5, so it always uses its own fetch-and-catch below instead.
+    const sourceHasDesignTokens = Boolean(sourceData.designTokens?.length)
+    const sourceHasComponents = Boolean(sourceData.components?.length)
+    const sourceHasExperienceTemplates = Boolean(sourceData.experienceTemplates?.length)
+    const sourceHasExperienceFragments = Boolean(sourceData.experienceFragments?.length)
+    const sourceHasExperiences = Boolean(sourceData.experiences?.length)
+
+    let entitled: boolean | null = true
+    if (sourceHasDesignTokens || sourceHasComponents || sourceHasExperienceTemplates || sourceHasExperienceFragments || sourceHasExperiences) {
+      entitled = await spaceHasExoM1Entitlement(plainClient, spaceId)
+    }
+
+    if (entitled === false) {
+      logEmitter.emit('error', new Error('Skipping Experience Orchestration import: Experience Orchestration (ExO) is not enabled for this space'))
+    } else {
+      // null (inconclusive check) falls through here too, same as true.
+      if (sourceHasDesignTokens) {
+        result.designTokens = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'designTokens', requestQueue })
+      }
+      if (sourceHasComponents) {
+        result.components = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'components', requestQueue })
+      }
+      if (sourceHasExperienceTemplates) {
+        result.experienceTemplates = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'experienceTemplates', requestQueue })
+      }
+      if (sourceHasExperienceFragments) {
+        result.experienceFragments = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'experienceFragments', requestQueue })
+      }
+      if (sourceHasExperiences) {
+        result.experiences = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'experiences', requestQueue })
+      }
+    }
+
+    if (sourceData.dataAssemblies?.length) {
+      result.dataAssemblies = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'dataAssemblies', requestQueue })
+    }
   }
 
   return Promise.props(result)
