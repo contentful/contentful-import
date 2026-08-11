@@ -125,10 +125,7 @@ describe('Importing an ExO export with all 6 entity types', () => {
   })
 })
 
-// Covers: "skipExperienceOrchestration: true skips all ExO tasks even when source file has
-// ExO data" - the ticket names a flag that doesn't exist; the real (and only) way to skip
-// ExO tasks is to leave includeExperienceOrchestration unset (it defaults to false).
-describe('Importing without includeExperienceOrchestration', () => {
+describe('Importing with includeExperienceOrchestration: false', () => {
   let spaceId: string
   let plainClient
 
@@ -151,6 +148,7 @@ describe('Importing without includeExperienceOrchestration', () => {
       environmentId,
       managementToken,
       content: buildExoContent(EXO_FIXTURE_IDS),
+      includeExperienceOrchestration: false,
       useVerboseRenderer: true
     })
 
