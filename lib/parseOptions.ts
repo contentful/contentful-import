@@ -36,7 +36,7 @@ export default async function parseOptions (params) {
     rawProxy: false,
     uploadAssets: false,
     rateLimit: 7,
-    includeExperienceOrchestration: false
+    includeExperienceOrchestration: true
   }
 
   const configFile = params.config
