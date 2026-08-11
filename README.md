@@ -285,7 +285,7 @@ The `designTokens`, `components`, `experienceTemplates`, `dataAssemblies`, `expe
 ExO import is on by default (`includeExperienceOrchestration: true`) — for the CLI and the module API alike. Pass `includeExperienceOrchestration: false` (`--include-experience-orchestration=false` on the CLI) to opt out.
 
 ```javascript
-const contentfulImport = require('contentful-import')
+import contentfulImport from 'contentful-import'
 
 const options = {
   contentFile: '/path/to/result/of/contentful-export.json',
@@ -295,7 +295,7 @@ const options = {
   ...
 }
 
-contentfulImport(options)
+await contentfulImport(options)
 ```
 
 If your source content has no ExO entities at all — true for anyone not using ExO — this default is a complete no-op. The destination-entitlement check in `lib/tasks/get-destination-data.ts` only runs if the source data actually contains ExO entities (`sourceData.designTokens?.length`, etc.); with nothing to check, no extra API calls happen and nothing extra gets logged. Behavior is identical either way for imports that don't involve ExO content.
