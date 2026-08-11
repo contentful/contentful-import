@@ -215,9 +215,9 @@ Path to a JSON file with the configuration options. This file will be merged wit
 
 ### Experience Orchestration
 
-#### `includeExperienceOrchestration` [boolean] [default: false]
+#### `includeExperienceOrchestration` [boolean] [default: false via the module API; `true` via the bundled CLI — see below]
 
-Opt-in flag to import Experience Orchestration (ExO) entities — Design Tokens, Components, Experience Templates, Experience Fragments, Data Assemblies, and Experiences — when present in the source content. Requires the `exoM1` entitlement on the destination space's organization. See the "Experience Orchestration (ExO) entities" section below for what happens when the destination isn't entitled.
+Opt-in flag to import Experience Orchestration (ExO) entities — Design Tokens, Components, Experience Templates, Experience Fragments, Data Assemblies, and Experiences — when present in the source content. Requires the `exoM1` entitlement on the destination space's organization. See the "Experience Orchestration (ExO) entities" section below for the CLI-vs-module default asymmetry and what happens when the destination isn't entitled.
 
 ## :rescue_worker_helmet: Troubleshooting
 
@@ -298,7 +298,7 @@ const options = {
 contentfulImport(options)
 ```
 
-> **Module only:** `includeExperienceOrchestration` is not currently exposed by [contentful-cli](https://github.com/contentful/contentful-cli)'s `space import` command. Until that lands, ExO import is only available through the module API shown above, not the CLI.
+> **CLI users, note the flipped default:** the module API defaults `includeExperienceOrchestration` to `false` (opt-in), as shown above. The bundled `contentful-import` executable (`bin/contentful-import`, the same binary `npm install -g contentful-import` / `npx contentful-import` runs) defaults `--include-experience-orchestration` to `true` (opt-out) — so running the CLI with no flags imports ExO entities by default, while calling the module with no options does not. Pass `--include-experience-orchestration=false` to the CLI if you don't want ExO content. Separately, [contentful-cli](https://github.com/contentful/contentful-cli)'s `space import` command doesn't expose this option at all yet, so ExO import isn't reachable through that CLI regardless of default.
 
 If the destination space isn't entitled, ExO import for that space is skipped and the rest of the content (content types, entries, assets, etc.) still imports normally — but the missing-entitlement notice is logged at error level, not warning. That means `contentfulImport()` still rejects with a `ContentfulMultiError` at the end, even though the non-ExO content imported successfully. Don't treat a rejected promise as proof the whole import failed — check `err.errors` (or the `errorLogFile`) for `Experience Orchestration (ExO) is not enabled for this space` before assuming something is actually broken.
 
