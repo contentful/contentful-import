@@ -156,7 +156,7 @@ export async function createOrPatchChildConcepts(
         )
         logEmitter.emit('info', `Created child folder concept ${destConceptId}`)
       } catch (err: any) {
-        logEmitter.emit('warning', `Failed to create child folder concept ${destConceptId}: ${err?.message ?? err}`)
+        logEmitter.emit('error', `Failed to create child folder concept ${destConceptId}: ${err?.message ?? err}`)
       }
     } else {
       const patches: Array<{ op: string; path: string; value: any }> = []
@@ -178,7 +178,7 @@ export async function createOrPatchChildConcepts(
           )
           logEmitter.emit('info', `Patched child folder concept ${destConceptId} (${patches.map((p) => p.path).join(', ')})`)
         } catch (err: any) {
-          logEmitter.emit('warning', `Failed to patch child folder concept ${destConceptId}: ${err?.message ?? err}`)
+          logEmitter.emit('error', `Failed to patch child folder concept ${destConceptId}: ${err?.message ?? err}`)
         }
       }
     }
@@ -214,7 +214,7 @@ export async function linkChildConceptsToParentGroups(
       parentGroups.set(parentGroupId, updated)
       logEmitter.emit('info', `Linked child concept ${destConceptId} to parent group ${parentGroupId}`)
     } catch (err: any) {
-      logEmitter.emit('warning', `Failed to link child concept ${destConceptId} to parent group ${parentGroupId}: ${err?.message ?? err}`)
+      logEmitter.emit('error', `Failed to link child concept ${destConceptId} to parent group ${parentGroupId}: ${err?.message ?? err}`)
     }
   }
 }

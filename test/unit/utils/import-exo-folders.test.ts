@@ -294,7 +294,7 @@ describe('createOrPatchChildConcepts', () => {
     await createOrPatchChildConcepts(client, ORG, DEST_SPACE, childConceptMap)
 
     expect(client.concept.createWithId).toHaveBeenCalledTimes(2)
-    expect(logEmitter.emit).toHaveBeenCalledWith('warning', expect.stringContaining('Failed to create child folder concept'))
+    expect(logEmitter.emit).toHaveBeenCalledWith('error', expect.stringContaining('Failed to create child folder concept'))
   })
 })
 
@@ -372,7 +372,7 @@ describe('linkChildConceptsToParentGroups', () => {
     ])
     await linkChildConceptsToParentGroups(client, ORG, childConceptMap, parentGroups)
 
-    expect(logEmitter.emit).toHaveBeenCalledWith('warning', expect.stringContaining('Failed to link child concept'))
+    expect(logEmitter.emit).toHaveBeenCalledWith('error', expect.stringContaining('Failed to link child concept'))
   })
 })
 
