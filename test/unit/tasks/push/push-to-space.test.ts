@@ -2,11 +2,17 @@ import PQueue from 'p-queue'
 import { each } from 'lodash/collection'
 
 import pushToSpace from '../../../../lib/tasks/push-to-space/push-to-space'
-
+import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { createEntities, createEntries, createLocales } from '../../../../lib/tasks/push-to-space/creation'
 import { archiveEntities, publishEntities } from '../../../../lib/tasks/push-to-space/publishing'
 import { getAssetStreamForURL, processAssets } from '../../../../lib/tasks/push-to-space/assets'
 import { EntityTransformed, TransformedAsset, TransformedSourceData } from '../../../../lib/types'
+
+// logEmitter is a plain node:events EventEmitter. Node treats 'error' as a special
+// event name and throws synchronously if it's emitted with no listener attached, so
+// register a no-op listener before any test exercises an error/log-and-continue path.
+logEmitter.on('error', () => {})
+
 // We group together these functions into objects manually instead of
 // using wildcard imports (*). This ensures that during the `afterEach` cleanup,
 // Jest's mock clearing mechanism does not attempt to invoke `mockClear`
@@ -283,5 +289,75 @@ test('Upload each local asset file before pushing to space', () => {
       expect(assets.getAssetStreamForURL).toHaveBeenCalledWith('https://images/contentful-de.jpg', 'assets')
       expect(transformedAssets[0].transformed.fields.file['en-US']).not.toHaveProperty('upload')
       expect(transformedAssets[0].transformed.fields.file['en-US']).toHaveProperty('uploadFrom')
+    })
+})
+
+test('Editor interface update failure is logged and does not abort the run', () => {
+  const failingUpdateMock = jest.fn(() => Promise.reject(new Error('422 validation failed')))
+  const succeedingUpdateMock = jest.fn(() => Promise.resolve())
+
+  const twoContentTypesSourceData = {
+    ...transformedSourceData,
+    contentTypes: [
+      ...transformedSourceData.contentTypes,
+      { original: { sys: { id: 'otherId', type: 'ContentType', publishedVersion: 1 } } }
+    ],
+    editorInterfaces: [
+      {
+        sys: { type: 'EditorInterface', contentType: { sys: { id: 'someId' } } }
+      },
+      {
+        sys: { type: 'EditorInterface', contentType: { sys: { id: 'otherId' } } }
+      }
+    ]
+  } as unknown as TransformedSourceData
+
+  ;(creation.createEntities as jest.Mock).mockImplementationOnce(({ context }) => {
+    if (context.type === 'ContentType') {
+      return Promise.resolve([
+        { sys: { id: 'someId', type: 'ContentType', publishedVersion: 1 } },
+        { sys: { id: 'otherId', type: 'ContentType', publishedVersion: 1 } }
+      ])
+    }
+    return Promise.resolve([])
+  })
+  ;(publishing.publishEntities as jest.Mock).mockImplementationOnce(({ entities }) => {
+    if (entities[0] && entities[0].sys.type === 'ContentType') {
+      return Promise.resolve(entities)
+    }
+    return Promise.resolve([])
+  })
+
+  const clientMockWithMixedResults = {
+    getSpace: jest.fn(() => Promise.resolve({
+      getEnvironment: jest.fn(() => Promise.resolve({
+        getEditorInterfaceForContentType: (contentTypeId: string) => {
+          return Promise.resolve({
+            sys: { type: 'EditorInterface', contentType: { sys: { id: contentTypeId } } },
+            update: contentTypeId === 'someId' ? failingUpdateMock : succeedingUpdateMock
+          })
+        },
+        createUpload: () => Promise.resolve({ sys: { id: 'id' } })
+      }))
+    }))
+  }
+
+  const emitSpy = jest.spyOn(logEmitter, 'emit')
+
+  return expect(pushToSpace({
+    sourceData: twoContentTypesSourceData,
+    destinationData,
+    client: clientMockWithMixedResults,
+    spaceId: 'spaceid',
+    environmentId: 'master',
+    requestQueue
+  }).run({ data: {} })).resolves.not.toThrow()
+    .then(() => {
+      expect(failingUpdateMock).toHaveBeenCalledTimes(1)
+      expect(succeedingUpdateMock).toHaveBeenCalledTimes(1)
+      const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
+      expect(errorCall?.[1]).toBeInstanceOf(Error)
+      expect((errorCall?.[1] as Error).message).toBe('422 validation failed')
+      emitSpy.mockRestore()
     })
 })

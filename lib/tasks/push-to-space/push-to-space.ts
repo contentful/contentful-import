@@ -3,12 +3,49 @@ import verboseRenderer from 'listr-verbose-renderer'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
+import {
+  ComponentProps,
+  DataAssemblyProps,
+  ExperienceProps,
+  ExperienceFragmentProps,
+  ExperienceTemplateProps,
+  UpsertComponentProps,
+  UpsertExperienceTemplateProps,
+  UpsertExperienceFragmentProps,
+  UpsertExperienceProps,
+  UpdateDataAssemblyProps,
+  UpsertDesignTokenProps,
+} from 'contentful-management'
 
 import * as assets from './assets'
 import * as creation from './creation'
 import * as publishing from './publishing'
 import type { DestinationData, TransformedSourceData, Resources, TransformedAsset } from '../../types'
-import { ContentfulEntityError } from '../../utils/errors'
+import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../../utils/graphql-schema-backoff'
+import { buildDataAssemblySys } from '../../utils/exo-entity-payloads'
+import sortComponents from '../../utils/sort-components'
+import sortExperienceFragments from '../../utils/sort-experience-fragments'
+import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity } from '../../utils/publish-exo-entities'
+import { sortOrReport } from '../../utils/sort-or-report'
+import { importExoFolders } from '../../utils/import-exo-folders'
+
+async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
+  let lastErr: unknown
+  for (let attempt = 0; attempt <= GRAPHQL_SCHEMA_STALE_DELAYS_MS.length; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      if (!isGraphQLSchemaStaleError(err) || attempt === GRAPHQL_SCHEMA_STALE_DELAYS_MS.length) {
+        throw err
+      }
+      const delay = GRAPHQL_SCHEMA_STALE_DELAYS_MS[attempt]
+      logEmitter.emit('warning', `DataAssembly GraphQL schema not yet current, retrying in ${delay}ms (attempt ${attempt + 1}/${GRAPHQL_SCHEMA_STALE_DELAYS_MS.length})`)
+      await new Promise((resolve) => setTimeout(resolve, delay))
+      lastErr = err
+    }
+  }
+  throw lastErr
+}
 
 const DEFAULT_CONTENT_STRUCTURE = {
   entries: [],
@@ -27,9 +64,11 @@ type DestinationDataById = {
 type PushToSpaceParams = {
   destinationData: DestinationData,
   sourceData: TransformedSourceData,
-  client: any,
+  client?: any,
+  plainClient?: any,
   spaceId: string,
   environmentId: string,
+  includeExperienceOrchestration?: boolean,
   contentModelOnly?: boolean,
   skipContentModel?: boolean,
   skipContentUpdates?: boolean,
@@ -67,16 +106,18 @@ type PushToSpaceParams = {
  */
 
 export type PushToSpaceContext = {
-    type: string,
-    target: any,
+  type: string,
+  target: any,
 }
 
-export default function pushToSpace ({
+export default function pushToSpace({
   sourceData,
   destinationData = {},
   client,
+  plainClient,
   spaceId,
   environmentId,
+  includeExperienceOrchestration,
   contentModelOnly,
   skipContentModel,
   skipContentUpdates,
@@ -219,10 +260,9 @@ export default function pushToSpace ({
             const updatedEditorInterface = await requestQueue.add(() => ctEditorInterface.update())
             return updatedEditorInterface
           } catch (err: any) {
-            if (err instanceof ContentfulEntityError) {
-              err.entity = editorInterface
-            }
-            throw err
+            err.entity = editorInterface
+            logEmitter.emit('error', err)
+            return null
           }
         })
 
@@ -282,7 +322,7 @@ export default function pushToSpace ({
           return
         }
         const assetsToProcess = await creation.createEntities({
-          context: { target: ctx.environment, type: 'Asset'},
+          context: { target: ctx.environment, type: 'Asset' },
           entities: sourceData.assets,
           destinationEntitiesById: destinationDataById.assets,
           skipUpdates: skipAssetUpdates,
@@ -377,11 +417,355 @@ export default function pushToSpace ({
       }),
       skip: () =>
         contentModelOnly || (environmentId !== 'master' && 'Webhooks can only be imported in master environment')
+    },
+    {
+      title: 'Create ExO Folders',
+      task: wrapTask(async (ctx) => {
+        await importExoFolders({
+          plainClient,
+          organizationId: ctx.space.sys.organization.sys.id,
+          destinationSpaceId: spaceId,
+          sourceEntities: {
+            designTokens: sourceData.designTokens,
+            components: sourceData.components,
+            experienceTemplates: sourceData.experienceTemplates,
+            experienceFragments: sourceData.experienceFragments,
+            experiences: sourceData.experiences,
+          },
+        })
+      }),
+      skip: () => !includeExperienceOrchestration
+    },
+    {
+      title: 'Importing Data Assemblies',
+      task: wrapTask(async (ctx) => {
+        const results = await Promise.all((sourceData.dataAssemblies || []).map(async (entity) => {
+          try {
+            const existing = destinationDataById.dataAssemblies?.get(entity.sys.id)
+            let result
+            if (existing) {
+              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: buildDataAssemblySys(entity, existing.sys.version) }
+              result = await withGraphQLSchemaBackoff(() => plainClient.dataAssembly.update(
+                { spaceId, environmentId, dataAssemblyId: entity.sys.id },
+                payload
+              ))
+              logEmitter.emit('info', `UPDATE DataAssembly ${entity.sys.id}`)
+            } else {
+              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: buildDataAssemblySys(entity, 0) }
+              result = await withGraphQLSchemaBackoff(() => plainClient.dataAssembly.update(
+                { spaceId, environmentId, dataAssemblyId: entity.sys.id },
+                payload
+              ))
+              logEmitter.emit('info', `CREATE DataAssembly ${entity.sys.id}`)
+            }
+            return result
+          } catch (err: any) {
+            err.entity = entity
+            logEmitter.emit('error', err)
+            return null
+          }
+        }))
+        ctx.data.dataAssemblies = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.dataAssemblies || []).length
+    },
+    {
+      title: 'Publishing Data Assemblies',
+      task: wrapTask(async (ctx: { data: { dataAssemblies: DataAssemblyProps[], publishedDataAssemblies: DataAssemblyProps[] } }) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.dataAssemblies, sourceData.dataAssemblies || [])
+        const results = await Promise.all(entitiesToPublish.map((entity) =>
+          publishExoEntity<DataAssemblyProps>('DataAssembly', entity, () => plainClient.dataAssembly.publish(
+            { spaceId, environmentId, dataAssemblyId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+        ctx.data.publishedDataAssemblies = results.filter((entity): entity is DataAssemblyProps => entity !== null)
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.dataAssemblies || []).length
+    },
+    {
+      title: 'Importing Design Tokens',
+      task: wrapTask(async (ctx) => {
+        const results = await Promise.all((sourceData.designTokens || []).map(async (entity) => {
+          try {
+            const existing = destinationDataById.designTokens?.get(entity.sys.id)
+            if (existing) {
+              const payload: UpsertDesignTokenProps = { ...entity, sys: { id: entity.sys.id, type: 'DesignToken', version: existing.sys.version } }
+              const result = await plainClient.designToken.upsert({ spaceId, environmentId, designTokenId: entity.sys.id }, payload)
+              logEmitter.emit('info', `UPDATE DesignToken ${entity.sys.id}`)
+              return result
+            } else {
+              const payload: UpsertDesignTokenProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'DesignToken' } }
+              const result = await plainClient.designToken.upsert({ spaceId, environmentId, designTokenId: entity.sys.id }, payload)
+              logEmitter.emit('info', `CREATE DesignToken ${entity.sys.id}`)
+              return result
+            }
+          } catch (err: any) {
+            err.entity = entity
+            logEmitter.emit('error', err)
+            return null
+          }
+        }))
+        ctx.data.designTokens = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.designTokens || []).length
+    },
+    {
+      title: 'Importing Components',
+      task: wrapTask(async (ctx) => {
+        const sorted = sortOrReport(() => sortComponents(sourceData.components || []))
+        const results: any[] = []
+        for (const entity of sorted) {
+          try {
+            const existing = destinationDataById.components?.get(entity.sys.id)
+            if (existing) {
+              const payload: UpsertComponentProps = { ...entity, sys: { id: entity.sys.id, type: 'Component', version: existing.sys.version } }
+              const result = await plainClient.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
+              logEmitter.emit('info', `UPDATE Component ${entity.sys.id}`)
+              results.push(result)
+            } else {
+              const payload: UpsertComponentProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'Component' } }
+              const result = await plainClient.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
+              logEmitter.emit('info', `CREATE Component ${entity.sys.id}`)
+              results.push(result)
+            }
+          } catch (err: any) {
+            err.entity = entity
+            logEmitter.emit('error', err)
+          }
+        }
+        ctx.data.components = results
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.components || []).length
+    },
+    {
+      title: 'Publishing Components',
+      task: wrapTask(async (ctx) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.components, sourceData.components || [])
+        // Sorted and sequential: a Component's publish validation resolves nested
+        // Component/DataAssembly references against their *published* state, so a
+        // parent can't publish before the Components it embeds are published.
+        const sorted = sortOrReport(() => sortComponents(entitiesToPublish))
+        const results: ComponentProps[] = []
+        for (const entity of sorted) {
+          const published = await publishExoEntity<ComponentProps>('Component', entity, () => plainClient.component.publish(
+            { spaceId, environmentId, componentId: entity.sys.id, version: entity.sys.version }
+          ))
+          if (published) results.push(published)
+        }
+        ctx.data.publishedComponents = results
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.components || []).length
+    },
+    {
+      title: 'Importing Experience Templates',
+      task: wrapTask(async (ctx) => {
+        const results = await Promise.all((sourceData.experienceTemplates || []).map(async (entity) => {
+          try {
+            const existing = destinationDataById.experienceTemplates?.get(entity.sys.id)
+            if (existing) {
+              const payload: UpsertExperienceTemplateProps = { ...entity, sys: { id: entity.sys.id, type: 'ExperienceTemplate', version: existing.sys.version } }
+              const result = await plainClient.experienceTemplate.upsert({ spaceId, environmentId, experienceTemplateId: entity.sys.id }, payload)
+              logEmitter.emit('info', `UPDATE ExperienceTemplate ${entity.sys.id}`)
+              return result
+            } else {
+              const payload: UpsertExperienceTemplateProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'ExperienceTemplate' } }
+              const result = await plainClient.experienceTemplate.upsert({ spaceId, environmentId, experienceTemplateId: entity.sys.id }, payload)
+              logEmitter.emit('info', `CREATE ExperienceTemplate ${entity.sys.id}`)
+              return result
+            }
+          } catch (err: any) {
+            err.entity = entity
+            logEmitter.emit('error', err)
+            return null
+          }
+        }))
+        ctx.data.experienceTemplates = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.experienceTemplates || []).length
+    },
+    {
+      title: 'Publishing Experience Templates',
+      task: wrapTask(async (ctx: { data: { experienceTemplates: ExperienceTemplateProps[], publishedExperienceTemplates: ExperienceTemplateProps[] } }) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.experienceTemplates, sourceData.experienceTemplates || [])
+        const results = await Promise.all(entitiesToPublish.map((entity) =>
+          publishExoEntity<ExperienceTemplateProps>('ExperienceTemplate', entity, () => plainClient.experienceTemplate.publish(
+            { spaceId, environmentId, experienceTemplateId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+        ctx.data.publishedExperienceTemplates = results.filter((entity): entity is ExperienceTemplateProps => entity !== null)
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experienceTemplates || []).length
+    },
+    {
+      title: 'Importing Experience Fragments',
+      task: wrapTask(async (ctx) => {
+        const sorted = sortOrReport(() => sortExperienceFragments(sourceData.experienceFragments || []))
+        const results: any[] = []
+        for (const entity of sorted) {
+          try {
+            const existing = destinationDataById.experienceFragments?.get(entity.sys.id)
+            if (existing) {
+              // once an ExperienceFragment is created, its component cannot be changed to a different component -
+              // the API rejects `component` on UPDATE even when the value is unchanged, so omit it entirely
+              const payload: UpsertExperienceFragmentProps = { ...entity, sys: { id: entity.sys.id, type: 'ExperienceFragment', version: existing.sys.version } }
+              const result = await plainClient.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
+              logEmitter.emit('info', `UPDATE ExperienceFragment ${entity.sys.id}`)
+              results.push(result)
+            } else {
+              const payload: UpsertExperienceFragmentProps = { ...omitSys(entity), component: entity.sys.component, sys: { id: entity.sys.id, type: 'ExperienceFragment' } }
+              const result = await plainClient.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
+              logEmitter.emit('info', `CREATE ExperienceFragment ${entity.sys.id}`)
+              results.push(result)
+            }
+          } catch (err: any) {
+            err.entity = entity
+            logEmitter.emit('error', err)
+          }
+        }
+        ctx.data.experienceFragments = results
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.experienceFragments || []).length
+    },
+    {
+      title: 'Publishing Experience Fragments',
+      task: wrapTask(async (ctx) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.experienceFragments, sourceData.experienceFragments || [])
+        // Sorted and sequential, same reasoning as Publishing Components: an ExperienceFragment
+        // can reference other ExperienceFragments in its slots, resolved against published state.
+        const sorted = sortOrReport(() => sortExperienceFragments(entitiesToPublish))
+        const results: ExperienceFragmentProps[] = []
+        for (const entity of sorted) {
+          const published = await publishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => plainClient.experienceFragment.publish(
+            { spaceId, environmentId, experienceFragmentId: entity.sys.id, version: entity.sys.version }
+          ))
+          if (published) results.push(published)
+        }
+        ctx.data.publishedExperienceFragments = results
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experienceFragments || []).length
+    },
+    {
+      title: 'Importing Experiences',
+      task: wrapTask(async (ctx) => {
+        const results = await Promise.all((sourceData.experiences || []).map(async (entity) => {
+          try {
+            const existing = destinationDataById.experiences?.get(entity.sys.id)
+            if (existing) {
+              // once an Experience is created, its experienceTemplate cannot be changed to a different experienceTemplate -
+              // the API rejects `experienceTemplate` on UPDATE even when the value is unchanged, so omit it entirely
+              const payload: UpsertExperienceProps = { ...entity, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
+              const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
+              logEmitter.emit('info', `UPDATE Experience ${entity.sys.id}`)
+              return result
+            } else {
+              const payload: UpsertExperienceProps = { ...omitSys(entity), experienceTemplate: entity.sys.experienceTemplate, sys: { id: entity.sys.id, type: 'Experience' } }
+              const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
+              logEmitter.emit('info', `CREATE Experience ${entity.sys.id}`)
+              return result
+            }
+          } catch (err: any) {
+            err.entity = entity
+            logEmitter.emit('error', err)
+            return null
+          }
+        }))
+        ctx.data.experiences = results.filter(Boolean)
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.experiences || []).length
+    },
+    {
+      title: 'Publishing Experiences',
+      task: wrapTask(async (ctx: { data: { experiences: ExperienceProps[], publishedExperiences: ExperienceProps[] } }) => {
+        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.experiences, sourceData.experiences || [])
+        const results = await Promise.all(entitiesToPublish.map((entity) =>
+          publishExoEntity<ExperienceProps>('Experience', entity, () => plainClient.experience.publish(
+            { spaceId, environmentId, experienceId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+        ctx.data.publishedExperiences = results.filter((entity): entity is ExperienceProps => entity !== null)
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experiences || []).length
+    },
+    // Unpublishing runs after all Importing/Publishing tasks, in reverse dependency order
+    // (Experience first, DataAssembly last) - the API rejects unpublishing an entity that a
+    // still-published parent references, so parents must unpublish before the children they embed.
+    {
+      title: 'Unpublishing Experiences',
+      task: wrapTask(async (ctx: { data: { experiences: ExperienceProps[] } }) => {
+        const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.experiences, sourceData.experiences || [])
+        await Promise.all(entitiesToUnpublish.map((entity) =>
+          unpublishExoEntity<ExperienceProps>('Experience', entity, () => plainClient.experience.unpublish(
+            { spaceId, environmentId, experienceId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experiences || []).length
+    },
+    {
+      title: 'Unpublishing Experience Fragments',
+      task: wrapTask(async (ctx) => {
+        const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.experienceFragments, sourceData.experienceFragments || [])
+        // Sorted and sequential, reverse of Publishing Experience Fragments: the API rejects
+        // unpublishing a fragment that a still-published parent references, so ancestors must
+        // unpublish first.
+        const sorted = sortExperienceFragments(entitiesToUnpublish).reverse()
+        for (const entity of sorted) {
+          await unpublishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => plainClient.experienceFragment.unpublish(
+            { spaceId, environmentId, experienceFragmentId: entity.sys.id, version: entity.sys.version }
+          ))
+        }
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experienceFragments || []).length
+    },
+    {
+      title: 'Unpublishing Experience Templates',
+      task: wrapTask(async (ctx: { data: { experienceTemplates: ExperienceTemplateProps[] } }) => {
+        const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.experienceTemplates, sourceData.experienceTemplates || [])
+        await Promise.all(entitiesToUnpublish.map((entity) =>
+          unpublishExoEntity<ExperienceTemplateProps>('ExperienceTemplate', entity, () => plainClient.experienceTemplate.unpublish(
+            { spaceId, environmentId, experienceTemplateId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experienceTemplates || []).length
+    },
+    {
+      title: 'Unpublishing Components',
+      task: wrapTask(async (ctx) => {
+        const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.components, sourceData.components || [])
+        // Sorted and sequential, reverse of Publishing Components: the API rejects unpublishing
+        // a Component that a still-published parent references, so ancestors must unpublish first.
+        const sorted = sortComponents(entitiesToUnpublish).reverse()
+        for (const entity of sorted) {
+          await unpublishExoEntity<ComponentProps>('Component', entity, () => plainClient.component.unpublish(
+            { spaceId, environmentId, componentId: entity.sys.id, version: entity.sys.version }
+          ))
+        }
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.components || []).length
+    },
+    {
+      title: 'Unpublishing Data Assemblies',
+      task: wrapTask(async (ctx: { data: { dataAssemblies: DataAssemblyProps[] } }) => {
+        const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.dataAssemblies, sourceData.dataAssemblies || [])
+        await Promise.all(entitiesToUnpublish.map((entity) =>
+          unpublishExoEntity<DataAssemblyProps>('DataAssembly', entity, () => plainClient.dataAssembly.unpublish(
+            { spaceId, environmentId, dataAssemblyId: entity.sys.id, version: entity.sys.version }
+          ))
+        ))
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.dataAssemblies || []).length
     }
   ], listrOptions)
 }
 
-function archiveEntities ({ entities, sourceEntities, requestQueue }) {
+function omitSys(entity) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { sys: _sys, ...rest } = entity
+  return rest
+}
+
+function archiveEntities({ entities, sourceEntities, requestQueue }) {
   const entityIdsToArchive = sourceEntities
     .filter(({ original }) => original.sys.archivedVersion)
     .map(({ original }) => original.sys.id)
@@ -392,7 +776,7 @@ function archiveEntities ({ entities, sourceEntities, requestQueue }) {
   return publishing.archiveEntities({ entities: entitiesToArchive, requestQueue })
 }
 
-function publishEntities ({ entities, sourceEntities, requestQueue }) {
+function publishEntities({ entities, sourceEntities, requestQueue }) {
   // Find all entities in source content which are published
   const entityIdsToPublish = sourceEntities
     .filter(({ original }) => original.sys.publishedVersion)

@@ -83,5 +83,10 @@ export default yargs
     type: 'string',
     describe: 'Pass an additional HTTP Header'
   })
+  .option('include-experience-orchestration', {
+    describe: 'Import Experience Orchestration entities (designTokens, components, experienceTemplates, experienceFragments, dataAssemblies, experiences). Requires a space with ExO enabled.',
+    type: 'boolean',
+    default: true
+  })
   .config('config', 'An optional configuration JSON file containing all the options for a single run')
   .argv
