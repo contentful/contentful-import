@@ -1,14 +1,15 @@
 import Promise from 'bluebird'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
-import type { AssetProps, ContentTypeProps, EntryProps, LocaleProps, TagProps, WebhookProps } from 'contentful-management'
+import type { AssetProps, ComponentProps, ContentTypeProps, DataAssemblyProps, DesignTokenProps, EntryProps, ExperienceProps, ExperienceFragmentProps, LocaleProps, TagProps, ExperienceTemplateProps, WebhookProps } from 'contentful-management'
 import { OriginalSourceData } from '../types'
+import { isExoEntitlementError, spaceHasExoM1Entitlement } from '../utils/publish-exo-entities'
 import PQueue from 'p-queue'
 
 const BATCH_CHAR_LIMIT = 1990
 const BATCH_SIZE_LIMIT = 100
 
-const METHODS = {
+const OFFSET_QUERY_METHODS = {
   contentTypes: { name: 'content types', method: 'getContentTypes' },
   locales: { name: 'locales', method: 'getLocales' },
   entries: { name: 'entries', method: 'getEntries' },
@@ -16,18 +17,35 @@ const METHODS = {
   tags: { name: 'tags', method: 'getTags' }
 }
 
+const CURSOR_QUERY_METHODS = {
+  designTokens: { name: 'design tokens', namespace: 'designToken' },
+  components: { name: 'components', namespace: 'component' },
+  experienceTemplates: { name: 'experience templates', namespace: 'experienceTemplate' },
+  experienceFragments: { name: 'experience fragments', namespace: 'experienceFragment' },
+  dataAssemblies: { name: 'data assemblies', namespace: 'dataAssembly' },
+  experiences: { name: 'experiences', namespace: 'experience' }
+}
+
 type BatchedIdQueryParams = {
   requestQueue: PQueue
   environment: any
-  type: keyof typeof METHODS
+  type: keyof typeof OFFSET_QUERY_METHODS
   ids: string[]
 }
 
 type BatchedPageQueryParams = Omit<BatchedIdQueryParams, 'ids'>
 
-async function batchedIdQuery ({ environment, type, ids, requestQueue }: BatchedIdQueryParams) {
-  const method = METHODS[type].method
-  const entityTypeName = METHODS[type].name
+type CursorPaginatedQueryParams = {
+  requestQueue: PQueue
+  plainClient: any
+  spaceId: string
+  environmentId: string
+  type: keyof typeof CURSOR_QUERY_METHODS
+}
+
+async function batchedIdQuery({ environment, type, ids, requestQueue }: BatchedIdQueryParams) {
+  const method = OFFSET_QUERY_METHODS[type].method
+  const entityTypeName = OFFSET_QUERY_METHODS[type].name
   const batches = getIdBatches(ids)
 
   let totalFetched = 0
@@ -51,9 +69,9 @@ async function batchedIdQuery ({ environment, type, ids, requestQueue }: Batched
   return responses.flat()
 }
 
-async function batchedPageQuery ({ environment, type, requestQueue }: BatchedPageQueryParams) {
-  const method = METHODS[type].method
-  const entityTypeName = METHODS[type].name
+async function batchedPageQuery({ environment, type, requestQueue }: BatchedPageQueryParams) {
+  const method = OFFSET_QUERY_METHODS[type].method
+  const entityTypeName = OFFSET_QUERY_METHODS[type].name
 
   let totalFetched = 0
   const { items, total } = await requestQueue.add(async () => {
@@ -86,7 +104,7 @@ async function batchedPageQuery ({ environment, type, requestQueue }: BatchedPag
   return items.concat(remainingResponses.flat())
 }
 
-function getIdBatches (ids) {
+function getIdBatches(ids) {
   const batches: string[] = []
   let currentBatch = ''
   let currentSize = 0
@@ -119,24 +137,74 @@ function getPagedBatches(totalFetched: number, total: number) {
   return batches
 }
 
+async function cursorPaginatedQuery ({ plainClient, spaceId, environmentId, type, requestQueue }: CursorPaginatedQueryParams) {
+  const { name: entityTypeName, namespace } = CURSOR_QUERY_METHODS[type]
+
+  let totalFetched = 0
+  let pageNext: string | undefined = undefined
+  const allItems: any[] = []
+
+  do {
+    const items: any[] = await requestQueue.add(async () => {
+      const response = await plainClient[namespace].getMany({
+        spaceId,
+        environmentId,
+        query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) }
+      })
+      totalFetched += response.items.length
+      logEmitter.emit('info', `Fetched ${totalFetched} ${entityTypeName}`)
+      pageNext = response.pages?.next
+      return response.items
+    })
+    allItems.push(...items)
+  } while (pageNext)
+
+  return allItems
+}
+
+// A destination space without the ExO entitlement 403s on every ExO endpoint. That's a normal,
+// expected outcome (most spaces don't have ExO enabled) rather than a fatal error, so it's
+// handled the same way the `tags` fetch above handles spaces without Tags access: warn and
+// fall back to an empty array instead of failing the whole destination-data fetch.
+async function cursorPaginatedQueryOrWarn (params: CursorPaginatedQueryParams): Promise<any[]> {
+  try {
+    return await cursorPaginatedQuery(params)
+  } catch (err) {
+    const { name: entityTypeName } = CURSOR_QUERY_METHODS[params.type]
+    if (isExoEntitlementError(err)) {
+      logEmitter.emit('error', new Error(`Skipping ${entityTypeName} import: Experience Orchestration (ExO) is not enabled for this space`))
+    } else {
+      logEmitter.emit('error', err instanceof Error ? err : new Error(String(err)))
+    }
+    return []
+  }
+}
+
 type AllDestinationData = {
   contentTypes: Promise<ContentTypeProps[]>
   tags: Promise<TagProps[]>
   locales: Promise<LocaleProps[]>
   entries: Promise<EntryProps[]>
   assets: Promise<AssetProps[]>
-  // TODO Why are webhooks optional?
   webhooks?: Promise<WebhookProps[]>
+  components?: Promise<ComponentProps[]>
+  experienceTemplates?: Promise<ExperienceTemplateProps[]>
+  experienceFragments?: Promise<ExperienceFragmentProps[]>
+  dataAssemblies?: Promise<DataAssemblyProps[]>
+  experiences?: Promise<ExperienceProps[]>
+  designTokens?: Promise<DesignTokenProps[]>
 }
 
 type GetDestinationDataParams = {
   client: any
+  plainClient?: any
   spaceId: string
   environmentId: string
   sourceData: OriginalSourceData
   contentModelOnly?: boolean
   skipLocales?: boolean
   skipContentModel?: boolean
+  includeExperienceOrchestration?: boolean
   requestQueue: PQueue
 }
 
@@ -149,14 +217,16 @@ type GetDestinationDataParams = {
  *
  */
 
-export default async function getDestinationData ({
+export default async function getDestinationData({
   client,
+  plainClient,
   spaceId,
   environmentId,
   sourceData,
   contentModelOnly,
   skipLocales,
   skipContentModel,
+  includeExperienceOrchestration,
   requestQueue
 }: GetDestinationDataParams) {
   const space = await client.getSpace(spaceId)
@@ -166,7 +236,14 @@ export default async function getDestinationData ({
     tags: [],
     locales: [],
     entries: [],
-    assets: []
+    assets: [],
+    experiences: [],
+    experienceTemplates: [],
+    components: [],
+    experienceFragments: [],
+    dataAssemblies: [],
+    designTokens: [],
+    webhooks: [],
   }
 
   // Make sure all required properties are available and at least an empty array
@@ -213,7 +290,7 @@ export default async function getDestinationData ({
 
   const entryIds = sourceData.entries?.map((e) => e.sys.id)
   const assetIds = sourceData.assets?.map((e) => e.sys.id)
-  if (entryIds) {
+  if (entryIds && entryIds.length) {
     result.entries = batchedIdQuery({
       environment,
       type: 'entries',
@@ -221,7 +298,7 @@ export default async function getDestinationData ({
       requestQueue
     })
   }
-  if (assetIds) {
+  if (assetIds && assetIds.length) {
     result.assets = batchedIdQuery({
       environment,
       type: 'assets',
@@ -230,7 +307,45 @@ export default async function getDestinationData ({
     })
   }
 
-  result.webhooks = []
+  if (includeExperienceOrchestration && plainClient) {
+    // dataAssemblies is excluded here — confirmed live it isn't actually gated by exoM1,
+    // unlike the other 5, so it always uses its own fetch-and-catch below instead.
+    const sourceHasDesignTokens = Boolean(sourceData.designTokens?.length)
+    const sourceHasComponents = Boolean(sourceData.components?.length)
+    const sourceHasExperienceTemplates = Boolean(sourceData.experienceTemplates?.length)
+    const sourceHasExperienceFragments = Boolean(sourceData.experienceFragments?.length)
+    const sourceHasExperiences = Boolean(sourceData.experiences?.length)
+
+    let entitled: boolean | null = true
+    if (sourceHasDesignTokens || sourceHasComponents || sourceHasExperienceTemplates || sourceHasExperienceFragments || sourceHasExperiences) {
+      entitled = await spaceHasExoM1Entitlement(plainClient, spaceId)
+    }
+
+    if (entitled === false) {
+      logEmitter.emit('error', new Error('Skipping Experience Orchestration import: Experience Orchestration (ExO) is not enabled for this space'))
+    } else {
+      // null (inconclusive check) falls through here too, same as true.
+      if (sourceHasDesignTokens) {
+        result.designTokens = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'designTokens', requestQueue })
+      }
+      if (sourceHasComponents) {
+        result.components = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'components', requestQueue })
+      }
+      if (sourceHasExperienceTemplates) {
+        result.experienceTemplates = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'experienceTemplates', requestQueue })
+      }
+      if (sourceHasExperienceFragments) {
+        result.experienceFragments = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'experienceFragments', requestQueue })
+      }
+      if (sourceHasExperiences) {
+        result.experiences = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'experiences', requestQueue })
+      }
+    }
+
+    if (sourceData.dataAssemblies?.length) {
+      result.dataAssemblies = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'dataAssemblies', requestQueue })
+    }
+  }
 
   return Promise.props(result)
 }

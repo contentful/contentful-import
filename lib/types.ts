@@ -1,4 +1,7 @@
 import type { AssetProps, ContentTypeProps, EditorInterfaceProps, EntryProps, Link, LocaleProps, TagProps, WebhookProps } from 'contentful-management'
+import type { ComponentProps, DataAssemblyProps, DesignTokenProps, ExperienceProps, ExperienceFragmentProps, ExperienceTemplateProps } from 'contentful-management'
+
+export type { ComponentProps, DataAssemblyProps, DesignTokenProps, ExperienceProps, ExperienceFragmentProps, ExperienceTemplateProps }
 
 export type Resources = {
   contentTypes?: ContentTypeProps[]
@@ -8,6 +11,12 @@ export type Resources = {
   assets?: AssetProps[]
   editorInterfaces?: EditorInterfaceProps[]
   webhooks?: WebhookProps[]
+  components?: ComponentProps[]
+  experienceTemplates?: ExperienceTemplateProps[]
+  experienceFragments?: ExperienceFragmentProps[]
+  dataAssemblies?: DataAssemblyProps[]
+  experiences?: ExperienceProps[]
+  designTokens?: DesignTokenProps[]
 }
 
 export type ResourcesUnion = (ContentTypeProps | TagProps | LocaleProps | EntryProps | AssetProps | EditorInterfaceProps | WebhookProps)[]
@@ -16,7 +25,7 @@ export type DestinationData = Resources
 
 export type TransformedAsset = {
   fields: { file: { upload?: string, uploadFrom: Link<'Upload'> }[] },
-  sys: {id: string}
+  sys: { id: string }
 }
 
 export type EntityTransformed<TransformedType, OriginalType> = {
@@ -36,6 +45,12 @@ export type TransformedSourceData = {
   tags: EntityTransformed<TagProps, any>[]
   webhooks: EntityTransformed<WebhookProps, any>[]
   editorInterfaces: EditorInterfaceProps[]
+  components?: ComponentProps[]
+  experienceTemplates?: ExperienceTemplateProps[]
+  experienceFragments?: ExperienceFragmentProps[]
+  dataAssemblies?: DataAssemblyProps[]
+  experiences?: ExperienceProps[]
+  designTokens?: DesignTokenProps[]
 }
 
 export type TransformedSourceDataUnion = (
