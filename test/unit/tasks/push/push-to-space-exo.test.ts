@@ -6,7 +6,7 @@ import { logEmitter } from 'contentful-batch-libs/dist/logging'
 // logEmitter is a plain node:events EventEmitter. Node treats 'error' as a special
 // event name and throws synchronously if it's emitted with no listener attached, so
 // register a no-op listener before any test exercises an error/log-and-continue path.
-logEmitter.on('error', () => {})
+logEmitter.on('error', () => { })
 
 // Minimal base source data needed to satisfy the Listr tasks that always run
 const baseSourceData = {
@@ -24,6 +24,7 @@ const baseDestinationData = {}
 function makeClientMock() {
   return {
     getSpace: jest.fn(() => Promise.resolve({
+      sys: { organization: { sys: { id: 'org-1' } } },
       getEnvironment: jest.fn(() => Promise.resolve({
         getEditorInterfaceForContentType: jest.fn(() => Promise.resolve({ update: jest.fn() }))
       }))
@@ -37,11 +38,29 @@ function echoVersion(id: string) {
   return jest.fn((_params: any, payload: any) => Promise.resolve({ sys: { id, version: payload.sys.version ?? 1 } }))
 }
 
+const ALL_PARENT_GROUP_IDS = [
+  'contentful.folder-group-designToken',
+  'contentful.folder-group-componentType',
+  'contentful.folder-group-template',
+  'contentful.folder-group-fragment',
+  'contentful.folder-group-experience',
+]
+
 function makePlainClientMock() {
   return {
+    conceptScheme: {
+      getMany: jest.fn(() => Promise.resolve({
+        items: ALL_PARENT_GROUP_IDS.map((id) => ({ sys: { id, version: 1 }, concepts: [] }))
+      })),
+      patch: jest.fn(({ version }: any) => Promise.resolve({ sys: { version: version + 1 }, concepts: [] })),
+    },
     designToken: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'dt-1' } })),
       upsert: echoVersion('dt-1')
+    },
+    concept: {
+      get: jest.fn(() => Promise.resolve({ sys: { id: 'folder-1', version: 0 }, metadata: { spaces: [] } })),
+      patch: jest.fn(() => Promise.resolve({})),
     },
     component: {
       create: jest.fn(() => Promise.resolve({ sys: { id: 'ct-1' } })),

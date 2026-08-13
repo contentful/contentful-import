@@ -27,6 +27,7 @@ import sortComponents from '../../utils/sort-components'
 import sortExperienceFragments from '../../utils/sort-experience-fragments'
 import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity } from '../../utils/publish-exo-entities'
 import { sortOrReport } from '../../utils/sort-or-report'
+import { importExoFolders } from '../../utils/import-exo-folders'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
@@ -416,6 +417,24 @@ export default function pushToSpace({
       }),
       skip: () =>
         contentModelOnly || (environmentId !== 'master' && 'Webhooks can only be imported in master environment')
+    },
+    {
+      title: 'Create ExO Folders',
+      task: wrapTask(async (ctx) => {
+        await importExoFolders({
+          plainClient,
+          organizationId: ctx.space.sys.organization.sys.id,
+          destinationSpaceId: spaceId,
+          sourceEntities: {
+            designTokens: sourceData.designTokens,
+            components: sourceData.components,
+            experienceTemplates: sourceData.experienceTemplates,
+            experienceFragments: sourceData.experienceFragments,
+            experiences: sourceData.experiences,
+          },
+        })
+      }),
+      skip: () => !includeExperienceOrchestration
     },
     {
       title: 'Importing Data Assemblies',

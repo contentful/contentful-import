@@ -2,6 +2,8 @@ import PQueue from 'p-queue'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 
+import { PARENT_FOLDER_GROUP_IDS } from '../../../../lib/utils/import-exo-folders'
+
 // logEmitter is a plain node:events EventEmitter. Node treats 'error' as a special
 // event name and throws synchronously if it's emitted with no listener attached, so
 // register a no-op listener before any test exercises an error/log-and-continue path.
@@ -40,7 +42,8 @@ function makeClientMock() {
     getSpace: jest.fn(() => Promise.resolve({
       getEnvironment: jest.fn(() => Promise.resolve({
         getEditorInterfaceForContentType: jest.fn(() => Promise.resolve({ update: jest.fn() }))
-      }))
+      })),
+      sys: { organization: { sys: { id: 'org-1' } } }
     }))
   }
 }
@@ -48,7 +51,16 @@ function makeClientMock() {
 function makePlainClientMock() {
   return {
     component: { upsert: jest.fn(), publish: jest.fn() },
-    experienceFragment: { upsert: jest.fn(), publish: jest.fn() }
+    experienceFragment: { upsert: jest.fn(), publish: jest.fn() },
+    conceptScheme: {
+      getMany: jest.fn(() => Promise.resolve({
+        items: Object.values(PARENT_FOLDER_GROUP_IDS).map((id) => ({
+          sys: { id, version: 1 },
+          prefLabel: { 'en-US': id },
+          concepts: []
+        }))
+      }))
+    }
   }
 }
 
