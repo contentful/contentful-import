@@ -10,10 +10,11 @@ jest.mock('contentful-management', () => {
 })
 
 jest.mock('contentful-batch-libs/dist/logging', () => {
+  const EventEmitter = require('events')
+  const emitter = new EventEmitter()
+  emitter.emit = jest.fn(emitter.emit.bind(emitter))
   return {
-    logEmitter: {
-      emit: jest.fn()
-    }
+    logEmitter: emitter
   }
 })
 
@@ -57,4 +58,33 @@ test('does create clients and passes custom logHandler', () => {
 
   expect(mockEmit.mock.calls[0][0]).toBe('level')
   expect(mockEmit.mock.calls[0][1]).toBe('logMessage')
+})
+
+test('logHandler emits rateLimit event for 429 retry warnings', () => {
+  initClient({})
+
+  const rateLimitListener = jest.fn()
+  logEmitter.on('rateLimit', rateLimitListener)
+
+  const logHandler = (contentfulManagement.createClient as jest.Mock).mock.calls[0][0].logHandler
+  logHandler('warning', 'Rate limit error occurred. Waiting for 10500 ms before retrying...')
+
+  expect(rateLimitListener).toHaveBeenCalledTimes(1)
+  expect(rateLimitListener).toHaveBeenCalledWith({ waitMs: 10500 })
+
+  logEmitter.removeListener('rateLimit', rateLimitListener)
+})
+
+test('logHandler does not emit rateLimit event for unrelated warnings', () => {
+  initClient({})
+
+  const rateLimitListener = jest.fn()
+  logEmitter.on('rateLimit', rateLimitListener)
+
+  const logHandler = (contentfulManagement.createClient as jest.Mock).mock.calls[0][0].logHandler
+  logHandler('warning', 'Some other warning')
+
+  expect(rateLimitListener).not.toHaveBeenCalled()
+
+  logEmitter.removeListener('rateLimit', rateLimitListener)
 })

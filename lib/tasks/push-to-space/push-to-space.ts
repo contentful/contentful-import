@@ -2,7 +2,7 @@ import Listr from 'listr'
 import verboseRenderer from 'listr-verbose-renderer'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
-import { wrapTask } from 'contentful-batch-libs/dist/listr'
+import { wrapTaskWithRateLimitStatus as wrapTask } from '../../utils/rate-limit-status'
 
 import * as assets from './assets'
 import * as creation from './creation'
