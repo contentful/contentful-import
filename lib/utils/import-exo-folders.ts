@@ -161,7 +161,9 @@ export async function createOrPatchChildConcepts(
     } else {
       const patches: Array<{ op: string; path: string; value: any }> = []
 
-      if ((existing as any).purpose !== 'internal') {
+      // The CMA does not include purpose in every concept GET response. Only
+      // patch it when the API actually returns a different purpose.
+      if (typeof (existing as any).purpose === 'string' && (existing as any).purpose !== 'internal') {
         patches.push({ op: 'add', path: '/purpose', value: 'internal' })
       }
 
