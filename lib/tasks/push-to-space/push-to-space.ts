@@ -28,6 +28,7 @@ import sortExperienceFragments from '../../utils/sort-experience-fragments'
 import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity } from '../../utils/publish-exo-entities'
 import { sortOrReport } from '../../utils/sort-or-report'
 import { importExoFolders } from '../../utils/import-exo-folders'
+import { buildLocalePublishPlan } from '../../utils/resolve-publish-locales'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
@@ -345,7 +346,14 @@ export default function pushToSpace({
         const publishedAssets = await publishEntities({
           entities: ctx.data.assets,
           sourceEntities: sourceData.assets,
-          requestQueue
+          requestQueue,
+          localePublishing: {
+            plainClient,
+            spaceId,
+            environmentId,
+            namespace: 'asset',
+            environment: ctx.environment
+          }
         })
         ctx.data.publishedAssets = publishedAssets
       }),
@@ -383,7 +391,14 @@ export default function pushToSpace({
         const publishedEntries = await publishEntities({
           entities: ctx.data.entries,
           sourceEntities: sourceData.entries,
-          requestQueue
+          requestQueue,
+          localePublishing: {
+            plainClient,
+            spaceId,
+            environmentId,
+            namespace: 'entry',
+            environment: ctx.environment
+          }
         })
         ctx.data.publishedEntries = publishedEntries
       }),
@@ -776,15 +791,82 @@ function archiveEntities({ entities, sourceEntities, requestQueue }) {
   return publishing.archiveEntities({ entities: entitiesToArchive, requestQueue })
 }
 
-function publishEntities({ entities, sourceEntities, requestQueue }) {
+type LocalePublishingSetup = {
+  plainClient: any
+  spaceId: string
+  environmentId: string
+  namespace: 'entry' | 'asset'
+  environment: any
+}
+
+// Cached per environment so assets and entries share one lookup per import.
+const destinationLocaleCodesCache = new WeakMap<object, Promise<string[] | null>>()
+
+/**
+ * Locale codes of the destination environment, or null when they cannot be read.
+ * `destinationData.locales` is not usable here — it stays empty under
+ * `skipLocales`/`skipContentModel`.
+ */
+function getDestinationLocaleCodes(environment, requestQueue): Promise<string[] | null> {
+  let localeCodes = destinationLocaleCodesCache.get(environment)
+
+  if (!localeCodes) {
+    localeCodes = requestQueue.add(() => environment.getLocales())
+      .then(({ items }) => items.map((locale) => locale.code))
+      .catch((err) => {
+        logEmitter.emit('warning', `Could not read the locales of the destination environment, falling back to publishing all locales: ${err.message}`)
+        return null
+      })
+    destinationLocaleCodesCache.set(environment, localeCodes as Promise<string[] | null>)
+  }
+
+  return localeCodes as Promise<string[] | null>
+}
+
+async function publishEntities({ entities, sourceEntities, requestQueue, localePublishing }: {
+  entities: any[]
+  sourceEntities: any[]
+  requestQueue: any
+  localePublishing?: LocalePublishingSetup
+}) {
   // Find all entities in source content which are published
   const entityIdsToPublish = sourceEntities
     .filter(({ original }) => original.sys.publishedVersion)
     .map(({ original }) => original.sys.id)
 
   // Filter imported entities and publish only these who got published in the source
-  const entitiesToPublish = entities
+  let entitiesToPublish = entities
     .filter((entity) => entityIdsToPublish.indexOf(entity.sys.id) !== -1)
 
-  return publishing.publishEntities({ entities: entitiesToPublish, requestQueue })
+  // Locale-scoped publishing needs the plain client; the legacy client's
+  // `entity.publish()` cannot express a locale scope.
+  if (!localePublishing?.plainClient) {
+    return publishing.publishEntities({ entities: entitiesToPublish, requestQueue })
+  }
+
+  const { environment, ...clientContext } = localePublishing
+
+  // Only pay for the locale lookup when the export actually carries per-locale state.
+  const hasFieldStatus = sourceEntities.some(({ original }) => original.sys.fieldStatus)
+  const destinationLocaleCodes = hasFieldStatus
+    ? await getDestinationLocaleCodes(environment, requestQueue)
+    : null
+
+  const { localesByEntityId, skippedEntityIds } = buildLocalePublishPlan(sourceEntities, destinationLocaleCodes)
+
+  if (skippedEntityIds.size) {
+    entitiesToPublish = entitiesToPublish.filter((entity) => {
+      if (!skippedEntityIds.has(entity.sys.id)) {
+        return true
+      }
+      logEmitter.emit('warning', `Not publishing ${entity.sys.type} ${entity.sys.id} because none of the locales it was published for exist in the destination environment`)
+      return false
+    })
+  }
+
+  return publishing.publishEntities({
+    entities: entitiesToPublish,
+    requestQueue,
+    localePublishing: { ...clientContext, localesByEntityId }
+  })
 }

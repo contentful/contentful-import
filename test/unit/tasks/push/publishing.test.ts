@@ -216,3 +216,113 @@ test('Skips archiving when no entities are given', () => {
       expect(mockEmit.mock.calls).toHaveLength(3)
     })
 })
+
+describe('locale-scoped publishing', () => {
+  function makePlainClient() {
+    return {
+      entry: {
+        publish: jest.fn((params: any) => Promise.resolve({
+          sys: { type: 'Entry', id: params.entryId, publishedVersion: 4 }
+        }))
+      },
+      asset: {
+        publish: jest.fn((params: any) => Promise.resolve({
+          sys: { type: 'Asset', id: params.assetId, publishedVersion: 4 }
+        }))
+      }
+    }
+  }
+
+  test('publishes only the locales named in the plan', async () => {
+    const plainClient = makePlainClient()
+    const legacyPublish = jest.fn()
+    const entity = { sys: { type: 'Entry', id: 'entry-1', version: 7 }, publish: legacyPublish }
+
+    await publishEntities({
+      entities: [entity],
+      requestQueue,
+      localePublishing: {
+        plainClient,
+        spaceId: 'space-1',
+        environmentId: 'env-1',
+        namespace: 'entry',
+        localesByEntityId: new Map([['entry-1', ['en-US']]])
+      }
+    })
+
+    expect(legacyPublish).not.toHaveBeenCalled()
+    expect(plainClient.entry.publish).toHaveBeenCalledTimes(1)
+    expect(plainClient.entry.publish).toHaveBeenCalledWith(
+      { spaceId: 'space-1', environmentId: 'env-1', entryId: 'entry-1', locales: ['en-US'] },
+      entity
+    )
+  })
+
+  test('falls back to a whole-entity publish for entities absent from the plan', async () => {
+    const plainClient = makePlainClient()
+    const legacyPublish = jest.fn(() => Promise.resolve({
+      sys: { type: 'Entry', id: 'entry-2', publishedVersion: 2 }
+    }))
+
+    await publishEntities({
+      entities: [{ sys: { type: 'Entry', id: 'entry-2', version: 3 }, publish: legacyPublish }],
+      requestQueue,
+      localePublishing: {
+        plainClient,
+        spaceId: 'space-1',
+        environmentId: 'env-1',
+        namespace: 'entry',
+        localesByEntityId: new Map([['entry-1', ['en-US']]])
+      }
+    })
+
+    expect(legacyPublish).toHaveBeenCalledTimes(1)
+    expect(plainClient.entry.publish).not.toHaveBeenCalled()
+  })
+
+  test('publishes assets through the asset endpoint', async () => {
+    const plainClient = makePlainClient()
+    const entity = { sys: { type: 'Asset', id: 'asset-1', version: 5 }, publish: jest.fn() }
+
+    await publishEntities({
+      entities: [entity],
+      requestQueue,
+      localePublishing: {
+        plainClient,
+        spaceId: 'space-1',
+        environmentId: 'env-1',
+        namespace: 'asset',
+        localesByEntityId: new Map([['asset-1', ['en-US', 'es']]])
+      }
+    })
+
+    expect(plainClient.entry.publish).not.toHaveBeenCalled()
+    expect(plainClient.asset.publish).toHaveBeenCalledWith(
+      { spaceId: 'space-1', environmentId: 'env-1', assetId: 'asset-1', locales: ['en-US', 'es'] },
+      entity
+    )
+  })
+
+  test('reports a locale-scoped publish failure without failing the import', async () => {
+    const plainClient = makePlainClient()
+    plainClient.entry.publish = jest.fn((params: any) => Promise.reject(
+      new Error(`422 InvalidEntry for ${params.entryId}`)
+    ))
+
+    const result = await publishEntities({
+      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 }, publish: jest.fn() }],
+      requestQueue,
+      localePublishing: {
+        plainClient,
+        spaceId: 'space-1',
+        environmentId: 'env-1',
+        namespace: 'entry',
+        localesByEntityId: new Map([['entry-1', ['en-US']]])
+      }
+    })
+
+    expect(result).toHaveLength(0)
+    const errorCount = mockEmit.mock.calls.filter((args) => args[0] === 'error').length
+    expect(errorCount).toBeGreaterThan(0)
+  })
+})
