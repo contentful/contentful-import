@@ -326,3 +326,94 @@ describe('locale-scoped publishing', () => {
     expect(errorCount).toBeGreaterThan(0)
   })
 })
+
+describe('demoting draft locales', () => {
+  function makePlainClient() {
+    return {
+      entry: {
+        publish: jest.fn((params: any) => Promise.resolve({
+          sys: { type: 'Entry', id: params.entryId, version: 9, publishedVersion: 8 }
+        })),
+        unpublish: jest.fn((params: any) => Promise.resolve({
+          sys: { type: 'Entry', id: params.entryId, version: 11, publishedVersion: 10 }
+        }))
+      },
+      asset: { publish: jest.fn(), unpublish: jest.fn() }
+    }
+  }
+
+  const baseContext = {
+    spaceId: 'space-1',
+    environmentId: 'env-1',
+    namespace: 'entry' as const,
+    localesByEntityId: new Map([['entry-1', ['en-US']]])
+  }
+
+  test('unpublishes the demoted locales after publishing, using the published version', async () => {
+    const plainClient = makePlainClient()
+
+    await publishEntities({
+      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 }, publish: jest.fn() }],
+      requestQueue,
+      localePublishing: {
+        ...baseContext,
+        plainClient,
+        demoteLocalesByEntityId: new Map([['entry-1', ['es']]])
+      }
+    })
+
+    expect(plainClient.entry.publish).toHaveBeenCalledTimes(1)
+    expect(plainClient.entry.unpublish).toHaveBeenCalledTimes(1)
+    expect(plainClient.entry.unpublish).toHaveBeenCalledWith(
+      { spaceId: 'space-1', environmentId: 'env-1', entryId: 'entry-1', locales: ['es'] },
+      // version 9 comes from the publish response, not the stale pre-publish entity
+      { sys: { type: 'Entry', id: 'entry-1', version: 9, publishedVersion: 8 } }
+    )
+  })
+
+  test('does not unpublish when the entity has nothing to demote', async () => {
+    const plainClient = makePlainClient()
+
+    await publishEntities({
+      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 }, publish: jest.fn() }],
+      requestQueue,
+      localePublishing: { ...baseContext, plainClient, demoteLocalesByEntityId: new Map() }
+    })
+
+    expect(plainClient.entry.publish).toHaveBeenCalledTimes(1)
+    expect(plainClient.entry.unpublish).not.toHaveBeenCalled()
+  })
+
+  test('does not unpublish when no demotion plan is supplied at all', async () => {
+    const plainClient = makePlainClient()
+
+    await publishEntities({
+      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 }, publish: jest.fn() }],
+      requestQueue,
+      localePublishing: { ...baseContext, plainClient }
+    })
+
+    expect(plainClient.entry.unpublish).not.toHaveBeenCalled()
+  })
+
+  test('reports a failed demotion without failing the import', async () => {
+    const plainClient = makePlainClient()
+    plainClient.entry.unpublish = jest.fn((params: any) => Promise.reject(
+      new Error(`cannot unpublish ${params.entryId}`)
+    ))
+
+    const result = await publishEntities({
+      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 }, publish: jest.fn() }],
+      requestQueue,
+      localePublishing: {
+        ...baseContext,
+        plainClient,
+        demoteLocalesByEntityId: new Map([['entry-1', ['es']]])
+      }
+    })
+
+    expect(result).toHaveLength(0)
+    const errorCount = mockEmit.mock.calls.filter((args) => args[0] === 'error').length
+    expect(errorCount).toBeGreaterThan(0)
+  })
+})

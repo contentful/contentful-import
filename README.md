@@ -155,6 +155,14 @@ Skip updating existing content
 
 Skips content publishing. Creates content but does not publish it
 
+#### `unpublishDraftLocales` [boolean] [default: false]
+
+Unpublish locales that the content file marks as `draft` but that are still published in the destination.
+
+Per-locale publishing is additive, so importing can add published locales but cannot demote one on its own. This only matters when importing over content that is already published — for a fresh import into a clean environment it makes no difference. Enable it to make repeated imports converge on exactly the state in the content file.
+
+Note that this lets an import **unpublish** content in the destination, which is why it is opt-in.
+
 ### Assets
 
 #### `uploadAssets` [boolean] [default: false]
@@ -345,7 +353,7 @@ An entity that's published in the source is published in the destination on impo
 - If you have custom UI extensions, you need to reinstall them manually in the new space.
 - Per-locale publish state is restored, with two caveats:
   - A locale that was `changed` in the source space (published, with newer draft edits on top) is imported as `published`. Reconstructing `changed` needs two separate writes, which an import cannot express.
-  - Locale-scoped publishing only adds published locales. If an entry in the destination space is already published for a locale that should be draft, that locale stays published — importing cannot demote it. Importing into a clean environment is unaffected.
+  - Locale-scoped publishing only adds published locales. If an entry in the destination space is already published for a locale that should be draft, that locale stays published by default — importing into a clean environment is unaffected. Set [`unpublishDraftLocales`](#unpublishdraftlocales-boolean-default-false) to demote those locales as well.
 - Locales that are published in the source space but do not exist in the destination environment are skipped. If none of an entity's published locales exist in the destination, the entity is left unpublished and a warning is logged.
 
 ## :memo: Changelog

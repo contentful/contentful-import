@@ -167,3 +167,45 @@ test('publishes whole entities when no plain client is available', async () => {
   expect(call.localePublishing).toBeUndefined()
   expect(getLocalesMock).not.toHaveBeenCalled()
 })
+
+describe('unpublishDraftLocales', () => {
+  const sourceData = makeSourceData([
+    makeEntry('mixed', { 'en-US': 'published', es: 'draft', 'zh-Hant-TW': 'draft' })
+  ])
+  // Same entry already in the destination, published for a locale that should be draft.
+  const destinationData = {
+    entries: [{
+      sys: {
+        id: 'mixed',
+        type: 'Entry',
+        publishedVersion: 4,
+        fieldStatus: { '*': { 'en-US': 'published', es: 'published', 'zh-Hant-TW': 'draft' } }
+      }
+    }]
+  }
+
+  function runWith(unpublishDraftLocales?: boolean) {
+    return pushToSpace({
+      sourceData,
+      destinationData: destinationData as any,
+      client: clientMock,
+      plainClient: { entry: { publish: jest.fn() }, asset: { publish: jest.fn() } },
+      spaceId: 'spaceid',
+      environmentId: 'master',
+      unpublishDraftLocales,
+      requestQueue
+    }).run({ data: {} })
+  }
+
+  test('plans no demotions by default', async () => {
+    await runWith()
+    expect(entryPublishCall().localePublishing.demoteLocalesByEntityId.size).toBe(0)
+  })
+
+  test('demotes locales that are still published in the destination when enabled', async () => {
+    await runWith(true)
+    expect([...entryPublishCall().localePublishing.demoteLocalesByEntityId.entries()]).toEqual([
+      ['mixed', ['es']]
+    ])
+  })
+})

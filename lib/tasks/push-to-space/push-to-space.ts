@@ -75,6 +75,7 @@ type PushToSpaceParams = {
   skipContentUpdates?: boolean,
   skipLocales?: boolean,
   skipContentPublishing?: boolean,
+  unpublishDraftLocales?: boolean,
   timeout?: number,
   retryLimit?: number,
   listrOptions?: any,
@@ -102,6 +103,7 @@ type PushToSpaceParams = {
  * - skipLocales: skips locales when synchronizing the content model
  * - skipContentModel: synchronizes only entries and assets
  * - skipContentPublishing: create content but don't publish it
+ * - unpublishDraftLocales: unpublish locales the content file marks as draft but that are still published in the destination
  * - uploadAssets: upload exported files instead of pointing to an existing URL
  * - assetsDirectory: path to exported asset files to be uploaded instead of pointing to an existing URL
  */
@@ -124,6 +126,7 @@ export default function pushToSpace({
   skipContentUpdates,
   skipLocales,
   skipContentPublishing,
+  unpublishDraftLocales,
   timeout,
   retryLimit,
   listrOptions,
@@ -352,7 +355,8 @@ export default function pushToSpace({
             spaceId,
             environmentId,
             namespace: 'asset',
-            environment: ctx.environment
+            environment: ctx.environment,
+            destinationEntitiesById: unpublishDraftLocales ? destinationDataById.assets : undefined
           }
         })
         ctx.data.publishedAssets = publishedAssets
@@ -397,7 +401,8 @@ export default function pushToSpace({
             spaceId,
             environmentId,
             namespace: 'entry',
-            environment: ctx.environment
+            environment: ctx.environment,
+            destinationEntitiesById: unpublishDraftLocales ? destinationDataById.entries : undefined
           }
         })
         ctx.data.publishedEntries = publishedEntries
@@ -797,6 +802,8 @@ type LocalePublishingSetup = {
   environmentId: string
   namespace: 'entry' | 'asset'
   environment: any
+  /** Destination entities, passed only when `unpublishDraftLocales` is enabled. */
+  destinationEntitiesById?: Map<string, any>
 }
 
 // Cached per environment so assets and entries share one lookup per import.
@@ -844,7 +851,7 @@ async function publishEntities({ entities, sourceEntities, requestQueue, localeP
     return publishing.publishEntities({ entities: entitiesToPublish, requestQueue })
   }
 
-  const { environment, ...clientContext } = localePublishing
+  const { environment, destinationEntitiesById, ...clientContext } = localePublishing
 
   // Only pay for the locale lookup when the export actually carries per-locale state.
   const hasFieldStatus = sourceEntities.some(({ original }) => original.sys.fieldStatus)
@@ -852,7 +859,11 @@ async function publishEntities({ entities, sourceEntities, requestQueue, localeP
     ? await getDestinationLocaleCodes(environment, requestQueue)
     : null
 
-  const { localesByEntityId, skippedEntityIds } = buildLocalePublishPlan(sourceEntities, destinationLocaleCodes)
+  const { localesByEntityId, skippedEntityIds, demoteLocalesByEntityId } = buildLocalePublishPlan(
+    sourceEntities,
+    destinationLocaleCodes,
+    { destinationEntitiesById }
+  )
 
   if (skippedEntityIds.size) {
     entitiesToPublish = entitiesToPublish.filter((entity) => {
@@ -867,6 +878,6 @@ async function publishEntities({ entities, sourceEntities, requestQueue, localeP
   return publishing.publishEntities({
     entities: entitiesToPublish,
     requestQueue,
-    localePublishing: { ...clientContext, localesByEntityId }
+    localePublishing: { ...clientContext, localesByEntityId, demoteLocalesByEntityId }
   })
 }

@@ -1,4 +1,4 @@
-import resolvePublishLocales, { buildLocalePublishPlan } from '../../../lib/utils/resolve-publish-locales'
+import resolvePublishLocales, { buildLocalePublishPlan, resolveLocalesToDemote } from '../../../lib/utils/resolve-publish-locales'
 
 const DESTINATION_LOCALES = ['en-US', 'es', 'zh-Hant-TW']
 
@@ -73,5 +73,74 @@ describe('buildLocalePublishPlan', () => {
     const { localesByEntityId, skippedEntityIds } = buildLocalePublishPlan(sourceEntities, null)
     expect(localesByEntityId.size).toBe(0)
     expect(skippedEntityIds.size).toBe(0)
+  })
+})
+
+describe('resolveLocalesToDemote', () => {
+  const sourceSys = makeSys({ 'en-US': 'published', es: 'draft', 'zh-Hant-TW': 'draft' })
+
+  test('demotes locales that are draft in the content file but live in the destination', () => {
+    const destinationSys = makeSys({ 'en-US': 'published', es: 'published', 'zh-Hant-TW': 'changed' })
+    expect(resolveLocalesToDemote(sourceSys, destinationSys, DESTINATION_LOCALES))
+      .toEqual(['es', 'zh-Hant-TW'])
+  })
+
+  test('leaves locales that are already draft in the destination alone', () => {
+    const destinationSys = makeSys({ 'en-US': 'published', es: 'draft', 'zh-Hant-TW': 'draft' })
+    expect(resolveLocalesToDemote(sourceSys, destinationSys, DESTINATION_LOCALES)).toEqual([])
+  })
+
+  test('demotes nothing when the entity does not exist in the destination yet', () => {
+    expect(resolveLocalesToDemote(sourceSys, undefined, DESTINATION_LOCALES)).toEqual([])
+  })
+
+  test('demotes nothing when the destination entity carries no fieldStatus', () => {
+    expect(resolveLocalesToDemote(sourceSys, makeSys(), DESTINATION_LOCALES)).toEqual([])
+  })
+
+  test('never names a locale absent from the destination environment', () => {
+    const source = makeSys({ 'en-US': 'published', 'de-DE': 'draft' })
+    const destination = makeSys({ 'en-US': 'published', 'de-DE': 'published' })
+    expect(resolveLocalesToDemote(source, destination, DESTINATION_LOCALES)).toEqual([])
+  })
+
+  test('demotes nothing when the content file has no fieldStatus', () => {
+    const destination = makeSys({ 'en-US': 'published', es: 'published' })
+    expect(resolveLocalesToDemote(makeSys(), destination, DESTINATION_LOCALES)).toEqual([])
+  })
+})
+
+describe('buildLocalePublishPlan demotions', () => {
+  const sourceEntities = [
+    { original: { sys: makeSys({ 'en-US': 'published', es: 'draft', 'zh-Hant-TW': 'draft' }) } }
+  ]
+
+  test('is empty when no destination entities are supplied', () => {
+    const { demoteLocalesByEntityId } = buildLocalePublishPlan(sourceEntities, DESTINATION_LOCALES)
+    expect(demoteLocalesByEntityId.size).toBe(0)
+  })
+
+  test('maps entities whose destination locales need demoting', () => {
+    const destinationEntitiesById = new Map([
+      ['entity-1', { sys: makeSys({ 'en-US': 'published', es: 'published', 'zh-Hant-TW': 'draft' }) }]
+    ])
+    const { demoteLocalesByEntityId } = buildLocalePublishPlan(
+      sourceEntities,
+      DESTINATION_LOCALES,
+      { destinationEntitiesById }
+    )
+    expect([...demoteLocalesByEntityId.entries()]).toEqual([['entity-1', ['es']]])
+  })
+
+  test('omits entities with nothing to demote', () => {
+    const destinationEntitiesById = new Map([
+      ['entity-1', { sys: makeSys({ 'en-US': 'published', es: 'draft', 'zh-Hant-TW': 'draft' }) }]
+    ])
+    const { demoteLocalesByEntityId } = buildLocalePublishPlan(
+      sourceEntities,
+      DESTINATION_LOCALES,
+      { destinationEntitiesById }
+    )
+    expect(demoteLocalesByEntityId.size).toBe(0)
   })
 })

@@ -15,6 +15,8 @@ export type LocalePublishing = {
   environmentId: string
   namespace: 'entry' | 'asset'
   localesByEntityId: Map<string, string[]>
+  /** Only populated when `unpublishDraftLocales` is enabled. */
+  demoteLocalesByEntityId?: Map<string, string[]>
 }
 
 /**
@@ -95,12 +97,27 @@ export async function archiveEntities ({ entities, requestQueue }) {
  * publish every locale. The plain client accepts a `locales` list, which the REST
  * adapter turns into an `{ add: { fields: { '*': locales } } }` payload.
  */
-function publishEntityLocales (localePublishing: LocalePublishing, entity, locales: string[]) {
-  const { plainClient, spaceId, environmentId, namespace } = localePublishing
+async function publishEntityLocales (localePublishing: LocalePublishing, entity, locales: string[]) {
+  const { plainClient, spaceId, environmentId, namespace, demoteLocalesByEntityId } = localePublishing
 
-  return plainClient[namespace].publish(
+  const published = await plainClient[namespace].publish(
     { spaceId, environmentId, [`${namespace}Id`]: entity.sys.id, locales },
     entity
+  )
+
+  // Publishing is additive, so a locale left published by an earlier import has to
+  // be unpublished explicitly. Opt-in via `unpublishDraftLocales`.
+  const localesToDemote = demoteLocalesByEntityId?.get(entity.sys.id)
+
+  if (!localesToDemote?.length) {
+    return published
+  }
+
+  logEmitter.emit('info', `Unpublishing locales ${localesToDemote.join(', ')} of ${entity.sys.type} ${getEntityName(entity)}`)
+
+  return plainClient[namespace].unpublish(
+    { spaceId, environmentId, [`${namespace}Id`]: entity.sys.id, locales: localesToDemote },
+    published
   )
 }
 

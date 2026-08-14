@@ -58,21 +58,55 @@ export default function resolvePublishLocales(
   return everyLocaleIsLive ? null : availableLocales
 }
 
+/**
+ * Locales that must be unpublished so the destination matches the content file.
+ *
+ * Locale-scoped publishing is additive — the CMA payload verb is `add` — so a
+ * locale left published by an earlier import cannot be demoted by publishing.
+ * This is only relevant when re-importing over content that is already published,
+ * so it is opt-in via `unpublishDraftLocales`.
+ */
+export function resolveLocalesToDemote(
+  sys: FieldStatusSys,
+  destinationSys: FieldStatusSys | undefined,
+  destinationLocaleCodes: string[]
+): string[] {
+  const fieldStatus = sys.fieldStatus?.['*']
+  const destinationFieldStatus = destinationSys?.fieldStatus?.['*']
+
+  if (!fieldStatus || !destinationFieldStatus) {
+    return []
+  }
+
+  return Object.keys(fieldStatus)
+    .filter((locale) => fieldStatus[locale] === 'draft')
+    // Never name a locale the destination environment does not have.
+    .filter((locale) => destinationLocaleCodes.indexOf(locale) !== -1)
+    // Only write when the locale is actually live in the destination today.
+    .filter((locale) => LIVE_FIELD_STATUSES.indexOf(destinationFieldStatus[locale]) !== -1)
+}
+
 export type LocalePublishPlan = {
   localesByEntityId: Map<string, string[]>
   skippedEntityIds: Set<string>
+  demoteLocalesByEntityId: Map<string, string[]>
 }
 
 /**
  * Builds the per-entity publish plan for a set of transformed source entities.
- * Entities absent from both collections are published as a whole, unchanged.
+ * Entities absent from all three collections are published as a whole, unchanged.
+ *
+ * `destinationEntitiesById` is only passed when `unpublishDraftLocales` is enabled;
+ * without it no demotions are planned.
  */
 export function buildLocalePublishPlan(
   sourceEntities: { original: { sys: FieldStatusSys } }[],
-  destinationLocaleCodes: string[] | null
+  destinationLocaleCodes: string[] | null,
+  { destinationEntitiesById }: { destinationEntitiesById?: Map<string, { sys: FieldStatusSys }> } = {}
 ): LocalePublishPlan {
   const localesByEntityId = new Map<string, string[]>()
   const skippedEntityIds = new Set<string>()
+  const demoteLocalesByEntityId = new Map<string, string[]>()
 
   for (const { original } of sourceEntities) {
     const locales = resolvePublishLocales(original.sys, destinationLocaleCodes)
@@ -83,10 +117,25 @@ export function buildLocalePublishPlan(
 
     if (locales.length === 0) {
       skippedEntityIds.add(original.sys.id)
-    } else {
-      localesByEntityId.set(original.sys.id, locales)
+      continue
+    }
+
+    localesByEntityId.set(original.sys.id, locales)
+
+    if (!destinationEntitiesById) {
+      continue
+    }
+
+    const localesToDemote = resolveLocalesToDemote(
+      original.sys,
+      destinationEntitiesById.get(original.sys.id)?.sys,
+      destinationLocaleCodes as string[]
+    )
+
+    if (localesToDemote.length) {
+      demoteLocalesByEntityId.set(original.sys.id, localesToDemote)
     }
   }
 
-  return { localesByEntityId, skippedEntityIds }
+  return { localesByEntityId, skippedEntityIds, demoteLocalesByEntityId }
 }
