@@ -31,29 +31,58 @@ function isNotFoundError (err: any) {
   return err?.status === 404 || err?.name === 'NotFound'
 }
 
+// Matches the CMA plain client's error shape for a stale sys.version on PATCH/PUT (see
+// handleCreationErrors in lib/tasks/push-to-space/creation.ts for the same check).
+function isVersionMismatchError (err: any) {
+  return err?.error?.sys?.id === 'VersionMismatch'
+}
+
+const VERSION_CONFLICT_MAX_ATTEMPTS = 3
+const VERSION_CONFLICT_RETRY_DELAY_MS = 250
+
+// The 5 parent folder-group schemes are shared, org-wide resources - test-integration
+// runs on every PR against the same org, so two concurrent CI runs can genuinely both
+// read the same scheme, then race to patch it, and lose the optimistic-concurrency check
+// on sys.version. Retrying with a fresh read closes that race instead of failing the test
+// (or, worse in afterAll, aborting cleanup) on ordinary CI-level concurrency.
+async function withVersionConflictRetry<T> (operation: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await operation()
+    } catch (err: any) {
+      if (!isVersionMismatchError(err) || attempt >= VERSION_CONFLICT_MAX_ATTEMPTS) throw err
+      await new Promise((resolve) => setTimeout(resolve, VERSION_CONFLICT_RETRY_DELAY_MS * attempt))
+    }
+  }
+}
+
 async function unlinkConceptFromSchemeIfPresent (plainClient: any, schemeId: string, conceptId: string) {
   try {
-    const scheme = await plainClient.conceptScheme.get({ organizationId: orgId, conceptSchemeId: schemeId })
-    const index = (scheme.concepts ?? []).findIndex((c: any) => c.sys.id === conceptId)
-    if (index >= 0) {
-      await plainClient.conceptScheme.patch(
-        { organizationId: orgId, conceptSchemeId: schemeId, version: scheme.sys.version },
-        [{ op: 'remove', path: `/concepts/${index}` }]
-      )
-    }
+    await withVersionConflictRetry(async () => {
+      const scheme = await plainClient.conceptScheme.get({ organizationId: orgId, conceptSchemeId: schemeId })
+      const index = (scheme.concepts ?? []).findIndex((c: any) => c.sys.id === conceptId)
+      if (index >= 0) {
+        await plainClient.conceptScheme.patch(
+          { organizationId: orgId, conceptSchemeId: schemeId, version: scheme.sys.version },
+          [{ op: 'remove', path: `/concepts/${index}` }]
+        )
+      }
+    })
   } catch (err: any) {
     if (!isNotFoundError(err)) throw err
   }
 }
 
 async function linkConceptToSchemeIfAbsent (plainClient: any, schemeId: string, conceptId: string) {
-  const scheme = await plainClient.conceptScheme.get({ organizationId: orgId, conceptSchemeId: schemeId })
-  if (!(scheme.concepts ?? []).some((c: any) => c.sys.id === conceptId)) {
-    await plainClient.conceptScheme.patch(
-      { organizationId: orgId, conceptSchemeId: schemeId, version: scheme.sys.version },
-      [{ op: 'add', path: '/concepts/-', value: { sys: { type: 'Link', linkType: 'TaxonomyConcept', id: conceptId } } }]
-    )
-  }
+  await withVersionConflictRetry(async () => {
+    const scheme = await plainClient.conceptScheme.get({ organizationId: orgId, conceptSchemeId: schemeId })
+    if (!(scheme.concepts ?? []).some((c: any) => c.sys.id === conceptId)) {
+      await plainClient.conceptScheme.patch(
+        { organizationId: orgId, conceptSchemeId: schemeId, version: scheme.sys.version },
+        [{ op: 'add', path: '/concepts/-', value: { sys: { type: 'Link', linkType: 'TaxonomyConcept', id: conceptId } } }]
+      )
+    }
+  })
 }
 
 async function deleteConceptIfPresent (plainClient: any, conceptId: string) {
@@ -122,23 +151,27 @@ describe('Importing ExO entities organized into folders (cross-space)', () => {
   })
 
   afterAll(async () => {
-    // Unlink from the shared, org-level parent schemes first, then delete the concepts
-    // themselves - these are permanent org resources, not scoped to (and so not cleaned
-    // up by) the throwaway space's deletion below.
-    for (const { schemeId, conceptId } of [
-      { schemeId: COMPONENT_TYPE_SCHEME_ID, conceptId: destComponentFolderConceptId },
-      { schemeId: EXPERIENCE_SCHEME_ID, conceptId: destExperienceFolderConceptId }
-    ]) {
-      await unlinkConceptFromSchemeIfPresent(plainClient, schemeId, conceptId)
-    }
+    try {
+      // Unlink from the shared, org-level parent schemes first, then delete the concepts
+      // themselves - these are permanent org resources, not scoped to (and so not cleaned
+      // up by) the throwaway space's deletion below.
+      for (const { schemeId, conceptId } of [
+        { schemeId: COMPONENT_TYPE_SCHEME_ID, conceptId: destComponentFolderConceptId },
+        { schemeId: EXPERIENCE_SCHEME_ID, conceptId: destExperienceFolderConceptId }
+      ]) {
+        await unlinkConceptFromSchemeIfPresent(plainClient, schemeId, conceptId)
+      }
 
-    for (const conceptId of [sourceComponentFolderConceptId, destComponentFolderConceptId, destExperienceFolderConceptId]) {
-      await deleteConceptIfPresent(plainClient, conceptId)
+      for (const conceptId of [sourceComponentFolderConceptId, destComponentFolderConceptId, destExperienceFolderConceptId]) {
+        await deleteConceptIfPresent(plainClient, conceptId)
+      }
+    } finally {
+      // Always delete the throwaway space, even if org-level concept/scheme cleanup above
+      // failed - the two are independent resources and one failing shouldn't leak the other.
+      const legacyClient = createClient({ accessToken: managementToken }, { type: 'legacy' })
+      const space = await legacyClient.getSpace(spaceId)
+      await space.delete()
     }
-
-    const legacyClient = createClient({ accessToken: managementToken }, { type: 'legacy' })
-    const space = await legacyClient.getSpace(spaceId)
-    await space.delete()
   })
 
   test('creates a destination-scoped concept for the Component folder, copying the source prefLabel', async () => {
