@@ -37,6 +37,7 @@ jobs:
           fail-on-cache-miss: true
 
       - name: Run integration tests
+        # Baseline probe: exercise the integration environment from main.
         run: npm run test:integration
         env:
           MANAGEMENT_TOKEN: ${{ secrets.CONTENTFUL_INTEGRATION_TEST_CMA_TOKEN }}
