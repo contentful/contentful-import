@@ -452,7 +452,7 @@ describe('importExoFolders', () => {
     expect(client.concept.get).not.toHaveBeenCalled()
   })
 
-  it('rejects when parent groups are missing', async () => {
+  it('does NOT reject when parent groups are missing', async () => {
     const client = makeClient()
     await expect(
       importExoFolders({
@@ -460,7 +460,7 @@ describe('importExoFolders', () => {
         ...BASE_ARGS,
         sourceEntities: { designTokens: [makeEntity(['contentful.folder-a-AA'])] },
       })
-    ).rejects.toThrow()
+    ).resolves.not.toThrow()
   })
 
   it('runs all steps in sequence: creates concept, links to scheme, rewrites entity metadata', async () => {

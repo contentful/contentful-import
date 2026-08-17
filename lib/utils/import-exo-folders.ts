@@ -271,7 +271,8 @@ export async function importExoFolders({
   const parentGroups = await ensureParentFolderGroupsExist(plainClient, organizationId)
 
   if (parentGroups.size === 0) {
-    return Promise.reject(new Error('One or more ExO folder group concept schemes are missing in the destination org. Please create them before importing.'))
+    logEmitter.emit('warn', 'One or more Experience Orchestration folder group concept schemes are missing in the destination organization. Please create them before importing.')
+    return;
   }
 
   // Step 2
