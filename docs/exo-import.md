@@ -125,7 +125,7 @@ This is deterministic so re-running the import is idempotent — it won't create
 The source concept is fetched to copy its `prefLabel` (so the folder name carries over). Then for each destination concept:
 
 - If it **doesn't exist**: create it via `createWithId` with `purpose: 'internal'`, the copied `prefLabel`, and `metadata.spaces` pointing to the destination space.
-- If it **already exists**: check for and patch in any missing pieces — the destination space link in `metadata.spaces` and/or `purpose: 'internal'` if absent. This handles previously broken concepts created without `purpose`.
+- If it **already exists**: patch in the destination space link in `metadata.spaces` if missing.
 
 **Step 4 — Link each concept into its parent scheme**
 

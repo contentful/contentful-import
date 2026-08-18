@@ -134,6 +134,108 @@ export function buildExoContent (ids: ExoFixtureIds) {
   }
 }
 
+export function makeFolderConceptLink (conceptId: string) {
+  return { sys: { type: 'Link' as const, linkType: 'TaxonomyConcept' as const, id: conceptId } }
+}
+
+export type FolderExoFixtureIds = {
+  componentId: string
+  experienceTemplateId: string
+  experienceId: string
+}
+
+// Two distinct entity types/parent folder-groups (componentType, experience) in one
+// payload, to catch a mis-mapping in ENTITY_TYPE_TO_PARENT_GROUP_ID without needing all 5.
+export const FOLDER_EXO_FIXTURE_IDS: FolderExoFixtureIds = {
+  componentId: 'exo-folder-component',
+  experienceTemplateId: 'exo-folder-experience-template',
+  experienceId: 'exo-folder-experience'
+}
+
+export type FolderConceptIds = {
+  component: string
+  experience: string
+}
+
+/**
+ * A Component and an Experience (with its required ExperienceTemplate dependency), each
+ * placed in a folder via metadata.concepts - exercises import-exo-folders.ts's 5-step
+ * process (ensure parent groups -> derive dest concept IDs -> create/patch child concepts
+ * -> link into parent groups -> rewrite entity metadata.concepts in-place) across two of
+ * the five parent folder-group schemes in one import run.
+ *
+ * folderConceptIds is caller-supplied (not a fixed literal) because these become real,
+ * permanent, org-scoped TaxonomyConcept IDs shared across every space in the org - the
+ * caller derives them from its own throwaway space ID so concurrent CI runs never race
+ * on the same org-level resource (see import-exo-folders.test.ts).
+ *
+ * No `sys.space` set, so getSourceSpaceId() returns undefined - this is treated as a
+ * cross-space import (undefined !== destinationSpaceId), same as buildExoContent above.
+ */
+export function buildExoFolderContent (ids: FolderExoFixtureIds, folderConceptIds: FolderConceptIds) {
+  return {
+    components: [
+      {
+        sys: { id: ids.componentId, type: 'Component', version: 1 },
+        metadata: { tags: [], concepts: [makeFolderConceptLink(folderConceptIds.component)] },
+        name: `${TEST_PREFIX} Foldered Component`,
+        description: 'Created by an ExO folder import integration test',
+        viewports: [testViewport],
+        contentProperties: [{ id: 'title', name: 'Title', type: 'String', required: false }],
+        designProperties: [{ id: 'color', name: 'Color', type: 'String' }]
+      }
+    ],
+    experienceTemplates: [
+      {
+        sys: { id: ids.experienceTemplateId, type: 'ExperienceTemplate', version: 1 },
+        name: `${TEST_PREFIX} Foldered Experience Template`,
+        description: 'Created by an ExO folder import integration test',
+        viewports: [testViewport],
+        contentProperties: [],
+        designProperties: []
+      }
+    ],
+    experiences: [
+      {
+        sys: {
+          id: ids.experienceId,
+          type: 'Experience',
+          version: 1,
+          experienceTemplate: makeResourceLink('Contentful:ExperienceTemplate', ids.experienceTemplateId)
+        },
+        metadata: { tags: [], concepts: [makeFolderConceptLink(folderConceptIds.experience)] },
+        name: `${TEST_PREFIX} Foldered Experience`,
+        description: 'Created by an ExO folder import integration test',
+        viewports: [testViewport],
+        designProperties: {}
+      }
+    ]
+  }
+}
+
+/**
+ * Same Component/folder pairing as buildExoFolderContent, but with `sys.space.sys.id`
+ * pinned to the destination space - simulates a same-space import, where
+ * importExoFolders() should skip its own logic entirely (source === destination space)
+ * and leave the source concept ID on the entity untouched. Since the skip means no
+ * org-level concept is ever created, folderConceptId can safely be a fixed literal here.
+ */
+export function buildSameSpaceExoFolderContent (ids: FolderExoFixtureIds, folderConceptId: string, spaceId: string) {
+  return {
+    components: [
+      {
+        sys: { id: ids.componentId, type: 'Component', version: 1, space: { sys: { id: spaceId } } },
+        metadata: { tags: [], concepts: [makeFolderConceptLink(folderConceptId)] },
+        name: `${TEST_PREFIX} Foldered Component`,
+        description: 'Created by an ExO folder import integration test',
+        viewports: [testViewport],
+        contentProperties: [{ id: 'title', name: 'Title', type: 'String', required: false }],
+        designProperties: [{ id: 'color', name: 'Color', type: 'String' }]
+      }
+    ]
+  }
+}
+
 /**
  * A re-import payload for just the Component from buildExoContent, with no
  * publishedVersion - i.e. "this entity was unpublished in the source since the last

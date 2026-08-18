@@ -220,22 +220,6 @@ describe('createOrPatchChildConcepts', () => {
     )
   })
 
-  it('patches purpose when existing concept is missing it', async () => {
-    const sourceId = 'contentful.folder-a-AA'
-    const destId = `${sourceId}-${DEST_SPACE}`
-    const existing = makeConcept(destId, { purpose: 'extension', spaces: [DEST_SPACE] })
-    const client = makeClient({ existingConcepts: new Map([[destId, existing]]) })
-
-    const childConceptMap = new Map([[sourceId, { destConceptId: destId, parentGroupId: PARENT_FOLDER_GROUP_IDS.designToken }]])
-    await createOrPatchChildConcepts(client, ORG, DEST_SPACE, childConceptMap)
-
-    expect(client.concept.createWithId).not.toHaveBeenCalled()
-    expect(client.concept.patch).toHaveBeenCalledWith(
-      expect.objectContaining({ conceptId: destId }),
-      expect.arrayContaining([{ op: 'add', path: '/purpose', value: 'internal' }])
-    )
-  })
-
   it('patches space link when existing concept is missing destination space', async () => {
     const sourceId = 'contentful.folder-a-AA'
     const destId = `${sourceId}-${DEST_SPACE}`
@@ -248,24 +232,8 @@ describe('createOrPatchChildConcepts', () => {
     expect(client.concept.createWithId).not.toHaveBeenCalled()
     expect(client.concept.patch).toHaveBeenCalledWith(
       expect.objectContaining({ conceptId: destId }),
-      expect.arrayContaining([
-        { op: 'add', path: '/metadata/spaces/-', value: { sys: { type: 'Link', linkType: 'Space', id: DEST_SPACE } } },
-      ])
+      [{ op: 'add', path: '/metadata/spaces/-', value: { sys: { type: 'Link', linkType: 'Space', id: DEST_SPACE } } }]
     )
-  })
-
-  it('patches both purpose and space in a single call when both are missing', async () => {
-    const sourceId = 'contentful.folder-a-AA'
-    const destId = `${sourceId}-${DEST_SPACE}`
-    const existing = makeConcept(destId, { purpose: 'extension', spaces: [] })
-    const client = makeClient({ existingConcepts: new Map([[destId, existing]]) })
-
-    const childConceptMap = new Map([[sourceId, { destConceptId: destId, parentGroupId: PARENT_FOLDER_GROUP_IDS.designToken }]])
-    await createOrPatchChildConcepts(client, ORG, DEST_SPACE, childConceptMap)
-
-    expect(client.concept.patch).toHaveBeenCalledTimes(1)
-    const patches = client.concept.patch.mock.calls[0][1]
-    expect(patches).toHaveLength(2)
   })
 
   it('does not patch when existing concept is already up to date', async () => {
@@ -452,7 +420,7 @@ describe('importExoFolders', () => {
     expect(client.concept.get).not.toHaveBeenCalled()
   })
 
-  it('rejects when parent groups are missing', async () => {
+  it('does NOT reject when parent groups are missing', async () => {
     const client = makeClient()
     await expect(
       importExoFolders({
@@ -460,7 +428,7 @@ describe('importExoFolders', () => {
         ...BASE_ARGS,
         sourceEntities: { designTokens: [makeEntity(['contentful.folder-a-AA'])] },
       })
-    ).rejects.toThrow()
+    ).resolves.not.toThrow()
   })
 
   it('runs all steps in sequence: creates concept, links to scheme, rewrites entity metadata', async () => {
