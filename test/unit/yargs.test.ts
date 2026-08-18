@@ -31,6 +31,7 @@ describe("contentful-import yargs", () => {
       .stdout(/--skip-content-model/)
       .stdout(/--skip-locales/)
       .stdout(/--skip-content-publishing/)
+      .stdout(/--unpublish-draft-locales/)
       .stdout(/--upload-assets/)
       .stdout(/--assets-directory/)
       .stdout(/--error-log-file/)

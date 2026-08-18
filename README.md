@@ -155,6 +155,14 @@ Skip updating existing content
 
 Skips content publishing. Creates content but does not publish it
 
+#### `unpublishDraftLocales` [boolean] [default: false]
+
+Unpublish locales that the content file marks as `draft` but that are still published in the destination.
+
+Per-locale publishing is additive, so importing can add published locales but cannot demote one on its own. This only matters when importing over content that is already published — for a fresh import into a clean environment it makes no difference. Enable it to make repeated imports converge on exactly the state in the content file.
+
+Note that this lets an import **unpublish** content in the destination, which is why it is opt-in.
+
 ### Assets
 
 #### `uploadAssets` [boolean] [default: false]
@@ -333,6 +341,7 @@ An entity that's published in the source is published in the destination on impo
 - Publishing strategy:
   - If an entity is in draft, it will be created as draft in the destination space.
   - If an entity is published and has pending changes (updated) in the source space, it will be published with the latest changes in the destination space.
+  - If an entry or asset was published for only some of its locales, only those locales are published in the destination space. This is read from `sys.fieldStatus` in the content file, which `contentful-export` writes automatically — existing export files already contain it, so no re-export is needed. Content files without `sys.fieldStatus` are published as a whole, as before.
 
 ## :warning: Limitations
 
@@ -342,6 +351,10 @@ An entity that's published in the source is published in the destination on impo
 - Imported webhooks with credentials will be imported as normal webhooks. Credentials should be added manually afterwards.
 - Imported webhooks with secret headers will be imported without these headers. Secret headers should be added manuall afterwards.
 - If you have custom UI extensions, you need to reinstall them manually in the new space.
+- Per-locale publish state is restored, with two caveats:
+  - A locale that was `changed` in the source space (published, with newer draft edits on top) is imported as `published`. Reconstructing `changed` needs two separate writes, which an import cannot express.
+  - Locale-scoped publishing only adds published locales. If an entry in the destination space is already published for a locale that should be draft, that locale stays published by default — importing into a clean environment is unaffected. Set [`unpublishDraftLocales`](#unpublishdraftlocales-boolean-default-false) to demote those locales as well.
+- Locales that are published in the source space but do not exist in the destination environment are skipped. If none of an entity's published locales exist in the destination, the entity is left unpublished and a warning is logged.
 
 ## :memo: Changelog
 

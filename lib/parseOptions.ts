@@ -29,6 +29,7 @@ export default async function parseOptions (params) {
     skipContentModel: false,
     skipLocales: false,
     skipContentPublishing: false,
+    unpublishDraftLocales: false,
     skipAssetUpdates: false,
     skipContentUpdates: false,
     useVerboseRenderer: false,
