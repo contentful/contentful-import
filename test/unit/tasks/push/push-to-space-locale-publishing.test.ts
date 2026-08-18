@@ -209,3 +209,28 @@ describe('unpublishDraftLocales', () => {
     ])
   })
 })
+
+test('pages through destination locales beyond the 100-item default page size', async () => {
+  // 150 locales: the fix must see 'es' at index 149, not stop at the first page.
+  const allLocales = [
+    { code: 'en-US' },
+    ...Array.from({ length: 148 }, (_, i) => ({ code: `xx-${i}` })),
+    { code: 'es' }
+  ]
+  getLocalesMock.mockImplementation(({ skip = 0, limit = 100 } = {} as any) => Promise.resolve({
+    items: allLocales.slice(skip, skip + limit),
+    total: allLocales.length,
+    skip,
+    limit
+  }))
+
+  await run(makeSourceData([
+    makeEntry('paged', { 'en-US': 'published', es: 'published', 'xx-0': 'draft' })
+  ]))
+
+  // 'es' only exists on the second page. Without paging it looks absent from the
+  // destination and gets silently dropped from the publish.
+  expect([...entryPublishCall().localePublishing.localesByEntityId.entries()]).toEqual([
+    ['paged', ['en-US', 'es']]
+  ])
+})

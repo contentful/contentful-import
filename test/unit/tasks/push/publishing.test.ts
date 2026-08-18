@@ -412,8 +412,65 @@ describe('demoting draft locales', () => {
       }
     })
 
-    expect(result).toHaveLength(0)
+    // The publish succeeded, so the entity still counts as published even though
+    // the demotion failed — otherwise runQueue retries it with a stale version.
+    expect(result).toHaveLength(1)
+    expect((result[0] as any).sys.id).toBe('entry-1')
     const errorCount = mockEmit.mock.calls.filter((args) => args[0] === 'error').length
-    expect(errorCount).toBeGreaterThan(0)
+    expect(errorCount).toBe(1)
+  })
+})
+
+describe('a failed demotion must not invalidate a successful publish', () => {
+  test('keeps the published entity, does not retry it, and reports one failure', async () => {
+    const publishAttempts: string[] = []
+    const plainClient = {
+      entry: {
+        publish: jest.fn((params: any, rawData: any) => {
+          publishAttempts.push(`${params.entryId}@v${rawData.sys.version}`)
+          return Promise.resolve({
+            sys: { type: 'Entry', id: params.entryId, version: 8, publishedVersion: 7 }
+          })
+        }),
+        unpublish: jest.fn((params: any) => params.entryId === 'entry-demote-fails'
+          ? Promise.reject(new Error('unpublish rejected'))
+          : Promise.resolve({ sys: { type: 'Entry', id: params.entryId, version: 10 } })
+        )
+      },
+      asset: { publish: jest.fn(), unpublish: jest.fn() }
+    }
+
+    const result = await publishEntities({
+      entities: [
+        { sys: { type: 'Entry', id: 'entry-ok', version: 7 }, publish: jest.fn() },
+        { sys: { type: 'Entry', id: 'entry-demote-fails', version: 7 }, publish: jest.fn() }
+      ],
+      requestQueue,
+      localePublishing: {
+        plainClient,
+        spaceId: 'space-1',
+        environmentId: 'env-1',
+        namespace: 'entry',
+        localesByEntityId: new Map([
+          ['entry-ok', ['en-US']],
+          ['entry-demote-fails', ['en-US']]
+        ]),
+        demoteLocalesByEntityId: new Map([['entry-demote-fails', ['es']]])
+      }
+    })
+
+    // The publish succeeded for both, so neither may be re-sent with a stale version.
+    expect(publishAttempts).toEqual(['entry-ok@v7', 'entry-demote-fails@v7'])
+
+    // Both entities are published; only the demotion failed.
+    expect(result.map((e: any) => e.sys.id).sort()).toEqual(['entry-demote-fails', 'entry-ok'])
+
+    // Exactly one error — the demotion — and no misleading "could not publish".
+    const errors = mockEmit.mock.calls.filter((args) => args[0] === 'error')
+    expect(errors).toHaveLength(1)
+    expect(String(errors[0][1])).toMatch(/unpublish rejected/)
+    const couldNotPublish = mockEmit.mock.calls
+      .filter((args) => typeof args[1] === 'string' && args[1].includes('Could not publish'))
+    expect(couldNotPublish).toHaveLength(0)
   })
 })

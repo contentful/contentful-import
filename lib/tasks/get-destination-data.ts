@@ -69,7 +69,7 @@ async function batchedIdQuery({ environment, type, ids, requestQueue }: BatchedI
   return responses.flat()
 }
 
-async function batchedPageQuery({ environment, type, requestQueue }: BatchedPageQueryParams) {
+export async function batchedPageQuery({ environment, type, requestQueue }: BatchedPageQueryParams) {
   const method = OFFSET_QUERY_METHODS[type].method
   const entityTypeName = OFFSET_QUERY_METHODS[type].name
 

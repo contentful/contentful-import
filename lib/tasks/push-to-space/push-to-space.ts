@@ -29,6 +29,7 @@ import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEnt
 import { sortOrReport } from '../../utils/sort-or-report'
 import { importExoFolders } from '../../utils/import-exo-folders'
 import { buildLocalePublishPlan } from '../../utils/resolve-publish-locales'
+import { batchedPageQuery } from '../get-destination-data'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
@@ -818,8 +819,10 @@ function getDestinationLocaleCodes(environment, requestQueue): Promise<string[] 
   let localeCodes = destinationLocaleCodesCache.get(environment)
 
   if (!localeCodes) {
-    localeCodes = requestQueue.add(() => environment.getLocales())
-      .then(({ items }) => items.map((locale) => locale.code))
+    // Paged: an environment can hold more locales than a single page returns, and a
+    // locale missed here would be silently dropped from the publish.
+    localeCodes = batchedPageQuery({ environment, type: 'locales', requestQueue })
+      .then((items) => items.map((locale) => locale.code))
       .catch((err) => {
         logEmitter.emit('warning', `Could not read the locales of the destination environment, falling back to publishing all locales: ${err.message}`)
         return null

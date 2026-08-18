@@ -115,10 +115,21 @@ async function publishEntityLocales (localePublishing: LocalePublishing, entity,
 
   logEmitter.emit('info', `Unpublishing locales ${localesToDemote.join(', ')} of ${entity.sys.type} ${getEntityName(entity)}`)
 
-  return plainClient[namespace].unpublish(
-    { spaceId, environmentId, [`${namespace}Id`]: entity.sys.id, locales: localesToDemote },
-    published
-  )
+  try {
+    return await plainClient[namespace].unpublish(
+      { spaceId, environmentId, [`${namespace}Id`]: entity.sys.id, locales: localesToDemote },
+      published
+    )
+  } catch (err: any) {
+    if (err instanceof ContentfulEntityError) {
+      err.entity = entity
+    }
+    logEmitter.emit('error', err)
+
+    // The publish itself succeeded. Returning it keeps runQueue from treating the
+    // entity as unpublished and retrying it with a now-stale version.
+    return published
+  }
 }
 
 async function runQueue (queue, result: ResourcesUnion = [], requestQueue: PQueue, localePublishing?: LocalePublishing) {
