@@ -116,8 +116,7 @@ export function deriveChildConceptMap(
  * Step 3: Create or patch each destination child concept.
  * - If the concept doesn't exist: creates it with purpose:'internal', the source
  *   concept's prefLabel, and metadata.spaces scoped to the destination space.
- * - If it already exists: patches in any missing pieces (purpose:'internal' and/or
- *   the destination space link). Handles concepts created by earlier broken runs.
+ * - If it already exists: patches in the destination space link if missing.
  */
 export async function createOrPatchChildConcepts(
   plainClient: any,
@@ -160,10 +159,6 @@ export async function createOrPatchChildConcepts(
       }
     } else {
       const patches: Array<{ op: string; path: string; value: any }> = []
-
-      if ((existing as any).purpose !== 'internal') {
-        patches.push({ op: 'add', path: '/purpose', value: 'internal' })
-      }
 
       const spaces: Array<{ sys: { id: string } }> = existing.metadata?.spaces ?? []
       if (!spaces.some((s) => s.sys.id === destinationSpaceId)) {
@@ -271,7 +266,8 @@ export async function importExoFolders({
   const parentGroups = await ensureParentFolderGroupsExist(plainClient, organizationId)
 
   if (parentGroups.size === 0) {
-    return Promise.reject(new Error('One or more ExO folder group concept schemes are missing in the destination org. Please create them before importing.'))
+    logEmitter.emit('warn', 'One or more Experience Orchestration folder group concept schemes are missing in the destination organization. Please create them before importing.')
+    return;
   }
 
   // Step 2
