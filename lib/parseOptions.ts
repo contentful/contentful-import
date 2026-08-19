@@ -36,7 +36,8 @@ export default async function parseOptions (params) {
     rawProxy: false,
     uploadAssets: false,
     rateLimit: 7,
-    includeExperienceOrchestration: true
+    includeExperienceOrchestration: true,
+    host: 'api.contentful.com'
   }
 
   const configFile = params.config

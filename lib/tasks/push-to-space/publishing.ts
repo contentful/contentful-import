@@ -3,57 +3,77 @@ import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { ContentfulEntityError } from '../../utils/errors'
 import { ResourcesUnion } from '../../types'
 import PQueue from 'p-queue'
+import { PlainClientAPI } from 'contentful-management'
+
+type PublishArchiveParams = {
+  entities: any[]
+  client: PlainClientAPI
+  spaceId: string
+  environmentId: string
+  requestQueue: PQueue
+}
+
+function publishEntity(client: PlainClientAPI, spaceId: string, environmentId: string, entity: any): Promise<any> {
+  const id = entity.sys.id
+  const type = entity.sys.type
+  if (type === 'Entry') {
+    return client.entry.publish({ spaceId, environmentId, entryId: id }, entity)
+  }
+  if (type === 'Asset') {
+    return client.asset.publish({ spaceId, environmentId, assetId: id }, entity)
+  }
+  if (type === 'ContentType') {
+    return client.contentType.publish({ spaceId, environmentId, contentTypeId: id }, entity)
+  }
+  throw new Error(`publishEntity: unsupported type "${type}"`)
+}
+
+function archiveEntity(client: PlainClientAPI, spaceId: string, environmentId: string, entity: any): Promise<any> {
+  const id = entity.sys.id
+  const type = entity.sys.type
+  if (type === 'Entry') {
+    return client.entry.archive({ spaceId, environmentId, entryId: id })
+  }
+  if (type === 'Asset') {
+    return client.asset.archive({ spaceId, environmentId, assetId: id })
+  }
+  throw new Error(`archiveEntity: unsupported type "${type}"`)
+}
 
 /**
  * Publish a list of entities.
  * Does not return a rejected promise in the case of an error, pushing it
  * to an error buffer instead.
  */
-export async function publishEntities ({ entities, requestQueue }) {
-  const entitiesToPublish = entities.filter((entity) => {
-    if (!entity || !entity.publish) {
-      logEmitter.emit('warning', `Unable to publish ${getEntityName(entity)}`)
-      return false
-    }
-    return true
-  })
-
-  if (entitiesToPublish.length === 0) {
+export async function publishEntities({ entities, client, spaceId, environmentId, requestQueue }: PublishArchiveParams) {
+  if (entities.length === 0) {
     logEmitter.emit('info', 'Skipping publishing since zero valid entities passed')
     return []
   }
 
-  const entity = entities[0].original || entities[0]
+  const entity = entities[0]
   const type = entity.sys.type || 'unknown type'
   logEmitter.emit('info', `Publishing ${entities.length} ${type}s`)
 
-  const result = await runQueue(entitiesToPublish, [], requestQueue)
+  const result = await runQueue(entities, [], client, spaceId, environmentId, requestQueue)
   logEmitter.emit('info', `Successfully published ${result.length} ${type}s`)
   return result
 }
 
-export async function archiveEntities ({ entities, requestQueue }) {
-  const entitiesToArchive = entities.filter((entity) => {
-    if (!entity || !entity.archive) {
-      logEmitter.emit('warning', `Unable to archive ${getEntityName(entity)}`)
-      return false
-    }
-    return true
-  })
-
-  if (entitiesToArchive.length === 0) {
+export async function archiveEntities({ entities, client, spaceId, environmentId, requestQueue }: PublishArchiveParams) {
+  if (entities.length === 0) {
     logEmitter.emit('info', 'Skipping archiving since zero valid entities passed')
     return []
   }
 
-  const entity = entities[0].original || entities[0]
+  const entity = entities[0]
   const type = entity.sys.type || 'unknown type'
   logEmitter.emit('info', `Archiving ${entities.length} ${type}s`)
 
-  const pendingArchivedEntities = entitiesToArchive.map((entity) => {
+  const pendingArchivedEntities = entities.map((entity) => {
     return requestQueue.add(async () => {
       try {
-        const archivedEntity = await entity.archive()
+        const archivedEntity = await archiveEntity(client, spaceId, environmentId, entity)
         return archivedEntity
       } catch (err: any) {
         if (err instanceof ContentfulEntityError) {
@@ -73,13 +93,13 @@ export async function archiveEntities ({ entities, requestQueue }) {
   return allArchivedEntities
 }
 
-async function runQueue (queue, result: ResourcesUnion = [], requestQueue: PQueue) {
+async function runQueue(queue, result: ResourcesUnion = [], client: PlainClientAPI, spaceId: string, environmentId: string, requestQueue: PQueue) {
   const publishedEntities: ResourcesUnion = []
 
   for (const entity of queue) {
     logEmitter.emit('info', `Publishing ${entity.sys.type} ${getEntityName(entity)}`)
     try {
-      const publishedEntity = await requestQueue.add(() => entity.publish())
+      const publishedEntity = await requestQueue.add(() => publishEntity(client, spaceId, environmentId, entity))
       publishedEntities.push(publishedEntity)
     } catch (err: any) {
       if (err instanceof ContentfulEntityError) {
@@ -104,7 +124,7 @@ async function runQueue (queue, result: ResourcesUnion = [], requestQueue: PQueu
       logEmitter.emit('error', `Could not publish the following entities: ${unpublishedEntityNames}`)
     } else {
       // Rerun queue with unpublished entities
-      return runQueue(unpublishedEntities, result, requestQueue)
+      return runQueue(unpublishedEntities, result, client, spaceId, environmentId, requestQueue)
     }
   }
   // Return only published entities + last result

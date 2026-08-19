@@ -26,7 +26,7 @@ graph TD
 |---|---|
 | `lib/index.ts` | Main entry point. Orchestrates the full Listr task pipeline: parse options → validate → init client → fetch destination → transform → push. Exports both CJS and ESM. |
 | `lib/parseOptions.ts` | Merges default options, config file, and params. Parses chunked JSON for large content files (`@discoveryjs/json-ext`). Validates required fields. |
-| `lib/tasks/init-client.ts` | Creates a CMA.js `legacy` client from the parsed options. |
+| `lib/tasks/init-client.ts` | Creates a CMA.js `plain` client from the parsed options. |
 | `lib/tasks/get-destination-data.ts` | Fetches existing entities from the destination space to enable upsert logic. Uses batched ID queries (≤100 IDs, ≤1990 chars per batch) and paginated queries where ID-scoping isn't applicable (locales, tags). |
 | `lib/tasks/push-to-space/` | Sub-tasks that push content in dependency order: locales → content types → editor interfaces → tags → assets (upload + process + publish) → entries (publish/archive) → webhooks. |
 | `lib/tasks/push-to-space/creation.ts` | Entity create/update logic. Upserts: creates if not in destination, updates if already exists. Respects `skipUpdates` flags. |
@@ -56,7 +56,7 @@ sequenceDiagram
     Caller->>runContentfulImport: opts (spaceId, managementToken, contentFile/content, ...)
     runContentfulImport->>parseOptions: merge defaults + config file + params
     parseOptions-->>runContentfulImport: validated options + parsed content
-    runContentfulImport->>CMA: createClient (legacy)
+    runContentfulImport->>CMA: createClient ()
     runContentfulImport->>getDestinationData: fetch existing entities by ID
     CMA-->>getDestinationData: batched existing entities
     getDestinationData-->>runContentfulImport: destinationData
@@ -93,7 +93,7 @@ sequenceDiagram
 
 | Dependency | Why it's here |
 |---|---|
-| `contentful-management` | CMA.js client for all Contentful API operations. v12+ with `{ type: 'legacy' }` chain client. |
+| `contentful-management` | CMA.js client for all Contentful API operations. v12+ plain client. |
 | `contentful-batch-libs` | Shared utilities: logging emitter, listr task wrapper, proxy helpers, sequence header injection. |
 | `@discoveryjs/json-ext` | Streaming JSON parser (`parseChunked`) for large export files that would OOM with `JSON.parse`. |
 | `p-queue` | Rate-limit all CMA requests to ≤7/s (configurable). Prevents 429 errors. |

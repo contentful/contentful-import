@@ -21,10 +21,9 @@ describe('Importing an ExO export with all 6 entity types', () => {
   let plainClient
 
   beforeAll(async () => {
-    const legacyClient = createClient({ accessToken: managementToken }, { type: 'legacy' })
-    const space = await legacyClient.createSpace({ name: 'IMPORT [AUTO] TOOL EXO TMP' }, orgId)
-    spaceId = space.sys.id
     plainClient = createClient({ accessToken: managementToken })
+    const space = await plainClient.space.create({ organizationId: orgId }, { name: 'IMPORT [AUTO] TOOL EXO TMP' })
+    spaceId = space.sys.id
 
     await runContentfulImport({
       spaceId,
@@ -37,9 +36,7 @@ describe('Importing an ExO export with all 6 entity types', () => {
   })
 
   afterAll(async () => {
-    const legacyClient = createClient({ accessToken: managementToken }, { type: 'legacy' })
-    const space = await legacyClient.getSpace(spaceId)
-    await space.delete()
+    await plainClient.space.delete({ spaceId })
   })
 
   test('creates the DesignToken', async () => {
@@ -130,16 +127,13 @@ describe('Importing with includeExperienceOrchestration: false', () => {
   let plainClient
 
   beforeAll(async () => {
-    const legacyClient = createClient({ accessToken: managementToken }, { type: 'legacy' })
-    const space = await legacyClient.createSpace({ name: 'IMPORT [AUTO] TOOL EXO SKIP TMP' }, orgId)
-    spaceId = space.sys.id
     plainClient = createClient({ accessToken: managementToken })
+    const space = await plainClient.space.create({ organizationId: orgId }, { name: 'IMPORT [AUTO] TOOL EXO SKIP TMP' })
+    spaceId = space.sys.id
   })
 
   afterAll(async () => {
-    const legacyClient = createClient({ accessToken: managementToken }, { type: 'legacy' })
-    const space = await legacyClient.getSpace(spaceId)
-    await space.delete()
+    await plainClient.space.delete({ spaceId })
   })
 
   test('does not create any ExO entities even though the source file has ExO data', async () => {
@@ -161,17 +155,16 @@ describe('Importing with includeExperienceOrchestration: false', () => {
 // Covers: "Import of an old export file (no ExO arrays) completes without errors"
 describe('Importing a legacy export file with no ExO entity arrays', () => {
   let spaceId: string
+  let plainClient: any
 
   beforeAll(async () => {
-    const legacyClient = createClient({ accessToken: managementToken }, { type: 'legacy' })
-    const space = await legacyClient.createSpace({ name: 'IMPORT [AUTO] TOOL EXO LEGACY TMP' }, orgId)
+    plainClient = createClient({ accessToken: managementToken })
+    const space = await plainClient.space.create({ organizationId: orgId }, { name: 'IMPORT [AUTO] TOOL EXO LEGACY TMP' })
     spaceId = space.sys.id
   })
 
   afterAll(async () => {
-    const legacyClient = createClient({ accessToken: managementToken }, { type: 'legacy' })
-    const space = await legacyClient.getSpace(spaceId)
-    await space.delete()
+    await plainClient.space.delete({ spaceId })
   })
 
   test('completes without error', async () => {

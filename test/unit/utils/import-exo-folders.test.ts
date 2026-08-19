@@ -8,6 +8,7 @@ import {
   PARENT_FOLDER_GROUP_IDS,
 } from '../../../lib/utils/import-exo-folders'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
+import { makePlainClientMock } from '../helpers/plain-client-mock'
 
 jest.mock('contentful-batch-libs/dist/logging', () => ({
   logEmitter: { emit: jest.fn() },
@@ -49,7 +50,7 @@ function makeClient({
   existingConcepts?: Map<string, any>
   existingSchemes?: Map<string, any>
 } = {}) {
-  return {
+  return makePlainClientMock({
     concept: {
       get: jest.fn().mockImplementation(({ conceptId }: { conceptId: string }) => {
         const c = existingConcepts.get(conceptId)
@@ -58,8 +59,6 @@ function makeClient({
         err.status = 404
         return Promise.reject(err)
       }),
-      createWithId: jest.fn().mockResolvedValue({}),
-      patch: jest.fn().mockResolvedValue({}),
     },
     conceptScheme: {
       getMany: jest.fn().mockResolvedValue({ items: [...existingSchemes.values()] }),
@@ -71,7 +70,7 @@ function makeClient({
         return Promise.resolve({ ...scheme, sys: { ...scheme.sys, version: version + 1 } })
       }),
     },
-  }
+  })
 }
 
 const ALL_PARENT_GROUPS: Map<string, any> = new Map(
@@ -234,6 +233,30 @@ describe('createOrPatchChildConcepts', () => {
       expect.objectContaining({ conceptId: destId }),
       [{ op: 'add', path: '/metadata/spaces/-', value: { sys: { type: 'Link', linkType: 'Space', id: DEST_SPACE } } }]
     )
+  })
+
+  it('patches both purpose and space in a single call when both are missing', async () => {
+    const sourceId = 'contentful.folder-a-AA'
+    const destId = `${sourceId}-${DEST_SPACE}`
+    const existing = makeConcept(destId, { purpose: 'extension', spaces: [] })
+    const client = makeClient({ existingConcepts: new Map([[destId, existing]]) })
+
+    const childConceptMap = new Map([[sourceId, { destConceptId: destId, parentGroupId: PARENT_FOLDER_GROUP_IDS.designToken }]])
+    await createOrPatchChildConcepts(client, ORG, DEST_SPACE, childConceptMap)
+
+    expect(client.concept.patch).toHaveBeenCalledTimes(1)
+    const patch = client.concept.patch.mock.calls[0][1]
+    expect(patch).toEqual([{
+      "op": "add",
+      "path": "/metadata/spaces/-",
+      "value": {
+        "sys": {
+          "id": "space-dest",
+          "linkType": "Space",
+          "type": "Link"
+        }
+      }
+    }])
   })
 
   it('does not patch when existing concept is already up to date', async () => {
@@ -399,7 +422,7 @@ describe('importExoFolders', () => {
   it('skips all work when source and destination space are the same', async () => {
     const client = makeClient({ existingSchemes: ALL_PARENT_GROUPS })
     await importExoFolders({
-      plainClient: client,
+      client,
       ...BASE_ARGS,
       destinationSpaceId: SOURCE_SPACE,
       sourceEntities: { designTokens: [makeEntity(['contentful.folder-a-AA'])] },
@@ -412,7 +435,7 @@ describe('importExoFolders', () => {
   it('skips concept work when no folder concepts are referenced', async () => {
     const client = makeClient({ existingSchemes: ALL_PARENT_GROUPS })
     await importExoFolders({
-      plainClient: client,
+      client,
       ...BASE_ARGS,
       sourceEntities: { designTokens: [makeEntity(['tag-abc'])] },
     })
@@ -424,7 +447,7 @@ describe('importExoFolders', () => {
     const client = makeClient()
     await expect(
       importExoFolders({
-        plainClient: client,
+        client,
         ...BASE_ARGS,
         sourceEntities: { designTokens: [makeEntity(['contentful.folder-a-AA'])] },
       })
@@ -442,7 +465,7 @@ describe('importExoFolders', () => {
     const entity = makeEntity([sourceId])
 
     await importExoFolders({
-      plainClient: client,
+      client,
       ...BASE_ARGS,
       sourceEntities: { designTokens: [entity] },
     })

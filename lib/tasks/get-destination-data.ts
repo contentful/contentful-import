@@ -1,7 +1,7 @@
 import Promise from 'bluebird'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
-import type { AssetProps, ComponentProps, ContentTypeProps, DataAssemblyProps, DesignTokenProps, EntryProps, ExperienceProps, ExperienceFragmentProps, LocaleProps, TagProps, ExperienceTemplateProps, WebhookProps } from 'contentful-management'
+import type { AssetProps, ComponentProps, ContentTypeProps, DataAssemblyProps, DesignTokenProps, EntryProps, ExperienceProps, ExperienceFragmentProps, LocaleProps, PlainClientAPI, TagProps, ExperienceTemplateProps, WebhookProps } from 'contentful-management'
 import { OriginalSourceData } from '../types'
 import { isExoEntitlementError, spaceHasExoM1Entitlement } from '../utils/publish-exo-entities'
 import PQueue from 'p-queue'
@@ -26,39 +26,57 @@ const CURSOR_QUERY_METHODS = {
   experiences: { name: 'experiences', namespace: 'experience' }
 }
 
+const ENTITY_METHODS = {
+  contentTypes: { name: 'content types', ns: 'contentType' },
+  entries: { name: 'entries', ns: 'entry' },
+  assets: { name: 'assets', ns: 'asset' },
+  locales: { name: 'locales', ns: 'locale' },
+  tags: { name: 'tags', ns: 'tag' },
+} as const
+
 type BatchedIdQueryParams = {
   requestQueue: PQueue
-  environment: any
   type: keyof typeof OFFSET_QUERY_METHODS
+  client: PlainClientAPI
+  spaceId: string
+  environmentId: string
   ids: string[]
 }
 
-type BatchedPageQueryParams = Omit<BatchedIdQueryParams, 'ids'>
+type BatchedPageQueryParams = {
+  requestQueue: PQueue
+  client: PlainClientAPI
+  spaceId: string
+  environmentId: string
+  type: 'locales' | 'tags'
+}
 
 type CursorPaginatedQueryParams = {
   requestQueue: PQueue
-  plainClient: any
+  client: PlainClientAPI
   spaceId: string
   environmentId: string
   type: keyof typeof CURSOR_QUERY_METHODS
 }
 
-async function batchedIdQuery({ environment, type, ids, requestQueue }: BatchedIdQueryParams) {
-  const method = OFFSET_QUERY_METHODS[type].method
-  const entityTypeName = OFFSET_QUERY_METHODS[type].name
+async function batchedIdQuery({ client, spaceId, environmentId, type, ids, requestQueue }: BatchedIdQueryParams) {
+  const { name, ns } = ENTITY_METHODS[type]
   const batches = getIdBatches(ids)
 
   let totalFetched = 0
 
   const allPendingResponses = batches.map((idBatch) => {
-    // TODO: add batch count to indicate that it's running
     return requestQueue.add(async () => {
-      const response = await environment[method]({
-        'sys.id[in]': idBatch,
-        limit: idBatch.split(',').length
+      const response = await (client[ns] as any).getMany({
+        spaceId,
+        environmentId,
+        query: {
+          'sys.id[in]': idBatch,
+          limit: idBatch.split(',').length
+        }
       })
       totalFetched = totalFetched + response.items.length
-      logEmitter.emit('info', `Fetched ${totalFetched} of ${response.total} ${entityTypeName}`)
+      logEmitter.emit('info', `Fetched ${totalFetched} of ${response.total} ${name}`)
 
       return response.items
     })
@@ -69,18 +87,21 @@ async function batchedIdQuery({ environment, type, ids, requestQueue }: BatchedI
   return responses.flat()
 }
 
-async function batchedPageQuery({ environment, type, requestQueue }: BatchedPageQueryParams) {
-  const method = OFFSET_QUERY_METHODS[type].method
-  const entityTypeName = OFFSET_QUERY_METHODS[type].name
+async function batchedPageQuery({ client, spaceId, environmentId, type, requestQueue }: BatchedPageQueryParams) {
+  const { name, ns } = ENTITY_METHODS[type]
 
   let totalFetched = 0
   const { items, total } = await requestQueue.add(async () => {
-    const response = await environment[method]({
-      skip: 0,
-      limit: BATCH_SIZE_LIMIT
+    const response = await client[ns].getMany({
+      spaceId,
+      environmentId,
+      query: {
+        skip: 0,
+        limit: BATCH_SIZE_LIMIT
+      }
     })
     totalFetched += response.items.length
-    logEmitter.emit('info', `Fetched ${totalFetched} of ${response.total} ${entityTypeName}`)
+    logEmitter.emit('info', `Fetched ${totalFetched} of ${response.total} ${name}`)
 
     return { items: response.items, total: response.total }
   })
@@ -89,12 +110,16 @@ async function batchedPageQuery({ environment, type, requestQueue }: BatchedPage
 
   const remainingTotalResponses = batches.map(({ skip }) => {
     return requestQueue.add(async () => {
-      const response = await environment[method]({
-        skip,
-        limit: BATCH_SIZE_LIMIT
+      const response = await client[ns].getMany({
+        spaceId,
+        environmentId,
+        query: {
+          skip,
+          limit: BATCH_SIZE_LIMIT
+        }
       })
       totalFetched = totalFetched + response.items.length
-      logEmitter.emit('info', `Fetched ${totalFetched} of ${response.total} ${entityTypeName}`)
+      logEmitter.emit('info', `Fetched ${totalFetched} of ${response.total} ${name}`)
 
       return response.items
     })
@@ -137,7 +162,7 @@ function getPagedBatches(totalFetched: number, total: number) {
   return batches
 }
 
-async function cursorPaginatedQuery ({ plainClient, spaceId, environmentId, type, requestQueue }: CursorPaginatedQueryParams) {
+async function cursorPaginatedQuery({ client, spaceId, environmentId, type, requestQueue }: CursorPaginatedQueryParams) {
   const { name: entityTypeName, namespace } = CURSOR_QUERY_METHODS[type]
 
   let totalFetched = 0
@@ -146,7 +171,7 @@ async function cursorPaginatedQuery ({ plainClient, spaceId, environmentId, type
 
   do {
     const items: any[] = await requestQueue.add(async () => {
-      const response = await plainClient[namespace].getMany({
+      const response = await (client[namespace] as any).getMany({
         spaceId,
         environmentId,
         query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) }
@@ -166,7 +191,7 @@ async function cursorPaginatedQuery ({ plainClient, spaceId, environmentId, type
 // expected outcome (most spaces don't have ExO enabled) rather than a fatal error, so it's
 // handled the same way the `tags` fetch above handles spaces without Tags access: warn and
 // fall back to an empty array instead of failing the whole destination-data fetch.
-async function cursorPaginatedQueryOrWarn (params: CursorPaginatedQueryParams): Promise<any[]> {
+async function cursorPaginatedQueryOrWarn(params: CursorPaginatedQueryParams): Promise<any[]> {
   try {
     return await cursorPaginatedQuery(params)
   } catch (err) {
@@ -196,8 +221,7 @@ type AllDestinationData = {
 }
 
 type GetDestinationDataParams = {
-  client: any
-  plainClient?: any
+  client: PlainClientAPI
   spaceId: string
   environmentId: string
   sourceData: OriginalSourceData
@@ -219,7 +243,6 @@ type GetDestinationDataParams = {
 
 export default async function getDestinationData({
   client,
-  plainClient,
   spaceId,
   environmentId,
   sourceData,
@@ -229,8 +252,6 @@ export default async function getDestinationData({
   includeExperienceOrchestration,
   requestQueue
 }: GetDestinationDataParams) {
-  const space = await client.getSpace(spaceId)
-  const environment = await space.getEnvironment(environmentId)
   const result: AllDestinationData = {
     contentTypes: [],
     tags: [],
@@ -256,7 +277,9 @@ export default async function getDestinationData({
     const contentTypeIds = sourceData.contentTypes?.map((e) => e.sys.id)
     if (contentTypeIds) {
       result.contentTypes = batchedIdQuery({
-        environment,
+        client,
+        spaceId,
+        environmentId,
         type: 'contentTypes',
         ids: contentTypeIds,
         requestQueue
@@ -267,7 +290,9 @@ export default async function getDestinationData({
       const localeIds = sourceData.locales?.map((e) => e.sys.id)
       if (localeIds && localeIds.length) {
         result.locales = batchedPageQuery({
-          environment,
+          client,
+          spaceId,
+          environmentId,
           type: 'locales',
           requestQueue
         })
@@ -277,7 +302,7 @@ export default async function getDestinationData({
 
   // include tags even if contentModelOnly = true
   try {
-    result.tags = await batchedPageQuery({ environment, type: 'tags', requestQueue })
+    result.tags = await batchedPageQuery({ client, spaceId, environmentId, type: 'tags', requestQueue })
   } catch (_) {
     // users without access to Tags will get 404
     // if they dont have access, remove tags array so they're not handled in future steps
@@ -292,7 +317,9 @@ export default async function getDestinationData({
   const assetIds = sourceData.assets?.map((e) => e.sys.id)
   if (entryIds && entryIds.length) {
     result.entries = batchedIdQuery({
-      environment,
+      client,
+      spaceId,
+      environmentId,
       type: 'entries',
       ids: entryIds,
       requestQueue
@@ -300,14 +327,16 @@ export default async function getDestinationData({
   }
   if (assetIds && assetIds.length) {
     result.assets = batchedIdQuery({
-      environment,
+      client,
+      spaceId,
+      environmentId,
       type: 'assets',
       ids: assetIds,
       requestQueue
     })
   }
 
-  if (includeExperienceOrchestration && plainClient) {
+  if (includeExperienceOrchestration && client) {
     // dataAssemblies is excluded here — confirmed live it isn't actually gated by exoM1,
     // unlike the other 5, so it always uses its own fetch-and-catch below instead.
     const sourceHasDesignTokens = Boolean(sourceData.designTokens?.length)
@@ -318,7 +347,7 @@ export default async function getDestinationData({
 
     let entitled: boolean | null = true
     if (sourceHasDesignTokens || sourceHasComponents || sourceHasExperienceTemplates || sourceHasExperienceFragments || sourceHasExperiences) {
-      entitled = await spaceHasExoM1Entitlement(plainClient, spaceId)
+      entitled = await spaceHasExoM1Entitlement(client, spaceId)
     }
 
     if (entitled === false) {
@@ -326,24 +355,24 @@ export default async function getDestinationData({
     } else {
       // null (inconclusive check) falls through here too, same as true.
       if (sourceHasDesignTokens) {
-        result.designTokens = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'designTokens', requestQueue })
+        result.designTokens = cursorPaginatedQueryOrWarn({ client, spaceId, environmentId, type: 'designTokens', requestQueue })
       }
       if (sourceHasComponents) {
-        result.components = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'components', requestQueue })
+        result.components = cursorPaginatedQueryOrWarn({ client, spaceId, environmentId, type: 'components', requestQueue })
       }
       if (sourceHasExperienceTemplates) {
-        result.experienceTemplates = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'experienceTemplates', requestQueue })
+        result.experienceTemplates = cursorPaginatedQueryOrWarn({ client, spaceId, environmentId, type: 'experienceTemplates', requestQueue })
       }
       if (sourceHasExperienceFragments) {
-        result.experienceFragments = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'experienceFragments', requestQueue })
+        result.experienceFragments = cursorPaginatedQueryOrWarn({ client, spaceId, environmentId, type: 'experienceFragments', requestQueue })
       }
       if (sourceHasExperiences) {
-        result.experiences = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'experiences', requestQueue })
+        result.experiences = cursorPaginatedQueryOrWarn({ client, spaceId, environmentId, type: 'experiences', requestQueue })
       }
     }
 
     if (sourceData.dataAssemblies?.length) {
-      result.dataAssemblies = cursorPaginatedQueryOrWarn({ plainClient, spaceId, environmentId, type: 'dataAssemblies', requestQueue })
+      result.dataAssemblies = cursorPaginatedQueryOrWarn({ client, spaceId, environmentId, type: 'dataAssemblies', requestQueue })
     }
   }
 
