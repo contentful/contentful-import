@@ -1,5 +1,5 @@
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
-import { ComponentProps, DataAssemblyProps, ExperienceProps, ExperienceFragmentProps, ExperienceTemplateProps } from 'contentful-management'
+import { ComponentProps, DataAssemblyProps, ExperienceProps, ExperienceFragmentProps, ExperienceTemplateProps, PlainClientAPI } from 'contentful-management'
 
 type PublishableExoEntity = ComponentProps | ExperienceTemplateProps | ExperienceFragmentProps | DataAssemblyProps | ExperienceProps
 
@@ -85,14 +85,14 @@ type OrganizationEntitlementSet = {
  * not as "not entitled" (unlike the MCP server, which fails closed since its risk is exposing
  * unentitled write tools; ours is silently dropping data we could have read).
  */
-export async function spaceHasExoM1Entitlement (plainClient: any, spaceId: string): Promise<boolean | null> {
+export async function spaceHasExoM1Entitlement (client: PlainClientAPI, spaceId: string): Promise<boolean | null> {
   try {
-    const space = await plainClient.space.get({ spaceId })
+    const space = await client.space.get({ spaceId })
     const organizationId = space.sys.organization?.sys?.id
     if (!organizationId) {
       return null
     }
-    const entitlements: OrganizationEntitlementSet = await plainClient.raw.get(
+    const entitlements: OrganizationEntitlementSet = await client.raw.get(
       `/organizations/${organizationId}/organization_entitlement_set`
     )
     return entitlements.features?.[EXO_M1_FEATURE]?.value === true

@@ -38,7 +38,7 @@ Read this file first. It tells you where to find context in this repo.
 ## Integration Points
 
 **Upstream (this repo consumes):**
-- `contentful-management` — CMA.js v12 (legacy chain client) for all Contentful API operations
+- `contentful-management` — CMA.js v12 (plain client) for all Contentful API operations
 - `contentful-batch-libs` — shared logging, listr task wrapper, proxy utilities, sequence header injection
 - Contentful Management API — target space for import operations
 
