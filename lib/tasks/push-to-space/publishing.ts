@@ -3,6 +3,7 @@ import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { ContentfulEntityError } from '../../utils/errors'
 import { ResourcesUnion } from '../../types'
 import PQueue from 'p-queue'
+import type { PlainClientAPI } from 'contentful-management'
 
 /**
  * Scopes a publish to the locales an entity was published for in the source
@@ -10,7 +11,7 @@ import PQueue from 'p-queue'
  * environment. See `lib/utils/resolve-publish-locales`.
  */
 export type LocalePublishing = {
-  plainClient: any
+  plainClient: PlainClientAPI
   spaceId: string
   environmentId: string
   namespace: 'entry' | 'asset'
@@ -93,17 +94,75 @@ export async function archiveEntities ({ entities, requestQueue }) {
 }
 
 /**
+ * Locale-based publishing is an entitlement, so a destination space can reject the
+ * locale-scoped payload with a 403 while the entity itself is perfectly publishable.
+ * When that happens we fall back to a whole-entity publish rather than failing the
+ * import, and remember it so the rest of the run neither retries nor re-warns.
+ *
+ * A 403 from a token that simply lacks publish rights lands here too, but the
+ * fallback publish then fails on its own and is reported as usual — nothing is
+ * silently swallowed.
+ *
+ * Keyed on the client because one import shares a single client across the entry
+ * and asset publishing passes.
+ */
+const localeScopingRejectedBy = new WeakSet<object>()
+
+export function isLocalePublishingForbiddenError (err: unknown): boolean {
+  if (!(err instanceof Error)) {
+    return false
+  }
+  const status = (err as any).status ?? (err as any).response?.status
+  if (status === 403) {
+    return true
+  }
+  try {
+    return JSON.parse(err.message)?.status === 403
+  } catch {
+    return false
+  }
+}
+
+/**
  * The legacy client's `entity.publish()` takes no arguments, so it can only ever
  * publish every locale. The plain client accepts a `locales` list, which the REST
  * adapter turns into an `{ add: { fields: { '*': locales } } }` payload.
+ *
+ * `namespace` is branched on rather than indexed so each call keeps its own typed
+ * `entryId`/`assetId` parameter.
  */
-async function publishEntityLocales (localePublishing: LocalePublishing, entity, locales: string[]) {
-  const { plainClient, spaceId, environmentId, namespace, demoteLocalesByEntityId } = localePublishing
+function localeScopedPublish (localePublishing: LocalePublishing, entity: any, locales: string[]) {
+  const { plainClient, spaceId, environmentId, namespace } = localePublishing
 
-  const published = await plainClient[namespace].publish(
-    { spaceId, environmentId, [`${namespace}Id`]: entity.sys.id, locales },
-    entity
-  )
+  return namespace === 'entry'
+    ? plainClient.entry.publish({ spaceId, environmentId, entryId: entity.sys.id, locales }, entity)
+    : plainClient.asset.publish({ spaceId, environmentId, assetId: entity.sys.id, locales }, entity)
+}
+
+function localeScopedUnpublish (localePublishing: LocalePublishing, entity: any, locales: string[]) {
+  const { plainClient, spaceId, environmentId, namespace } = localePublishing
+
+  return namespace === 'entry'
+    ? plainClient.entry.unpublish({ spaceId, environmentId, entryId: entity.sys.id, locales }, entity)
+    : plainClient.asset.unpublish({ spaceId, environmentId, assetId: entity.sys.id, locales }, entity)
+}
+
+async function publishEntityLocales (localePublishing: LocalePublishing, entity, locales: string[]) {
+  const { plainClient, demoteLocalesByEntityId } = localePublishing
+
+  let published: any
+  try {
+    published = await localeScopedPublish(localePublishing, entity, locales)
+  } catch (err: any) {
+    if (!isLocalePublishingForbiddenError(err)) {
+      throw err
+    }
+
+    localeScopingRejectedBy.add(plainClient)
+    logEmitter.emit('warning', `The destination space rejected locale-scoped publishing (403) — locale-based publishing may not be enabled for it. Falling back to publishing every locale, starting with ${entity.sys.type} ${getEntityName(entity)}.`)
+
+    return entity.publish()
+  }
 
   // Publishing is additive, so a locale left published by an earlier import has to
   // be unpublished explicitly. Opt-in via `unpublishDraftLocales`.
@@ -116,10 +175,7 @@ async function publishEntityLocales (localePublishing: LocalePublishing, entity,
   logEmitter.emit('info', `Unpublishing locales ${localesToDemote.join(', ')} of ${entity.sys.type} ${getEntityName(entity)}`)
 
   try {
-    return await plainClient[namespace].unpublish(
-      { spaceId, environmentId, [`${namespace}Id`]: entity.sys.id, locales: localesToDemote },
-      published
-    )
+    return await localeScopedUnpublish(localePublishing, published, localesToDemote)
   } catch (err: any) {
     if (err instanceof ContentfulEntityError) {
       err.entity = entity
@@ -136,7 +192,9 @@ async function runQueue (queue, result: ResourcesUnion = [], requestQueue: PQueu
   const publishedEntities: ResourcesUnion = []
 
   for (const entity of queue) {
-    const locales = localePublishing?.localesByEntityId.get(entity.sys.id)
+    const locales = localePublishing && !localeScopingRejectedBy.has(localePublishing.plainClient)
+      ? localePublishing.localesByEntityId.get(entity.sys.id)
+      : undefined
 
     if (locales) {
       logEmitter.emit('info', `Publishing ${entity.sys.type} ${getEntityName(entity)} for locales ${locales.join(', ')}`)

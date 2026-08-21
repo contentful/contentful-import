@@ -15,7 +15,13 @@ import {
   UpsertExperienceProps,
   UpdateDataAssemblyProps,
   UpsertDesignTokenProps,
+  PlainClientAPI,
+  Environment,
+  Entry,
+  Asset,
+  ContentType
 } from 'contentful-management'
+import PQueue from 'p-queue'
 
 import * as assets from './assets'
 import * as creation from './creation'
@@ -798,11 +804,13 @@ function archiveEntities({ entities, sourceEntities, requestQueue }) {
 }
 
 type LocalePublishingSetup = {
-  plainClient: any
+  plainClient: PlainClientAPI
   spaceId: string
   environmentId: string
   namespace: 'entry' | 'asset'
-  environment: any
+  // The legacy environment entity, not EnvironmentProps — batchedPageQuery calls
+  // getLocales() on it, which only exists on the entity.
+  environment: Environment
   /** Destination entities, passed only when `unpublishDraftLocales` is enabled. */
   destinationEntitiesById?: Map<string, any>
 }
@@ -812,10 +820,18 @@ const destinationLocaleCodesCache = new WeakMap<object, Promise<string[] | null>
 
 /**
  * Locale codes of the destination environment, or null when they cannot be read.
- * `destinationData.locales` is not usable here — it stays empty under
- * `skipLocales`/`skipContentModel`.
+ *
+ * This reuses `batchedPageQuery` from `get-destination-data`, so the paging and the
+ * `getLocales` registration are shared. What it cannot reuse is the *result* on
+ * `destinationData.locales`: that field is only filled when `!skipContentModel &&
+ * !skipLocales` and the content file itself carries locales
+ * (get-destination-data.ts:266-274), and it stays an empty array otherwise. An
+ * empty array is indistinguishable from "the destination has no locales", which
+ * would make `resolvePublishLocales` skip every entity. Publish scoping has to
+ * know the destination locales whatever the skip flags say, so it asks for them
+ * directly and caches the answer for the run.
  */
-function getDestinationLocaleCodes(environment, requestQueue): Promise<string[] | null> {
+function getDestinationLocaleCodes(environment: Environment, requestQueue: PQueue): Promise<string[] | null> {
   let localeCodes = destinationLocaleCodesCache.get(environment)
 
   if (!localeCodes) {
@@ -834,9 +850,11 @@ function getDestinationLocaleCodes(environment, requestQueue): Promise<string[] 
 }
 
 async function publishEntities({ entities, sourceEntities, requestQueue, localePublishing }: {
-  entities: any[]
-  sourceEntities: any[]
-  requestQueue: any
+  // Legacy SDK entities, not *Props — publishing.ts calls entity.publish() on these.
+  // Content types go through here too, not only entries and assets.
+  entities: (Entry | Asset | ContentType)[]
+  sourceEntities: { original: any }[]
+  requestQueue: PQueue
   localePublishing?: LocalePublishingSetup
 }) {
   // Find all entities in source content which are published

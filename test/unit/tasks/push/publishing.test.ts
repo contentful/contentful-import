@@ -218,7 +218,7 @@ test('Skips archiving when no entities are given', () => {
 })
 
 describe('locale-scoped publishing', () => {
-  function makePlainClient() {
+  function makePlainClient(): any {
     return {
       entry: {
         publish: jest.fn((params: any) => Promise.resolve({
@@ -328,7 +328,7 @@ describe('locale-scoped publishing', () => {
 })
 
 describe('demoting draft locales', () => {
-  function makePlainClient() {
+  function makePlainClient(): any {
     return {
       entry: {
         publish: jest.fn((params: any) => Promise.resolve({
@@ -424,7 +424,7 @@ describe('demoting draft locales', () => {
 describe('a failed demotion must not invalidate a successful publish', () => {
   test('keeps the published entity, does not retry it, and reports one failure', async () => {
     const publishAttempts: string[] = []
-    const plainClient = {
+    const plainClient: any = {
       entry: {
         publish: jest.fn((params: any, rawData: any) => {
           publishAttempts.push(`${params.entryId}@v${rawData.sys.version}`)
@@ -472,5 +472,119 @@ describe('a failed demotion must not invalidate a successful publish', () => {
     const couldNotPublish = mockEmit.mock.calls
       .filter((args) => typeof args[1] === 'string' && args[1].includes('Could not publish'))
     expect(couldNotPublish).toHaveLength(0)
+  })
+})
+
+describe('a space without the locale-based publishing entitlement', () => {
+  function forbidden (message: string) {
+    return new Error(JSON.stringify({ status: 403, message }))
+  }
+
+  test('falls back to a whole-entity publish and only warns once for the run', async () => {
+    const legacyPublishes: string[] = []
+    const makeEntity = (id: string) => ({
+      sys: { type: 'Entry', id, version: 7 },
+      publish: jest.fn(() => {
+        legacyPublishes.push(id)
+        return Promise.resolve({ sys: { type: 'Entry', id, version: 8, publishedVersion: 7 } })
+      })
+    })
+
+    const plainClient: any = {
+      entry: {
+        publish: jest.fn(() => Promise.reject(forbidden('locale based publishing not enabled'))),
+        unpublish: jest.fn()
+      },
+      asset: { publish: jest.fn(), unpublish: jest.fn() }
+    }
+
+    const localePublishing = {
+      plainClient,
+      spaceId: 'space-1',
+      environmentId: 'env-1',
+      namespace: 'entry' as const,
+      localesByEntityId: new Map([['entry-1', ['en-US']], ['entry-2', ['en-US']]]),
+      demoteLocalesByEntityId: new Map([['entry-1', ['es']]])
+    }
+
+    const result = await publishEntities({
+      entities: [makeEntity('entry-1'), makeEntity('entry-2')],
+      requestQueue,
+      localePublishing
+    })
+
+    // Both entities published, through the legacy whole-entity path.
+    expect(result.map((e: any) => e.sys.id)).toEqual(['entry-1', 'entry-2'])
+    expect(legacyPublishes).toEqual(['entry-1', 'entry-2'])
+
+    // Only the first entity pays for the rejected locale-scoped attempt.
+    expect(plainClient.entry.publish).toHaveBeenCalledTimes(1)
+
+    // No demotion is attempted once locale scoping is off — it would 403 too.
+    expect(plainClient.entry.unpublish).not.toHaveBeenCalled()
+
+    const warnings = mockEmit.mock.calls.filter((args) => args[0] === 'warning')
+    expect(warnings).toHaveLength(1)
+    expect(String(warnings[0][1])).toMatch(/locale-based publishing may not be enabled/i)
+
+    const errors = mockEmit.mock.calls.filter((args) => args[0] === 'error')
+    expect(errors).toHaveLength(0)
+  })
+
+  test('reads the 403 off err.status as well as off a JSON message', async () => {
+    const err: any = new Error('Forbidden')
+    err.status = 403
+
+    const legacyPublish = jest.fn(() => Promise.resolve({
+      sys: { type: 'Asset', id: 'asset-1', version: 8, publishedVersion: 7 }
+    }))
+    const plainClient: any = {
+      entry: { publish: jest.fn(), unpublish: jest.fn() },
+      asset: { publish: jest.fn(() => Promise.reject(err)), unpublish: jest.fn() }
+    }
+
+    const result = await publishEntities({
+      entities: [{ sys: { type: 'Asset', id: 'asset-1', version: 7 }, publish: legacyPublish }],
+      requestQueue,
+      localePublishing: {
+        plainClient,
+        spaceId: 'space-1',
+        environmentId: 'env-1',
+        namespace: 'asset' as const,
+        localesByEntityId: new Map([['asset-1', ['en-US']]])
+      }
+    })
+
+    expect(result).toHaveLength(1)
+    expect(legacyPublish).toHaveBeenCalledTimes(1)
+    expect(mockEmit.mock.calls.filter((args) => args[0] === 'warning')).toHaveLength(1)
+  })
+
+  test('a non-403 rejection is still reported rather than silently downgraded', async () => {
+    const legacyPublish = jest.fn()
+    const plainClient: any = {
+      entry: {
+        publish: jest.fn(() => Promise.reject(new Error(JSON.stringify({ status: 422, message: 'InvalidEntry' })))),
+        unpublish: jest.fn()
+      },
+      asset: { publish: jest.fn(), unpublish: jest.fn() }
+    }
+
+    const result = await publishEntities({
+      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 }, publish: legacyPublish }],
+      requestQueue,
+      localePublishing: {
+        plainClient,
+        spaceId: 'space-1',
+        environmentId: 'env-1',
+        namespace: 'entry' as const,
+        localesByEntityId: new Map([['entry-1', ['en-US']]])
+      }
+    })
+
+    expect(result).toHaveLength(0)
+    expect(legacyPublish).not.toHaveBeenCalled()
+    expect(mockEmit.mock.calls.filter((args) => args[0] === 'error').length).toBeGreaterThan(0)
+    expect(mockEmit.mock.calls.filter((args) => args[0] === 'warning')).toHaveLength(0)
   })
 })

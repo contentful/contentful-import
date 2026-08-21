@@ -351,7 +351,8 @@ An entity that's published in the source is published in the destination on impo
 - Imported webhooks with credentials will be imported as normal webhooks. Credentials should be added manually afterwards.
 - Imported webhooks with secret headers will be imported without these headers. Secret headers should be added manuall afterwards.
 - If you have custom UI extensions, you need to reinstall them manually in the new space.
-- Per-locale publish state is restored, with two caveats:
+- Per-locale publish state is restored, with three caveats:
+  - [Locale-based publishing](https://www.contentful.com/help/localization/locale-based-publishing/) is an entitlement, and not every space has it. If the destination space rejects a locale-scoped publish, the import logs a warning and falls back to publishing every locale, exactly as it did before this feature — the import itself does not fail.
   - A locale that was `changed` in the source space (published, with newer draft edits on top) is imported as `published`. Reconstructing `changed` needs two separate writes, which an import cannot express.
   - Locale-scoped publishing only adds published locales. If an entry in the destination space is already published for a locale that should be draft, that locale stays published by default — importing into a clean environment is unaffected. Set [`unpublishDraftLocales`](#unpublishdraftlocales-boolean-default-false) to demote those locales as well.
 - Locales that are published in the source space but do not exist in the destination environment are skipped. If none of an entity's published locales exist in the destination, the entity is left unpublished and a warning is logged.
