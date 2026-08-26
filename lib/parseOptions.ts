@@ -7,6 +7,7 @@ import { getHeadersConfig } from './utils/headers'
 import { proxyStringToObject, agentFromProxy } from 'contentful-batch-libs/dist/proxy'
 import addSequenceHeader from 'contentful-batch-libs/dist/add-sequence-header'
 import { parseChunked } from '@discoveryjs/json-ext'
+import { getEmbargoedAssetReferences } from './utils/embargoed-assets'
 
 const SUPPORTED_ENTITY_TYPES = [
   'contentTypes',
@@ -102,6 +103,19 @@ export default async function parseOptions (params) {
   SUPPORTED_ENTITY_TYPES.forEach((type) => {
     options.content[type] = options.content[type] || []
   })
+
+  if (!options.uploadAssets && !options.contentModelOnly) {
+    const embargoedAssetReferences = getEmbargoedAssetReferences(options.content)
+
+    if (embargoedAssetReferences.length) {
+      throw new Error(
+        `Found ${embargoedAssetReferences.length} embargoed asset file${embargoedAssetReferences.length === 1 ? '' : 's'} in the import data. ` +
+        'Embargoed asset URLs cannot be processed directly during import. ' +
+        'Re-export with `contentful space export --download-assets`, then import with `--upload-assets --assets-directory <export-directory>`. ' +
+        'For library usage, set `uploadAssets: true` and `assetsDirectory`.'
+      )
+    }
+  }
 
   if (typeof options.proxy === 'string') {
     options.proxy = proxyStringToObject(options.proxy)

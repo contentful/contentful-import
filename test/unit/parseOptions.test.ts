@@ -196,6 +196,48 @@ test('parseOption cleans up content to only include supported entity types', asy
   expect(content.invalid).toBeUndefined()
 })
 
+test('parseOptions rejects embargoed assets without local upload options', async () => {
+  await expect(parseOptions({
+    spaceId,
+    managementToken,
+    content: {
+      assets: [{
+        sys: { id: 'embargoed-asset' },
+        fields: {
+          file: {
+            'en-US': {
+              url: '//assets.secure.ctfassets.net/space/asset/file.pdf'
+            }
+          }
+        }
+      }]
+    }
+  })).rejects.toThrow(
+    'Found 1 embargoed asset file in the import data. Embargoed asset URLs cannot be processed directly during import.'
+  )
+})
+
+test('parseOptions accepts embargoed assets when local uploads are enabled', async () => {
+  await expect(parseOptions({
+    spaceId,
+    managementToken,
+    uploadAssets: true,
+    assetsDirectory: 'assets',
+    content: {
+      assets: [{
+        sys: { id: 'embargoed-asset' },
+        fields: {
+          file: {
+            'en-US': {
+              url: '//assets.secure.ctfassets.net/space/asset/file.pdf'
+            }
+          }
+        }
+      }]
+    }
+  })).resolves.toBeTruthy()
+})
+
 test('parseOptions accepts custom application & feature', async () => {
   const managementApplication = 'managementApplicationMock'
   const managementFeature = 'managementFeatureMock'
