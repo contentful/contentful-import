@@ -7,11 +7,12 @@ import { createEntities, createEntries, createLocales } from '../../../../lib/ta
 import { archiveEntities, publishEntities } from '../../../../lib/tasks/push-to-space/publishing'
 import { getAssetStreamForURL, processAssets } from '../../../../lib/tasks/push-to-space/assets'
 import { EntityTransformed, TransformedAsset, TransformedSourceData } from '../../../../lib/types'
+import { makePlainClientMock } from '../../helpers/plain-client-mock'
 
 // logEmitter is a plain node:events EventEmitter. Node treats 'error' as a special
 // event name and throws synchronously if it's emitted with no listener attached, so
 // register a no-op listener before any test exercises an error/log-and-continue path.
-logEmitter.on('error', () => {})
+logEmitter.on('error', () => { })
 
 // We group together these functions into objects manually instead of
 // using wildcard imports (*). This ensures that during the `afterEach` cleanup,
@@ -91,32 +92,24 @@ const transformedSourceData = {
 
 const destinationData = {}
 
-const editorInterfaceUpdateMock = jest.fn()
+const editorInterfaceUpdateMock = jest.fn().mockResolvedValue({
+  sys: { type: 'EditorInterface', contentType: { sys: { id: 'someId' } } }
+})
 
-const clientMock = {
-  getSpace: jest.fn(() => Promise.resolve({
-    getEnvironment: jest.fn(() => Promise.resolve({
-      getEditorInterfaceForContentType: () => {
-        return Promise.resolve({
-          sys: {
-            type: 'EditorInterface',
-            contentType: {
-              sys: {
-                id: 'someId'
-              }
-            }
-          },
-          update: editorInterfaceUpdateMock
-        })
-      },
-      createUpload: () => Promise.resolve({
-        sys: {
-          id: 'id'
-        }
-      })
-    }))
-  }))
-}
+const clientMock = makePlainClientMock({
+  editorInterface: {
+    get: jest.fn().mockResolvedValue({
+      sys: {
+        type: 'EditorInterface',
+        contentType: { sys: { id: 'someId' } }
+      }
+    }),
+    update: editorInterfaceUpdateMock,
+  },
+  upload: {
+    create: jest.fn().mockResolvedValue({ sys: { id: 'id' } }),
+  },
+})
 
 let requestQueue
 
@@ -328,19 +321,18 @@ test('Editor interface update failure is logged and does not abort the run', () 
     return Promise.resolve([])
   })
 
-  const clientMockWithMixedResults = {
-    getSpace: jest.fn(() => Promise.resolve({
-      getEnvironment: jest.fn(() => Promise.resolve({
-        getEditorInterfaceForContentType: (contentTypeId: string) => {
-          return Promise.resolve({
-            sys: { type: 'EditorInterface', contentType: { sys: { id: contentTypeId } } },
-            update: contentTypeId === 'someId' ? failingUpdateMock : succeedingUpdateMock
-          })
-        },
-        createUpload: () => Promise.resolve({ sys: { id: 'id' } })
-      }))
-    }))
-  }
+  const clientMockWithMixedResults = makePlainClientMock({
+    editorInterface: {
+      get: jest.fn(),
+      update: jest.fn(({ contentTypeId }: { contentTypeId: string }) => {
+        if (contentTypeId === 'someId') {
+          return Promise.resolve(failingUpdateMock())
+        } else {
+          return Promise.resolve(succeedingUpdateMock())
+        }
+      })
+    }
+  })
 
   const emitSpy = jest.spyOn(logEmitter, 'emit')
 

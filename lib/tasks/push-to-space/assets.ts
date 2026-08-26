@@ -5,10 +5,11 @@ import { promisify } from 'util'
 import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { ContentfulAssetError, ContentfulEntityError } from '../../utils/errors'
+import { PlainClientAPI } from 'contentful-management'
 
 const stat = promisify(fs.stat)
 
-export async function getAssetStreamForURL (url, assetsDirectory) {
+export async function getAssetStreamForURL(url, assetsDirectory) {
   const [, assetPath] = url.split('//')
   const filePath = join(assetsDirectory, assetPath)
   try {
@@ -23,9 +24,9 @@ export async function getAssetStreamForURL (url, assetsDirectory) {
   }
 }
 
-async function processAssetForLocale (locale, asset, processingOptions) {
+async function processAssetForLocale(client: PlainClientAPI, spaceId: string, environmentId: string, locale: string, asset, processingOptions) {
   try {
-    return await asset.processForLocale(locale, processingOptions)
+    return await client.asset.processForLocale({ spaceId, environmentId }, asset, locale, processingOptions)
   } catch (err: any) {
     if (err instanceof ContentfulEntityError) {
       err.entity = asset
@@ -37,7 +38,7 @@ async function processAssetForLocale (locale, asset, processingOptions) {
 
 // From
 // https://stackoverflow.com/questions/67339630/how-to-get-last-resolved-promise-from-a-list-of-resolved-promises-in-javascript
-async function lastResult (promises: Promise<any>[]) {
+async function lastResult(promises: Promise<any>[]) {
   if (!promises.length) throw new RangeError('No last result from no promises')
   const results: any[] = []
   await Promise.all(
@@ -52,14 +53,19 @@ async function lastResult (promises: Promise<any>[]) {
 
 type ProcessAssetsParams = {
   assets: any[];
+  client: PlainClientAPI;
+  spaceId: string;
+  environmentId: string;
   timeout?: number;
   retryLimit?: number;
   requestQueue: any;
-  locales?: string[];
 };
 
-export async function processAssets ({
+export async function processAssets({
   assets,
+  client,
+  spaceId,
+  environmentId,
   timeout,
   retryLimit,
   requestQueue
@@ -87,7 +93,7 @@ export async function processAssets ({
       latestAssetVersion = await lastResult(
         locales.map((locale) => {
           return requestQueue.add(() =>
-            processAssetForLocale(locale, asset, processingOptions)
+            processAssetForLocale(client, spaceId, environmentId, locale, asset, processingOptions)
           )
         })
       )

@@ -1,12 +1,12 @@
-import { createClient } from 'contentful-management'
+import { createClient, PlainClientAPI } from 'contentful-management'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 
-function logHandler (level, data) {
+function logHandler(level, data) {
   logEmitter.emit(level, data)
 }
 
-export default function initClient (opts) {
+export default function initClient(opts): PlainClientAPI {
   const defaultOpts = {
     timeout: 30000,
     logHandler
@@ -15,13 +15,12 @@ export default function initClient (opts) {
     ...defaultOpts,
     ...opts
   }
-  return createClient(config, { type: 'legacy' })
-}
 
-export function initPlainClient (opts) {
-  return createClient({
-    accessToken: opts.managementToken,
-    host: opts.host,
-    logHandler
+  return createClient(config, {
+    type: 'plain',
+    defaults: {
+      spaceId: opts.spaceId,
+      environmentId: opts.environmentId
+    }
   })
 }
