@@ -1,6 +1,6 @@
 import { basename, isAbsolute, join, resolve, sep } from 'path'
 
-import {HttpsProxyAgent} from 'https-proxy-agent'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 
 import parseOptions from '../../lib/parseOptions'
 
@@ -68,6 +68,24 @@ test('parseOptions does allow skipLocales only when contentModelOnly is set', as
       skipLocales: true
     })
   ).rejects.toThrow('`skipLocales` can only be used together with `contentModelOnly`')
+})
+
+test('parseOptions requires assetsDirectory when uploadAssets is enabled', async () => {
+  await expect(parseOptions({
+    spaceId,
+    managementToken,
+    uploadAssets: true,
+    content: {}
+  })).rejects.toThrow('`uploadAssets` requires `assetsDirectory`')
+})
+
+test('parseOptions requires uploadAssets when assetsDirectory is provided', async () => {
+  await expect(parseOptions({
+    spaceId,
+    managementToken,
+    assetsDirectory: 'assets',
+    content: {}
+  })).rejects.toThrow('`assetsDirectory` requires `uploadAssets`')
 })
 
 test('parseOptions sets correct default options', async () => {
@@ -226,6 +244,25 @@ test('parseOptions accepts embargoed assets when local uploads are enabled', asy
     content: {
       assets: [{
         sys: { id: 'embargoed-asset' },
+        fields: {
+          file: {
+            'en-US': {
+              url: '//assets.secure.ctfassets.net/space/asset/file.pdf'
+            }
+          }
+        }
+      }]
+    }
+  })).resolves.toBeTruthy()
+})
+
+test('parseOptions skips embargoed asset validation for content model imports', async () => {
+  await expect(parseOptions({
+    spaceId,
+    managementToken,
+    contentModelOnly: true,
+    content: {
+      assets: [{
         fields: {
           file: {
             'en-US': {

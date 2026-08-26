@@ -7,7 +7,7 @@ import { getHeadersConfig } from './utils/headers'
 import { proxyStringToObject, agentFromProxy } from 'contentful-batch-libs/dist/proxy'
 import addSequenceHeader from 'contentful-batch-libs/dist/add-sequence-header'
 import { parseChunked } from '@discoveryjs/json-ext'
-import { getEmbargoedAssetReferences } from './utils/embargoed-assets'
+import { getEmbargoedAssetCount } from './utils/embargoed-assets'
 
 const SUPPORTED_ENTITY_TYPES = [
   'contentTypes',
@@ -72,6 +72,14 @@ export default async function parseOptions (params) {
     throw new Error('`skipLocales` can only be used together with `contentModelOnly`')
   }
 
+  if (options.uploadAssets && !options.assetsDirectory) {
+    throw new Error('`uploadAssets` requires `assetsDirectory`')
+  }
+
+  if (options.assetsDirectory && !options.uploadAssets) {
+    throw new Error('`assetsDirectory` requires `uploadAssets`')
+  }
+
   const proxySimpleExp = /.+:\d+/
   const proxyAuthExp = /.+:.+@.+:\d+/
   if (typeof options.proxy === 'string' && options.proxy && !(proxySimpleExp.test(options.proxy) || proxyAuthExp.test(options.proxy))) {
@@ -105,11 +113,11 @@ export default async function parseOptions (params) {
   })
 
   if (!options.uploadAssets && !options.contentModelOnly) {
-    const embargoedAssetReferences = getEmbargoedAssetReferences(options.content)
+    const embargoedAssetCount = getEmbargoedAssetCount(options.content)
 
-    if (embargoedAssetReferences.length) {
+    if (embargoedAssetCount) {
       throw new Error(
-        `Found ${embargoedAssetReferences.length} embargoed asset file${embargoedAssetReferences.length === 1 ? '' : 's'} in the import data. ` +
+        `Found ${embargoedAssetCount} embargoed asset file${embargoedAssetCount === 1 ? '' : 's'} in the import data. ` +
         'Embargoed asset URLs cannot be processed directly during import. ' +
         'Re-export with `contentful space export --download-assets`, then import with `--upload-assets --assets-directory <export-directory>`. ' +
         'For library usage, set `uploadAssets: true` and `assetsDirectory`.'
