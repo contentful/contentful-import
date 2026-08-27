@@ -1,4 +1,4 @@
-import { omit, defaults } from 'lodash'
+import { omit, defaults } from 'lodash-es'
 
 import * as defaultTransformers from './transformers'
 import sortEntries from '../utils/sort-entries'

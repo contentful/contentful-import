@@ -1,4 +1,4 @@
-import { some, filter, map, values, get, has, flatten } from 'lodash'
+import { some, filter, map, values, get, has, flatten } from 'lodash-es'
 
 /**
  * Given a list of entries, this function reorders them so that entries which

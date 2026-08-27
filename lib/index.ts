@@ -3,7 +3,7 @@ import { differenceInSeconds, formatDistance } from 'date-fns'
 import Listr from 'listr'
 import UpdateRenderer from 'listr-update-renderer'
 import VerboseRenderer from 'listr-verbose-renderer'
-import { startCase } from 'lodash'
+import { startCase } from 'lodash-es'
 import PQueue from 'p-queue'
 
 import { displayErrorLog, setupLogging, writeErrorLogFile } from 'contentful-batch-libs/dist/logging'

@@ -5,7 +5,7 @@ export default defineConfig({
   format: ['cjs', 'esm'],
   clean: true,
   dts: true,
-  noExternal: ['contentful-batch-libs', 'lodash', 'date-fns'],
+  noExternal: ['contentful-batch-libs', 'lodash-es'],
   platform: 'node',
   cjsInterop: true,
   esbuildOptions (options, context) {
