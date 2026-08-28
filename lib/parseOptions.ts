@@ -7,6 +7,7 @@ import { getHeadersConfig } from './utils/headers'
 import { proxyStringToObject, agentFromProxy } from 'contentful-batch-libs/dist/proxy'
 import addSequenceHeader from 'contentful-batch-libs/dist/add-sequence-header'
 import { parseChunked } from '@discoveryjs/json-ext'
+import { getEmbargoedAssetCount } from './utils/embargoed-assets'
 
 const SUPPORTED_ENTITY_TYPES = [
   'contentTypes',
@@ -72,6 +73,14 @@ export default async function parseOptions (params) {
     throw new Error('`skipLocales` can only be used together with `contentModelOnly`')
   }
 
+  if (options.uploadAssets && !options.assetsDirectory) {
+    throw new Error('`uploadAssets` requires `assetsDirectory`')
+  }
+
+  if (options.assetsDirectory && !options.uploadAssets) {
+    throw new Error('`assetsDirectory` requires `uploadAssets`')
+  }
+
   const proxySimpleExp = /.+:\d+/
   const proxyAuthExp = /.+:.+@.+:\d+/
   if (typeof options.proxy === 'string' && options.proxy && !(proxySimpleExp.test(options.proxy) || proxyAuthExp.test(options.proxy))) {
@@ -103,6 +112,19 @@ export default async function parseOptions (params) {
   SUPPORTED_ENTITY_TYPES.forEach((type) => {
     options.content[type] = options.content[type] || []
   })
+
+  if (!options.uploadAssets && !options.contentModelOnly) {
+    const embargoedAssetCount = getEmbargoedAssetCount(options.content)
+
+    if (embargoedAssetCount) {
+      throw new Error(
+        `Found ${embargoedAssetCount} embargoed asset file${embargoedAssetCount === 1 ? '' : 's'} in the import data. ` +
+        'Embargoed asset URLs cannot be processed directly during import. ' +
+        'Re-export with `contentful space export --download-assets`, then import with `--upload-assets --assets-directory <export-directory>`. ' +
+        'For library usage, set `uploadAssets: true` and `assetsDirectory`.'
+      )
+    }
+  }
 
   if (typeof options.proxy === 'string') {
     options.proxy = proxyStringToObject(options.proxy)
