@@ -7,5 +7,5 @@ module.exports = {
   transform: {
     '^.+\\.(ts|tsx|js|jsx)$': 'ts-jest'
   },
-  transformIgnorePatterns: ['node_modules/(?!(contentful-batch-libs)/)']
+  transformIgnorePatterns: ['node_modules/(?!(contentful-batch-libs|lodash-es)/)']
 }
