@@ -56,11 +56,11 @@ export default yargs
   })
   .implies('assets-directory', 'upload-assets')
   .option('timeout', {
-    describe: 'Time between retries on asset processing',
+    describe: 'Time between retries',
     type: 'number'
   })
   .option('retry-limit', {
-    describe: 'Maximum number of retries for asset processing',
+    describe: 'Maximum number of retries',
     type: 'number'
   })
   .option('error-log-file', {
