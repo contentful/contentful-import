@@ -133,6 +133,14 @@ Path to JSON file that contains data to be import to your space
 
 Content to import. Needs to match the expected structure (See below)
 
+#### `timeout` [number]
+
+Time between retries
+
+#### `retryLimit` [number]
+
+Maximum number of retries
+
 ### Filtering
 
 #### `contentModelOnly` [boolean] [default: false]
@@ -168,14 +176,6 @@ Skip updating existing assets
 #### `assetsDirectory` [string]
 
 Path to a directory with an asset export made using the [downloadAssets](https://github.com/contentful/contentful-export#downloadassets-boolean) option of the export. Requires `uploadAssets`
-
-#### `timeout` [number] [default: 3000]
-
-Time between retries on asset processing
-
-#### `retryLimit` [number] [default: 10]
-
-Maximum number of retries for asset processing
 
 ### Connection
 
