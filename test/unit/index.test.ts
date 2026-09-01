@@ -1,6 +1,7 @@
 import { resolve } from 'path'
 
 import TableStub from 'cli-table3'
+import { logEmitter } from 'contentful-batch-libs/dist/logging'
 
 import pushToSpaceStub from '../../lib/tasks/push-to-space/push-to-space'
 import transformSpaceStub from '../../lib/transform/transform-space'
@@ -347,4 +348,26 @@ test('Intro CLI table respects contentModelOnly', () => {
       expect(introTable.push.mock.calls[3][0]).toEqual(['Locales', 2])
       expect(introTable.push.mock.calls).toHaveLength(4)
     })
+})
+
+test('does not retain logging listeners after successful or failed imports', async () => {
+  const eventNames = ['info', 'warning', 'error', 'display']
+  const listenerCountsBefore = eventNames.map((eventName) => logEmitter.listenerCount(eventName))
+  const options = {
+    content: {},
+    spaceId: 'someSpaceId',
+    managementToken: 'someManagementToken',
+    errorLogFile: 'errorlogfile'
+  }
+
+  await contentfulImport(options)
+  expect(eventNames.map((eventName) => logEmitter.listenerCount(eventName))).toEqual(listenerCountsBefore)
+
+  const initClientMock = initClientStub as jest.Mock
+  initClientMock.mockImplementationOnce(() => {
+    throw new Error('client initialization failed')
+  })
+
+  await expect(contentfulImport(options)).rejects.toMatchObject({ name: 'ContentfulMultiError' })
+  expect(eventNames.map((eventName) => logEmitter.listenerCount(eventName))).toEqual(listenerCountsBefore)
 })

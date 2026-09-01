@@ -6,7 +6,7 @@ import VerboseRenderer from 'listr-verbose-renderer'
 import { startCase } from 'lodash-es'
 import PQueue from 'p-queue'
 
-import { setupLogging, writeErrorLogFile } from 'contentful-batch-libs/dist/logging'
+import { setupLogging, teardownLogging, writeErrorLogFile } from 'contentful-batch-libs/dist/logging'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
 
 import initClient from './tasks/init-client'
@@ -77,9 +77,6 @@ async function runContentfulImport (params: RunContentfulImportParams) {
     intervalCap: options.rateLimit,
     carryoverConcurrencyCount: true
   })
-
-  // Setup custom log listener to store log messages for later
-  setupLogging(log)
 
   const infoTable = new Table(tableOptions)
 
@@ -189,9 +186,19 @@ async function runContentfulImport (params: RunContentfulImportParams) {
     }
   ], listrOptions)
 
-  return tasks.run({
-    data: {}
-  })
+  let importPromise
+  try {
+    // Setup custom log listener to store log messages for later
+    setupLogging(log)
+    importPromise = tasks.run({
+      data: {}
+    })
+  } catch (err) {
+    teardownLogging(log)
+    throw err
+  }
+
+  return importPromise
     .then((ctx) => {
       console.log('Finished importing all data')
 
@@ -245,6 +252,7 @@ async function runContentfulImport (params: RunContentfulImportParams) {
 
       return data
     })
+    .finally(() => teardownLogging(log))
 }
 
 export default runContentfulImport
