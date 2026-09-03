@@ -1,4 +1,4 @@
-import type { AssetProps, ContentTypeProps, EditorInterfaceProps, EntryProps, Link, LocaleProps, TagProps, WebhookProps } from 'contentful-management'
+import type { AssetProps, ContentTypeProps, EditorInterfaceProps, EntryProps, Link, LocaleProps, ReleaseProps, TagProps, WebhookProps } from 'contentful-management'
 import type { ComponentProps, DataAssemblyProps, DesignTokenProps, ExperienceProps, ExperienceFragmentProps, ExperienceTemplateProps } from 'contentful-management'
 
 export type { ComponentProps, DataAssemblyProps, DesignTokenProps, ExperienceProps, ExperienceFragmentProps, ExperienceTemplateProps }
@@ -17,8 +17,10 @@ export type Resources = {
   dataAssemblies?: DataAssemblyProps[]
   experiences?: ExperienceProps[]
   designTokens?: DesignTokenProps[]
+  releases?: ReleaseProps[]
 }
 
+// TODO: should ResourcesUnion also include Releases and Experience Orchestration entities? If so, we need to update the type accordingly.
 export type ResourcesUnion = (ContentTypeProps | TagProps | LocaleProps | EntryProps | AssetProps | EditorInterfaceProps | WebhookProps)[]
 
 export type DestinationData = Resources
@@ -45,12 +47,15 @@ export type TransformedSourceData = {
   tags: EntityTransformed<TagProps, any>[]
   webhooks: EntityTransformed<WebhookProps, any>[]
   editorInterfaces: EditorInterfaceProps[]
+
+  // TODO: QUESTION: should these be EntityTransformed types as well? If so, we need to update the type accordingly.
   components?: ComponentProps[]
   experienceTemplates?: ExperienceTemplateProps[]
   experienceFragments?: ExperienceFragmentProps[]
   dataAssemblies?: DataAssemblyProps[]
   experiences?: ExperienceProps[]
   designTokens?: DesignTokenProps[]
+  releases?: EntityTransformed<ReleaseProps, any>[]
 }
 
 export type TransformedSourceDataUnion = (

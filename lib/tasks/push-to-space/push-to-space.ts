@@ -15,6 +15,7 @@ import {
   UpsertExperienceProps,
   UpdateDataAssemblyProps,
   UpsertDesignTokenProps,
+  ReleasePayloadV2,
 } from 'contentful-management'
 
 import * as assets from './assets'
@@ -161,6 +162,10 @@ export default function pushToSpace({
         if (!destinationDataById.locales) {
           return
         }
+
+        // check to see if locale based pub is enabled in source spadce,
+        // if so, enable in destination space
+
         const locales = await creation.createLocales({
           context: { client, spaceId, environmentId, type: 'Locale' },
           entities: sourceData.locales,
@@ -778,6 +783,37 @@ export default function pushToSpace({
         ))
       }),
       skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.dataAssemblies || []).length
+    },
+    {
+      title: 'Importing Releases',
+      task: wrapTask(async (ctx) => {
+        const results = await Promise.all((sourceData.releases || []).map(async (release) => {
+          //TODO: I wonder if we're missing a step to where this release.transformed|orginal isn't getting parsed into just the release object.
+          const existing = destinationDataById.releases?.get(release.transformed.sys.id)
+
+          if (existing) {
+            // UPDATE
+          } else {
+            const payload: ReleasePayloadV2 = Object.assign(
+              {},
+              release.transformed,
+              {
+                entities: release.transformed.entities,
+                sys: {
+                  ...release.transformed.sys,
+                  id: release.transformed.sys.id,
+                  type: 'Release',
+                  schemaVersion: 'Release.v2'
+                }
+              })
+
+            const result = await client.release.create({ spaceId, environmentId, }, payload)
+
+            console.log(`[ <IMPORT> ] pushToSpace ["IMPORTING RELEASES"]() result => `, JSON.stringify(result, null, 4))
+          }
+        }))
+        ctx.data.releases = results.filter(Boolean)
+      })
     }
   ], listrOptions)
 }
@@ -811,5 +847,5 @@ function publishEntities({ entities, sourceEntities, client, spaceId, environmen
   const entitiesToPublish = entities
     .filter((entity) => entityIdsToPublish.indexOf(entity.sys.id) !== -1)
 
-  return publishing.publishEntities({ entities: entitiesToPublish, client, spaceId, environmentId, requestQueue })
+  return publishing.publishEntities({ sourceEntities, entities: entitiesToPublish, client, spaceId, environmentId, requestQueue })
 }
