@@ -66,6 +66,7 @@ const webhookSchema = {
 }
 
 /**
+ * TODO: SHOULD exo entities and releases be included?
  * @returns normalized validation object. Don't use normalized output as payload
  */
 const payloadSchema = Joi.object({

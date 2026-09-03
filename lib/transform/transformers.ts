@@ -8,19 +8,19 @@ import { find, omit, pick, reduce } from 'lodash-es'
  * as the whole upload process needs to be followed again.
  */
 
-export function contentTypes (contentType: ContentTypeProps) {
+export function contentTypes(contentType: ContentTypeProps) {
   return contentType
 }
 
-export function tags (tag: TagProps) {
+export function tags(tag: TagProps) {
   return tag
 }
 
-export function entries (entry: EntryProps, _, tagsEnabled = false) {
+export function entries(entry: EntryProps, _, tagsEnabled = false) {
   return removeMetadataTags(entry, tagsEnabled)
 }
 
-export function webhooks (webhook: WebhookProps) {
+export function webhooks(webhook: WebhookProps) {
   // Workaround for webhooks with credentials
   if (webhook.httpBasicUsername) {
     delete webhook.httpBasicUsername
@@ -34,7 +34,7 @@ export function webhooks (webhook: WebhookProps) {
   return webhook
 }
 
-export function assets (asset, _, tagsEnabled = false) {
+export function assets(asset, _, tagsEnabled = false) {
   const transformedAsset = omit(asset, 'sys')
   transformedAsset.sys = pick(asset.sys, 'id')
   transformedAsset.fields = pick(asset.fields, 'title', 'description')
@@ -55,7 +55,7 @@ export function assets (asset, _, tagsEnabled = false) {
   return removeMetadataTags(transformedAsset, tagsEnabled)
 }
 
-export function locales (locale, destinationLocales) {
+export function locales(locale, destinationLocales) {
   const transformedLocale = pick(locale, 'code', 'name', 'contentManagementApi', 'contentDeliveryApi', 'fallbackCode', 'optional')
   const destinationLocale = find(destinationLocales, { code: locale.code })
   if (destinationLocale) {
@@ -69,9 +69,13 @@ export function locales (locale, destinationLocales) {
   return transformedLocale
 }
 
-function removeMetadataTags (entity, tagsEnabled = false) {
+function removeMetadataTags(entity, tagsEnabled = false) {
   if (!tagsEnabled) {
     delete entity.metadata
   }
   return entity
+}
+
+export function releases(release) {
+  return release
 }
