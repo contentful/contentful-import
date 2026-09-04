@@ -25,7 +25,7 @@ import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../..
 import { buildDataAssemblySys } from '../../utils/exo-entity-payloads'
 import sortComponents from '../../utils/sort-components'
 import sortExperienceFragments from '../../utils/sort-experience-fragments'
-import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity } from '../../utils/publish-exo-entities'
+import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity, filterVariantsToPublish, filterVariantsToArchive, publishVariant, archiveVariant } from '../../utils/publish-exo-entities'
 import { sortOrReport } from '../../utils/sort-or-report'
 import { importExoFolders } from '../../utils/import-exo-folders'
 
@@ -709,6 +709,88 @@ export default function pushToSpace({
       }),
       skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experiences || []).length
     },
+    // Optimization Variants are sub-resources nested on their parent Experience/ExperienceFragment
+    // (sourceData.experiences[].optimizationVariants), not a flat top-level array — see
+    // projects/decisions/0001-exo-variant-export-storage-shape.md in ecosystem-os. A variant's
+    // sys.id is borrowed from its parent, not unique, so variant creation/publish/archive is
+    // handled by new, self-contained functions (importVariantsForParents, filterVariantsToPublish,
+    // filterVariantsToArchive, publishVariant, archiveVariant) rather than by generalizing
+    // destinationDataById / filterExoEntitiesToPublish / filterExoEntitiesToUnpublish, which all
+    // assume sys.id uniqueness.
+    //
+    // Unlike the base Experience/Fragment create/update, there is no upsert-by-known-ID for
+    // variants: the upstream API's create endpoint always server-generates a fresh variantId
+    // (crypto.randomUUID()) and its update endpoint 404s on an unknown variantId rather than
+    // creating one. So every import run creates fresh destination variants via POST rather than
+    // matching against any existing destination variant.
+    {
+      title: 'Importing Experience Optimization Variants',
+      task: wrapTask(async (ctx) => {
+        const results = await importVariantsForParents({
+          parents: ctx.data.experiences || [],
+          sourceParents: sourceData.experiences || [],
+          client,
+          spaceId,
+          environmentId,
+          kind: 'experience'
+        })
+        ctx.data.experienceVariants = results.flatMap((r) => r.created)
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.experiences || []).some((e: any) => e.optimizationVariants?.length)
+    },
+    {
+      title: 'Publishing Experience Optimization Variants',
+      task: wrapTask(async (ctx: { data: { experienceVariants: any[] } }) => {
+        const toPublish = filterVariantsToPublish(ctx.data.experienceVariants || [])
+        await Promise.all(toPublish.map((v) =>
+          publishVariant('ExperienceVariant', v, () => client.experienceVariant.publish(
+            { spaceId, environmentId, experienceId: v.sys.id, variantId: v.sys.variant, version: v.sys.version }
+          ))
+        ))
+        // filterVariantsToArchive excludes anything filterVariantsToPublish already matched
+        // above (mutually exclusive by construction), so no overlap check is needed here.
+        const toArchive = filterVariantsToArchive(ctx.data.experienceVariants || [])
+        await Promise.all(toArchive.map((v) =>
+          archiveVariant('ExperienceVariant', v, () => client.experienceVariant.archive(
+            { spaceId, environmentId, experienceId: v.sys.id, variantId: v.sys.variant, version: v.sys.version }
+          ))
+        ))
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experiences || []).some((e: any) => e.optimizationVariants?.length)
+    },
+    {
+      title: 'Importing Experience Fragment Optimization Variants',
+      task: wrapTask(async (ctx) => {
+        const results = await importVariantsForParents({
+          parents: ctx.data.experienceFragments || [],
+          sourceParents: sourceData.experienceFragments || [],
+          client,
+          spaceId,
+          environmentId,
+          kind: 'experienceFragment'
+        })
+        ctx.data.experienceFragmentVariants = results.flatMap((r) => r.created)
+      }),
+      skip: () => !includeExperienceOrchestration || !(sourceData.experienceFragments || []).some((f: any) => f.optimizationVariants?.length)
+    },
+    {
+      title: 'Publishing Experience Fragment Optimization Variants',
+      task: wrapTask(async (ctx: { data: { experienceFragmentVariants: any[] } }) => {
+        const toPublish = filterVariantsToPublish(ctx.data.experienceFragmentVariants || [])
+        await Promise.all(toPublish.map((v) =>
+          publishVariant('ExperienceFragmentVariant', v, () => client.experienceFragmentVariant.publish(
+            { spaceId, environmentId, experienceFragmentId: v.sys.id, variantId: v.sys.variant, version: v.sys.version }
+          ))
+        ))
+        const toArchive = filterVariantsToArchive(ctx.data.experienceFragmentVariants || [])
+        await Promise.all(toArchive.map((v) =>
+          archiveVariant('ExperienceFragmentVariant', v, () => client.experienceFragmentVariant.archive(
+            { spaceId, environmentId, experienceFragmentId: v.sys.id, variantId: v.sys.variant, version: v.sys.version }
+          ))
+        ))
+      }),
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experienceFragments || []).some((f: any) => f.optimizationVariants?.length)
+    },
     // Unpublishing runs after all Importing/Publishing tasks, in reverse dependency order
     // (Experience first, DataAssembly last) - the API rejects unpublishing an entity that a
     // still-published parent references, so parents must unpublish before the children they embed.
@@ -786,6 +868,52 @@ function omitSys(entity) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { sys: _sys, ...rest } = entity
   return rest
+}
+
+function omitVariantSys(variant: any) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { sys: _sys, ...rest } = variant
+  return rest
+}
+
+/**
+ * Creates each parent's source-listed Optimization Variants against the destination via
+ * POST (there is no upsert-by-known-ID for variants - see the "Importing Experience
+ * Optimization Variants" task comment above), then carries the source's publish/archive
+ * intent onto the freshly-created object so the following Publishing task can act on it -
+ * a fresh POST response is always a draft and never has publishedVersion/archivedVersion set.
+ */
+async function importVariantsForParents({
+  parents, sourceParents, client, spaceId, environmentId, kind
+}: {
+  parents: { sys: { id: string } }[]
+  sourceParents: any[]
+  client: any
+  spaceId: string
+  environmentId: string
+  kind: 'experience' | 'experienceFragment'
+}): Promise<Array<{ parentId: string; created: any[] }>> {
+  const ns = kind === 'experience' ? client.experienceVariant : client.experienceFragmentVariant
+  const idParam = kind === 'experience' ? 'experienceId' : 'experienceFragmentId'
+  const label = kind === 'experience' ? 'ExperienceVariant' : 'ExperienceFragmentVariant'
+
+  return Promise.all(parents.map(async (parent) => {
+    const sourceParent = sourceParents.find((p) => p.sys.id === parent.sys.id)
+    const sourceVariants = sourceParent?.optimizationVariants ?? []
+    const created: any[] = []
+    for (const variant of sourceVariants) {
+      try {
+        const payload = omitVariantSys(variant)
+        const result = await ns.create({ spaceId, environmentId, [idParam]: parent.sys.id }, payload)
+        logEmitter.emit('info', `CREATE ${label} ${result.sys.variant} (parent ${parent.sys.id})`)
+        created.push({ ...result, sys: { ...result.sys, publishedVersion: variant.sys.publishedVersion, archivedVersion: variant.sys.archivedVersion } })
+      } catch (err: any) {
+        err.entity = variant
+        logEmitter.emit('error', err)
+      }
+    }
+    return { parentId: parent.sys.id, created }
+  }))
 }
 
 // function archiveEntities({ entities, sourceEntities, requestQueue }) {

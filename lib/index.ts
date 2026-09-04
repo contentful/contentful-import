@@ -98,6 +98,24 @@ async function runContentfulImport (params: RunContentfulImportParams) {
     infoTable.push([startCase(type), options.content[type].length])
   })
 
+  // Optimization Variants are nested onto their parent Experience/ExperienceFragment
+  // (options.content.experiences[].optimizationVariants) rather than a top-level key, so the
+  // loop above never surfaces a count for them - add computed rows, mirroring the same
+  // mitigation contentful-export's summary table applies for the same reason (see
+  // projects/decisions/0001-exo-variant-export-storage-shape.md in ecosystem-os).
+  const experienceVariantCount = (options.content.experiences || []).reduce(
+    (sum: number, e: any) => sum + (e.optimizationVariants?.length ?? 0), 0
+  )
+  if (experienceVariantCount > 0) {
+    infoTable.push(['Experience Optimization Variants', experienceVariantCount])
+  }
+  const experienceFragmentVariantCount = (options.content.experienceFragments || []).reduce(
+    (sum: number, f: any) => sum + (f.optimizationVariants?.length ?? 0), 0
+  )
+  if (experienceFragmentVariantCount > 0) {
+    infoTable.push(['Experience Fragment Optimization Variants', experienceFragmentVariantCount])
+  }
+
   console.log(infoTable.toString())
 
   const tasks = new Listr([
