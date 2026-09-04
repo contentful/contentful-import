@@ -59,7 +59,6 @@ type RunContentfulImportParams = {
   errorLogFile?: string,
   useVerboseRenderer?: boolean,
   includeExperienceOrchestration?: boolean,
-  // TODO These properties are not documented in the Readme
   timeout?: number,
   retryLimit?: number,
   config?: string,

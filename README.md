@@ -270,13 +270,16 @@ The data to import should be structured like this:
   "experienceTemplates": [],
   "dataAssemblies": [],
   "experienceFragments": [],
-  "experiences": []
+  "experiences": [],
+  "releases": []
 }
 ```
 
 Note: `tags` are not available for all users. If you do not have access to this feature, any tags included in your import data will be skipped.
 
 The `designTokens`, `components`, `experienceTemplates`, `dataAssemblies`, `experienceFragments`, and `experiences` keys are Experience Orchestration (ExO) entities — see the "Experience Orchestration (ExO) entities" section below.
+
+The `releases` key is subject to the [Releases](https://www.contentful.com/help/releases/) feature — see the "Releases" section below.
 
 ## :test_tube: Experience Orchestration (ExO) entities
 
@@ -323,6 +326,16 @@ An entity that's published in the source is published in the destination on impo
 - Export files taken before the ExO entity rename (`ComponentType` → `Component`, `Fragment` → `ExperienceFragment`, `Template` → `ExperienceTemplate`) are upgraded automatically on import, including the corresponding resource-link `linkType`s and URN path segments. This upgrade is upgrade-only (there's no downgrade path) and idempotent, so it's safe to run against already-upgraded data.
 - Export files that predate ExO entirely (no ExO keys, or empty ExO arrays) import unchanged — no extra configuration is needed to import older export files.
 
+## :package: Releases
+
+> **Only `Release.v2` ("Releases") is supported. `Release.v1` ("Launch") is not supported.**
+>
+> **The destination space's organization must have the [Releases](https://www.contentful.com/help/releases/) entitlement enabled.** Releases is a premium/paid feature — if the destination isn't entitled, importing releases will fail.
+
+If your source content includes a `releases` key, each entry is checked for `sys.schemaVersion`. Only releases with `sys.schemaVersion: "Release.v2"` are imported; any `Release.v1` (Launch) release is skipped and logged as an error, since its payload shape isn't compatible with the `Release.v2` create/update API.
+
+A release that doesn't already exist in the destination space (matched by `sys.id`) is created; one that does exist is updated. There is no separate publish/unpublish step for releases — a release's own `entities` collection already carries the per-entity `publish`/`unpublish` action to take when the release itself is applied.
+
 ## :bulb: Importing to a space with existing content
 
 - Both source space and destination space must share the same content model structure. In order to achieve that, please use [contentful-migration](https://www.npmjs.com/package/contentful-migration).
@@ -342,6 +355,7 @@ An entity that's published in the source is published in the destination on impo
 - Imported webhooks with credentials will be imported as normal webhooks. Credentials should be added manually afterwards.
 - Imported webhooks with secret headers will be imported without these headers. Secret headers should be added manuall afterwards.
 - If you have custom UI extensions, you need to reinstall them manually in the new space.
+- `Release.v1` ("Launch") releases are not supported for import — only `Release.v2` ("Releases") releases are imported; see the "Releases" section above.
 
 ## :memo: Changelog
 
