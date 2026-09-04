@@ -630,12 +630,12 @@ export default function pushToSpace({
             if (existing) {
               // once an ExperienceFragment is created, its component cannot be changed to a different component -
               // the API rejects `component` on UPDATE even when the value is unchanged, so omit it entirely
-              const payload: UpsertExperienceFragmentProps = { ...entity, sys: { id: entity.sys.id, type: 'ExperienceFragment', version: existing.sys.version } }
+              const payload: UpsertExperienceFragmentProps = { ...omitSysAndOptimizationVariants(entity), sys: { id: entity.sys.id, type: 'ExperienceFragment', version: existing.sys.version } }
               const result = await client.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE ExperienceFragment ${entity.sys.id}`)
               results.push(result)
             } else {
-              const payload: UpsertExperienceFragmentProps = { ...omitSys(entity), component: entity.sys.component, sys: { id: entity.sys.id, type: 'ExperienceFragment' } }
+              const payload: UpsertExperienceFragmentProps = { ...omitSysAndOptimizationVariants(entity), component: entity.sys.component, sys: { id: entity.sys.id, type: 'ExperienceFragment' } }
               const result = await client.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE ExperienceFragment ${entity.sys.id}`)
               results.push(result)
@@ -676,12 +676,12 @@ export default function pushToSpace({
             if (existing) {
               // once an Experience is created, its experienceTemplate cannot be changed to a different experienceTemplate -
               // the API rejects `experienceTemplate` on UPDATE even when the value is unchanged, so omit it entirely
-              const payload: UpsertExperienceProps = { ...entity, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
+              const payload: UpsertExperienceProps = { ...omitSysAndOptimizationVariants(entity), sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
               const result = await client.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Experience ${entity.sys.id}`)
               return result
             } else {
-              const payload: UpsertExperienceProps = { ...omitSys(entity), experienceTemplate: entity.sys.experienceTemplate, sys: { id: entity.sys.id, type: 'Experience' } }
+              const payload: UpsertExperienceProps = { ...omitSysAndOptimizationVariants(entity), experienceTemplate: entity.sys.experienceTemplate, sys: { id: entity.sys.id, type: 'Experience' } }
               const result = await client.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE Experience ${entity.sys.id}`)
               return result
@@ -870,6 +870,15 @@ function omitSys(entity) {
   return rest
 }
 
+// Experience/ExperienceFragment source objects carry a nested `optimizationVariants` array
+// (contentful-export's storage shape per ADR-0001) that isn't a field the CMA upsert endpoint
+// accepts - sending it triggers a 422 (unrecognized_keys / invalid_union) on every create/update.
+function omitSysAndOptimizationVariants(entity) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { sys: _sys, optimizationVariants: _variants, ...rest } = entity
+  return rest
+}
+
 function omitVariantSys(variant: any) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { sys: _sys, ...rest } = variant
@@ -896,14 +905,21 @@ async function importVariantsForParents({
   const ns = kind === 'experience' ? client.experienceVariant : client.experienceFragmentVariant
   const idParam = kind === 'experience' ? 'experienceId' : 'experienceFragmentId'
   const label = kind === 'experience' ? 'ExperienceVariant' : 'ExperienceFragmentVariant'
+  // Create requires the parent-reference field back (mirrors why the parent's own create call
+  // re-adds `entity.sys.experienceTemplate`/`entity.sys.component` after omitSys elsewhere in this file).
+  const parentRefField = kind === 'experience' ? 'experienceTemplate' : 'component'
 
   return Promise.all(parents.map(async (parent) => {
     const sourceParent = sourceParents.find((p) => p.sys.id === parent.sys.id)
-    const sourceVariants = sourceParent?.optimizationVariants ?? []
+    // The optimization_variants list endpoint always includes the parent's own base view as an
+    // item with sys.variantType 'default' (borrowing the parent's sys.id) - that's not a real
+    // sub-resource to create, it's the parent itself surfaced through the same list. Creating it
+    // would POST a spurious extra variant onto every parent, including ones with zero real variants.
+    const sourceVariants = (sourceParent?.optimizationVariants ?? []).filter((v: any) => v.sys.variantType !== 'default')
     const created: any[] = []
     for (const variant of sourceVariants) {
       try {
-        const payload = omitVariantSys(variant)
+        const payload = { ...omitVariantSys(variant), [parentRefField]: variant.sys[parentRefField] }
         const result = await ns.create({ spaceId, environmentId, [idParam]: parent.sys.id }, payload)
         logEmitter.emit('info', `CREATE ${label} ${result.sys.variant} (parent ${parent.sys.id})`)
         created.push({ ...result, sys: { ...result.sys, publishedVersion: variant.sys.publishedVersion, archivedVersion: variant.sys.archivedVersion } })
