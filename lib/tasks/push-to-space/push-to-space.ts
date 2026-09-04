@@ -792,13 +792,41 @@ export default function pushToSpace({
           const existing = destinationDataById.releases?.get(release.transformed.sys.id)
 
           if (existing) {
-            // UPDATE
+            try {
+              const payload: ReleasePayloadV2 = Object.assign(
+                {},
+                release.transformed,
+                {
+                  entities: {
+                    sys: release.transformed.entities.sys,
+                    items: release.transformed.entities.items.map((entity) => ({ entity }))
+                  },
+                  sys: {
+                    type: 'Release',
+                    schemaVersion: 'Release.v2'
+                  }
+                })
+
+              const result = await client.release.update(
+                { spaceId, environmentId, releaseId: existing.sys.id, version: existing.sys.version },
+                payload
+              )
+              logEmitter.emit('info', `UPDATE Release ${existing.sys.id}`)
+              return result
+            } catch (err: any) {
+              err.entity = release.transformed
+              logEmitter.emit('error', err)
+              return null
+            }
           } else {
             const payload: ReleasePayloadV2 = Object.assign(
               {},
               release.transformed,
               {
-                entities: release.transformed.entities,
+                entities: {
+                  sys: release.transformed.entities.sys,
+                  items: release.transformed.entities.items.map((entity) => ({ entity }))
+                },
                 sys: {
                   ...release.transformed.sys,
                   id: release.transformed.sys.id,
