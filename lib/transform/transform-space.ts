@@ -1,30 +1,26 @@
 import { omit, defaults } from 'lodash-es'
 
-import * as defaultTransformers from './transformers'
+import * as transformers from './transformers'
 import sortEntries from '../utils/sort-entries'
 import sortLocales from '../utils/sort-locales'
 import { upgradeExoResources } from './exo-rename'
 import { DestinationData, OriginalSourceData, TransformedSourceData } from '../types'
 
-// TODO: should releases & experience orchestration entities be included in the default list of entities to transform? If so, we need to update the type accordingly.
-// POSSIBLE TODO: add expereience orchestration entities, because exo entities _I think_ are being added via `upgradeExoResources()`.
-
-const spaceEntities = [
+// POSSIBLE TODO: should experience orchestration entities be included here? If so, we need to update the type accordingly.
+// exo entities are added to this default functions return entities via `upgradeExoResources()`
+// Ethan's take Sept 4th 2026, functionally it doesn't make a difference because exo entities DO get added to the returned
+// entities via `upgradeExoResources()`.  It's maybe a little hard to read because there are 2 separate patterns for transforming
+// entities, but the end result is the same.
+const entities = [
   'contentTypes', 'entries', 'assets', 'locales', 'webhooks', 'tags', 'releases'
 ]
 
 /**
  * Run transformer methods on each item for each kind of entity, in case there
  * is a need to transform data when copying it to the destination space
- * 
- * TODO: 3rd and 4th params are never passed.
- * 
- * 
  */
 export default function (
-  sourceData: OriginalSourceData, destinationData: DestinationData, customTransformers?: any, entities = spaceEntities
-): TransformedSourceData {
-  const transformers = defaults(customTransformers, defaultTransformers)
+  sourceData: OriginalSourceData, destinationData: DestinationData): TransformedSourceData {
   // ExO entities (components, experienceTemplates, experienceFragments,
   // experiences) are not handled by the per-entity transformers above; they
   // pass through as-is except for a rename upgrade so exports taken before the
