@@ -787,7 +787,20 @@ export default function pushToSpace({
     {
       title: 'Importing Releases',
       task: wrapTask(async (ctx) => {
-        const results = await Promise.all((sourceData.releases || []).map(async (release) => {
+        // contentful-import only supports Release.v2 ("Releases") - Release.v1 ("Launch") is
+        // not supported. A v1 release's entities are flat Link<Entity> (no per-item action),
+        // which is not a valid ReleasePayloadV2 and would otherwise fail with a confusing 422.
+        const allReleases = sourceData.releases || []
+        const v2Releases = allReleases.filter((release) => release.transformed.sys.schemaVersion === 'Release.v2')
+        const unsupportedReleases = allReleases.filter((release) => release.transformed.sys.schemaVersion !== 'Release.v2')
+
+        unsupportedReleases.forEach((release) => {
+          logEmitter.emit('error', new Error(
+            `Skipping Release "${release.transformed.sys.id}": only Release.v2 ("Releases") is supported, got schemaVersion "${release.transformed.sys.schemaVersion}"`
+          ))
+        })
+
+        const results = await Promise.all(v2Releases.map(async (release) => {
           //TODO: I wonder if we're missing a step to where this release.transformed|orginal isn't getting parsed into just the release object.
           const existing = destinationDataById.releases?.get(release.transformed.sys.id)
 
@@ -797,10 +810,7 @@ export default function pushToSpace({
                 {},
                 release.transformed,
                 {
-                  entities: {
-                    sys: release.transformed.entities.sys,
-                    items: release.transformed.entities.items.map((entity) => ({ entity }))
-                  },
+                  entities: release.transformed.entities,
                   sys: {
                     type: 'Release',
                     schemaVersion: 'Release.v2'
@@ -823,10 +833,7 @@ export default function pushToSpace({
               {},
               release.transformed,
               {
-                entities: {
-                  sys: release.transformed.entities.sys,
-                  items: release.transformed.entities.items.map((entity) => ({ entity }))
-                },
+                entities: release.transformed.entities,
                 sys: {
                   ...release.transformed.sys,
                   id: release.transformed.sys.id,
