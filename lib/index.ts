@@ -100,9 +100,8 @@ async function runContentfulImport (params: RunContentfulImportParams) {
 
   // Optimization Variants are nested onto their parent Experience/ExperienceFragment
   // (options.content.experiences[].optimizationVariants) rather than a top-level key, so the
-  // loop above never surfaces a count for them - add computed rows, mirroring the same
-  // mitigation contentful-export's summary table applies for the same reason (see
-  // projects/decisions/0001-exo-variant-export-storage-shape.md in ecosystem-os).
+  // loop above never surfaces a count for them - add computed rows instead, mirroring the
+  // same approach contentful-export's summary table takes.
   const experienceVariantCount = (options.content.experiences || []).reduce(
     (sum: number, e: any) => sum + (e.optimizationVariants?.length ?? 0), 0
   )

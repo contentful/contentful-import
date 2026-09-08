@@ -90,10 +90,9 @@ describe('Importing an ExO export with all 6 entity types', () => {
   })
 
   // Covers: creation + publish-state carry-through for Optimization Variants, nested on
-  // their parent per ADR-0001 (AIS-139). Variants have no upsert-by-known-ID (the upstream
-  // API always server-generates variantId on create - see push-to-space.ts's
-  // importVariantsForParents comment), so these read back by sys.variantType/name rather
-  // than a fixture-chosen ID.
+  // their parent. Variants have no upsert-by-known-ID (the upstream API always
+  // server-generates variantId on create - see push-to-space.ts's importVariantsForParents
+  // comment), so these read back by sys.variantType/name rather than a fixture-chosen ID.
   test('creates and publishes the Experience Optimization Variant, with its ExperienceTemplate reference intact', async () => {
     const variants = await plainClient.experienceVariant.getMany({ spaceId, environmentId, experienceId: EXO_FIXTURE_IDS.experienceId, query: {} })
     const realVariants = variants.items.filter((v: any) => v.sys.variantType !== 'default')

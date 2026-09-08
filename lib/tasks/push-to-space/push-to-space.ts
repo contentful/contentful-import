@@ -710,8 +710,7 @@ export default function pushToSpace({
       skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experiences || []).length
     },
     // Optimization Variants are sub-resources nested on their parent Experience/ExperienceFragment
-    // (sourceData.experiences[].optimizationVariants), not a flat top-level array — see
-    // projects/decisions/0001-exo-variant-export-storage-shape.md in ecosystem-os. A variant's
+    // (sourceData.experiences[].optimizationVariants), not a flat top-level array. A variant's
     // sys.id is borrowed from its parent, not unique, so variant creation/publish/archive is
     // handled by new, self-contained functions (importVariantsForParents, filterVariantsToPublish,
     // filterVariantsToArchive, publishVariant, archiveVariant) rather than by generalizing
@@ -871,8 +870,8 @@ function omitSys(entity) {
 }
 
 // Experience/ExperienceFragment source objects carry a nested `optimizationVariants` array
-// (contentful-export's storage shape per ADR-0001) that isn't a field the CMA upsert endpoint
-// accepts - sending it triggers a 422 (unrecognized_keys / invalid_union) on every create/update.
+// (contentful-export's storage shape) that isn't a field the CMA upsert endpoint accepts -
+// sending it triggers a 422 (unrecognized_keys / invalid_union) on every create/update.
 function omitSysAndOptimizationVariants(entity) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { sys: _sys, optimizationVariants: _variants, ...rest } = entity

@@ -57,10 +57,9 @@ export async function unpublishExoEntity<T>(type: string, entity: { sys: { id: s
 }
 
 // A variant's identity is sys.variant, not sys.id (sys.id is borrowed from the parent
-// Experience/ExperienceFragment — see projects/decisions/0001-exo-variant-export-storage-shape.md
-// in ecosystem-os). These mirror filterExoEntitiesToPublish/Unpublish and
+// Experience/ExperienceFragment). These mirror filterExoEntitiesToPublish/Unpublish and
 // publishExoEntity/unpublishExoEntity but are kept separate rather than generalizing those
-// helpers, per that ADR's decision to keep variant handling additive and isolated.
+// helpers, since those assume sys.id uniquely identifies an entity - not true for variants.
 export function filterVariantsToPublish<T extends { sys: { variant?: string; publishedVersion?: number } }>(
   variants: T[]
 ): T[] {
@@ -69,9 +68,9 @@ export function filterVariantsToPublish<T extends { sys: { variant?: string; pub
 
 // Excludes anything also flagged for publish: the upstream API rejects archiving a
 // published variant ("Published experience optimization variants cannot be archived.
-// Please unpublish the variant first." per assemblies' experience-validations/archive.ts),
-// so source data should never have both flags set. Filtering defensively here means
-// malformed source data is skipped rather than failing the archive call outright.
+// Please unpublish the variant first."), so source data should never have both flags set.
+// Filtering defensively here means malformed source data is skipped rather than failing
+// the archive call outright.
 export function filterVariantsToArchive<T extends { sys: { variant?: string; publishedVersion?: number; archivedVersion?: number } }>(
   variants: T[]
 ): T[] {

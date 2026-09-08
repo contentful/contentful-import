@@ -47,8 +47,8 @@ export const EXO_FIXTURE_IDS: ExoFixtureIds = {
   experienceTemplateId: 'exo-experience-template',
   experienceFragmentId: 'exo-experience-fragment',
   experienceId: 'exo-experience',
-  // Variants have no independent ID of their own (sys.id is borrowed from the parent, see
-  // AIS-139 / ADR-0001) - named by their CMA-response `name` field instead of an ID fixture.
+  // Variants have no independent ID of their own (sys.id is borrowed from the parent) -
+  // named by their CMA-response `name` field instead of an ID fixture.
   experienceVariantName: 'exo-experience-variant',
   experienceFragmentVariantName: 'exo-experience-fragment-variant'
 }
@@ -121,8 +121,8 @@ export function buildExoContent (ids: ExoFixtureIds) {
         viewports: [testViewport],
         designProperties: {},
         // Draft variant (no publishedVersion) - covers the "create but don't publish" path,
-        // complementing the published Experience variant below. Nested per ADR-0001; a
-        // variant's sys.id is borrowed from its parent, not unique - see AIS-139.
+        // complementing the published Experience variant below. Nested on its parent since
+        // a variant's sys.id is borrowed from its parent, not unique.
         optimizationVariants: [
           {
             sys: {
