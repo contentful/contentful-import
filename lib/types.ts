@@ -12,8 +12,7 @@ export type { ComponentProps, DataAssemblyProps, DesignTokenProps, ExperiencePro
 // (the Release.v1 shape) for all releases, but real Release.v2 API responses - both GET and
 // what create/update expect - nest each item as { entity: Link<Entity>, action?: 'publish'|'unpublish' },
 // matching ReleasePayloadV2['entities']. The SDK type doesn't discriminate on sys.schemaVersion,
-// so it's simply wrong for v2 (confirmed against live GET/POST/PUT payloads, still broken as of
-// contentful-management@12.15.0; reported upstream in contentful/contentful-management.js).
+// so it's simply wrong for v2 (verified against the installed contentful-management@12.17.0).
 // Since we only handle v2 here, ReleaseV2Props/ReleaseV2Entities can be used directly instead of
 // trusting ReleaseProps.
 export type ReleaseV2Entities = ReleasePayloadV2['entities']
