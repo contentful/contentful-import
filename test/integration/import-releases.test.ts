@@ -8,7 +8,7 @@ const environmentId = 'master'
 
 jest.setTimeout(2 * 60 * 1000)
 
-// Releases (Timeline) is a separate, GA Contentful feature, not part of Experience
+// Timeline (Releases) is a separate, GA Contentful feature, not part of Experience
 // Orchestration - covered by its own throwaway space/import run rather than reusing
 // exo.utils.ts's fixtures, which are ExO-specific.
 describe('Importing Releases', () => {

@@ -6,7 +6,7 @@ import getDestinationData from '../../../lib/tasks/get-destination-data'
 import { PlainClientAPI } from 'contentful-management'
 import { makePlainClientMock } from '../helpers/plain-client-mock'
 
-// Releases (Timeline) is a separate, GA Contentful feature, not part of Experience
+// Timeline (Releases) is a separate, GA Contentful feature, not part of Experience
 // Orchestration — unlike the ExO entities (see get-destination-data-exo.test.ts), it is
 // fetched unconditionally, regardless of includeExperienceOrchestration.
 
@@ -155,7 +155,7 @@ test('degrades gracefully and logs a friendly message when the destination org l
   }
 
   expect(result!.releases).toEqual([])
-  expect(errors.some((e) => e.message.includes('Releases (Timeline) is not enabled for this organization'))).toBe(true)
+  expect(errors.some((e) => e.message.includes('Timeline (Releases) is not enabled for this organization'))).toBe(true)
 })
 
 test('a non-entitlement error on releases still degrades gracefully instead of aborting the fetch', async () => {

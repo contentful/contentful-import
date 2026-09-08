@@ -219,7 +219,7 @@ async function cursorPaginatedQueryOrWarn(params: CursorPaginatedQueryParams): P
     if (isExoEntitlementError(err)) {
       logEmitter.emit('error', new Error(`Skipping ${entityTypeName} import: Experience Orchestration (ExO) is not enabled for this space`))
     } else if (isTimelineEntitlementError(err)) {
-      logEmitter.emit('error', new Error(`Skipping ${entityTypeName} import: Releases (Timeline) is not enabled for this organization`))
+      logEmitter.emit('error', new Error(`Skipping ${entityTypeName} import: Timeline (Releases) is not enabled for this organization`))
     } else {
       logEmitter.emit('error', err instanceof Error ? err : new Error(String(err)))
     }
