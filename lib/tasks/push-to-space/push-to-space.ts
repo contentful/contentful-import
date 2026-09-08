@@ -15,12 +15,12 @@ import {
   UpsertExperienceProps,
   UpdateDataAssemblyProps,
   UpsertDesignTokenProps,
-  ReleasePayloadV2,
 } from 'contentful-management'
 
 import * as assets from './assets'
 import * as creation from './creation'
 import * as publishing from './publishing'
+import * as releases from './releases'
 import type { DestinationData, TransformedSourceData, Resources, TransformedAsset } from '../../types'
 import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../../utils/graphql-schema-backoff'
 import { buildDataAssemblySys } from '../../utils/exo-entity-payloads'
@@ -162,9 +162,6 @@ export default function pushToSpace({
         if (!destinationDataById.locales) {
           return
         }
-
-        // check to see if locale based pub is enabled in source spadce,
-        // if so, enable in destination space
 
         const locales = await creation.createLocales({
           context: { client, spaceId, environmentId, type: 'Locale' },
@@ -787,73 +784,12 @@ export default function pushToSpace({
     {
       title: 'Importing Releases',
       task: wrapTask(async (ctx) => {
-        // contentful-import only supports Release.v2 ("Releases") - Release.v1 ("Launch") is
-        // not supported. A v1 release's entities are flat Link<Entity> (no per-item action),
-        // which is not a valid ReleasePayloadV2 and would otherwise fail with a confusing 422.
-        const allReleases = sourceData.releases || []
-        const v2Releases = allReleases.filter((release) => release.transformed.sys.schemaVersion === 'Release.v2')
-        const unsupportedReleases = allReleases.filter((release) => release.transformed.sys.schemaVersion !== 'Release.v2')
+        const { supported: v2Releases, unsupported: v1Releases } = releases.partitionReleasesBySchemaVersion(sourceData.releases || [])
+        v1Releases.forEach(releases.logUnsupportedRelease)
 
-        unsupportedReleases.forEach((release) => {
-          logEmitter.emit('error', new Error(
-            `Skipping Release "${release.transformed.sys.id}": only Release.v2 ("Releases") is supported, got schemaVersion "${release.transformed.sys.schemaVersion}"`
-          ))
-        })
-
-        const results = await Promise.all(v2Releases.map(async (release) => {
-          const existing = destinationDataById.releases?.get(release.transformed.sys.id)
-
-          try {
-            if (existing) {
-              const payload: ReleasePayloadV2 = Object.assign(
-                {},
-                release.transformed,
-                {
-                  entities: release.transformed.entities,
-                  sys: {
-                    type: 'Release',
-                    schemaVersion: 'Release.v2'
-                  }
-                })
-
-              const result = await client.release.update(
-                { spaceId, environmentId, releaseId: existing.sys.id, version: existing.sys.version },
-                payload
-              )
-              logEmitter.emit('info', `UPDATE Release ${existing.sys.id}`)
-              return result
-            } else {
-              // POST /releases always server-generates sys.id (title + a generated uuid) - there's
-              // no createWithId for the base Release entity, unlike ReleaseAsset/ReleaseEntry. So a
-              // release created here can never be found by the `existing` lookup above on a later
-              // import run; re-importing the same source data creates additional releases rather
-              // than updating them. See the "Releases" section of the README. Explicitly omitting
-              // id here (rather than just not re-adding it) makes it clear the source id is never
-              // sent on create, not merely that the API happens to ignore it.
-              // eslint-disable-next-line @typescript-eslint/no-unused-vars
-              const { id: _sourceId, ...sourceSysWithoutId } = release.transformed.sys
-              const payload: ReleasePayloadV2 = Object.assign(
-                {},
-                release.transformed,
-                {
-                  entities: release.transformed.entities,
-                  sys: {
-                    ...sourceSysWithoutId,
-                    type: 'Release',
-                    schemaVersion: 'Release.v2'
-                  }
-                })
-
-              const result = await client.release.create({ spaceId, environmentId, }, payload)
-              logEmitter.emit('info', `CREATE Release ${result.sys.id}`)
-              return result
-            }
-          } catch (err: any) {
-            err.entity = release.transformed
-            logEmitter.emit('error', err)
-            return null
-          }
-        }))
+        const results = await Promise.all(v2Releases.map((release) =>
+          releases.importRelease(release, destinationDataById.releases?.get(release.transformed.sys.id), { client, spaceId, environmentId })
+        ))
         ctx.data.releases = results.filter(Boolean)
       })
     }
