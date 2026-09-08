@@ -827,14 +827,18 @@ export default function pushToSpace({
               // no createWithId for the base Release entity, unlike ReleaseAsset/ReleaseEntry. So a
               // release created here can never be found by the `existing` lookup above on a later
               // import run; re-importing the same source data creates additional releases rather
-              // than updating them. See the "Releases" section of the README.
+              // than updating them. See the "Releases" section of the README. Explicitly omitting
+              // id here (rather than just not re-adding it) makes it clear the source id is never
+              // sent on create, not merely that the API happens to ignore it.
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              const { id: _sourceId, ...sourceSysWithoutId } = release.transformed.sys
               const payload: ReleasePayloadV2 = Object.assign(
                 {},
                 release.transformed,
                 {
                   entities: release.transformed.entities,
                   sys: {
-                    ...release.transformed.sys,
+                    ...sourceSysWithoutId,
                     type: 'Release',
                     schemaVersion: 'Release.v2'
                   }
@@ -885,5 +889,5 @@ function publishEntities({ entities, sourceEntities, client, spaceId, environmen
   const entitiesToPublish = entities
     .filter((entity) => entityIdsToPublish.indexOf(entity.sys.id) !== -1)
 
-  return publishing.publishEntities({ sourceEntities, entities: entitiesToPublish, client, spaceId, environmentId, requestQueue })
+  return publishing.publishEntities({ entities: entitiesToPublish, client, spaceId, environmentId, requestQueue })
 }
