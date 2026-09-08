@@ -844,7 +844,8 @@ export default function pushToSpace({
 
             const result = await client.release.create({ spaceId, environmentId, }, payload)
 
-            console.log(`[ <IMPORT> ] pushToSpace ["IMPORTING RELEASES"]() result => `, JSON.stringify(result, null, 4))
+            logEmitter.emit('info', `CREATE Release ${result.sys.id}`)
+            return result
           }
         }))
         ctx.data.releases = results.filter(Boolean)

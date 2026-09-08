@@ -183,7 +183,8 @@ async function cursorPaginatedQuery({ client, spaceId, environmentId, type, requ
             "metadata.annotations.Contentful:Timeline.type[nin]": "Staging",
             "sys.schemaVersion": "Release.v2",
             "sys.status[in]": "active",
-            // "entities.sys.linkType": "Entry | Asset | Experience | ExperienceFragment",
+            limit: BATCH_SIZE_LIMIT,
+            ...(pageNext && { pageNext }),
           }
         });
       } else {
