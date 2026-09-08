@@ -829,6 +829,11 @@ export default function pushToSpace({
               return null
             }
           } else {
+            // POST /releases always server-generates sys.id (title + a generated uuid) - there's
+            // no createWithId for the base Release entity, unlike ReleaseAsset/ReleaseEntry. So a
+            // release created here can never be found by the `existing` lookup above on a later
+            // import run; re-importing the same source data creates additional releases rather
+            // than updating them. See the "Releases" section of the README.
             const payload: ReleasePayloadV2 = Object.assign(
               {},
               release.transformed,
@@ -836,7 +841,6 @@ export default function pushToSpace({
                 entities: release.transformed.entities,
                 sys: {
                   ...release.transformed.sys,
-                  id: release.transformed.sys.id,
                   type: 'Release',
                   schemaVersion: 'Release.v2'
                 }

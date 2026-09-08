@@ -334,7 +334,12 @@ An entity that's published in the source is published in the destination on impo
 
 If your source content includes a `releases` key, each entry is checked for `sys.schemaVersion`. Only releases with `sys.schemaVersion: "Release.v2"` are imported; any `Release.v1` (Launch) release is skipped and logged as an error, since its payload shape isn't compatible with the `Release.v2` create/update API.
 
-A release that doesn't already exist in the destination space (matched by `sys.id`) is created; one that does exist is updated. There is no separate publish/unpublish step for releases — a release's own `entities` collection already carries the per-entity `publish`/`unpublish` action to take when the release itself is applied.
+A release that already exists in the destination space at the source's exact `sys.id` is updated; otherwise one is created. There is no separate publish/unpublish step for releases — a release's own `entities` collection already carries the per-entity `publish`/`unpublish` action to take when the release itself is applied.
+
+**Releases have no ID-preserving create, unlike every other importable entity.** The Releases API always server-generates a release's `sys.id` on create (from its title plus a generated UUID) — there is no way to request a specific ID. Practically, this means:
+- The first import into a fresh destination space creates each release under a new, source-unrelated ID.
+- **Running the import again against the same source data does not update those releases — it creates additional ones.** The update path above only fires if a release already happens to exist in the destination at the source's exact ID (for example, an environment cloned or copied from the source), which a prior run of this importer can never produce on its own.
+- If you need to re-run an import that includes releases, delete or archive the previously-imported releases in the destination first to avoid duplicates.
 
 ## :bulb: Importing to a space with existing content
 
