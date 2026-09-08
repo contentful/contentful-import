@@ -314,9 +314,20 @@ ExO entities are created and published in dependency order, then unpublished in 
 4. Experience Templates — create, then publish
 5. Experience Fragments — create, then publish
 6. Experiences — create, then publish
-7. Unpublish pass, in reverse: Experiences → Experience Fragments → Experience Templates → Components → Data Assemblies
+7. Experience Optimization Variants — create, then publish/archive (only if the source has any; see below)
+8. Experience Fragment Optimization Variants — create, then publish/archive (only if the source has any; see below)
+9. Unpublish pass, in reverse: Experiences → Experience Fragments → Experience Templates → Components → Data Assemblies
 
 An entity that's published in the source is published in the destination on import. An entity that's unpublished (or removed) in the source but still published in the destination is unpublished on re-import — this propagates in both directions, so reverting a published ExO entity back to draft in the source and re-running the import will unpublish it in the destination too.
+
+### Optimization Variants
+
+Experiences and Experience Fragments each support **Optimization Variants** — alternate personalization versions nested onto their parent (`experience.optimizationVariants` / `experienceFragment.optimizationVariants`), not a flat top-level array like the other six ExO entity types. A variant's `sys.id` is borrowed from its parent rather than being globally unique — see the export tool's own doc ([contentful-export's ExO doc](https://github.com/contentful/contentful-export/blob/main/docs/exo-export.md#optimization-variants)) for the full rationale.
+
+Variant import has no separate opt-in flag of its own — it's driven by `includeExperienceOrchestration` plus whether the source Experience/Fragment objects actually carry a non-empty `optimizationVariants` array. Two behaviors are worth calling out explicitly because they differ from every other ExO entity type:
+
+- **No ID preservation.** Every other ExO entity is created via upsert-with-known-ID. Variants can't be: the upstream API's create endpoint always server-generates a fresh ID, and its update endpoint 404s on an unknown ID instead of creating one. Every import run creates brand-new destination variants — re-running an import with variants in the source data creates additional variants rather than updating existing ones.
+- **The API's synthetic "default" entry is filtered out.** The upstream list endpoint always leads with an entry representing the parent's own base view (`sys.variantType: 'default'`) — not a real variant. `contentful-export` already excludes it; `contentful-import` filters it again defensively for older export files.
 
 ### URN rewriting / backward compatibility
 

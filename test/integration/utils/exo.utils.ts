@@ -33,6 +33,8 @@ export type ExoFixtureIds = {
   experienceTemplateId: string
   experienceFragmentId: string
   experienceId: string
+  experienceVariantName: string
+  experienceFragmentVariantName: string
 }
 
 // Each describe block in import-exo.test.ts creates and deletes its own throwaway space
@@ -44,7 +46,11 @@ export const EXO_FIXTURE_IDS: ExoFixtureIds = {
   dataAssemblyId: 'exo-data-assembly',
   experienceTemplateId: 'exo-experience-template',
   experienceFragmentId: 'exo-experience-fragment',
-  experienceId: 'exo-experience'
+  experienceId: 'exo-experience',
+  // Variants have no independent ID of their own (sys.id is borrowed from the parent, see
+  // AIS-139 / ADR-0001) - named by their CMA-response `name` field instead of an ID fixture.
+  experienceVariantName: 'exo-experience-variant',
+  experienceFragmentVariantName: 'exo-experience-fragment-variant'
 }
 
 /**
@@ -113,7 +119,26 @@ export function buildExoContent (ids: ExoFixtureIds) {
         name: `${TEST_PREFIX} Experience Fragment`,
         description: 'Created by an ExO import integration test',
         viewports: [testViewport],
-        designProperties: {}
+        designProperties: {},
+        // Draft variant (no publishedVersion) - covers the "create but don't publish" path,
+        // complementing the published Experience variant below. Nested per ADR-0001; a
+        // variant's sys.id is borrowed from its parent, not unique - see AIS-139.
+        optimizationVariants: [
+          {
+            sys: {
+              id: ids.experienceFragmentId,
+              type: 'ExperienceFragment',
+              version: 1,
+              variant: 'draft-variant',
+              variantType: 'personalization',
+              component: makeResourceLink('Contentful:Component', ids.componentId)
+            },
+            name: ids.experienceFragmentVariantName,
+            description: 'Created by an ExO import integration test',
+            viewports: [testViewport],
+            designProperties: {}
+          }
+        ]
       }
     ],
     experiences: [
@@ -128,7 +153,26 @@ export function buildExoContent (ids: ExoFixtureIds) {
         name: `${TEST_PREFIX} Experience`,
         description: 'Created by an ExO import integration test',
         viewports: [testViewport],
-        designProperties: {}
+        designProperties: {},
+        // Published variant (publishedVersion set) - covers publish-state carried through
+        // from source onto the freshly-created destination variant.
+        optimizationVariants: [
+          {
+            sys: {
+              id: ids.experienceId,
+              type: 'Experience',
+              version: 1,
+              publishedVersion: 1,
+              variant: 'published-variant',
+              variantType: 'personalization',
+              experienceTemplate: makeResourceLink('Contentful:ExperienceTemplate', ids.experienceTemplateId)
+            },
+            name: ids.experienceVariantName,
+            description: 'Created by an ExO import integration test',
+            viewports: [testViewport],
+            designProperties: {}
+          }
+        ]
       }
     ]
   }
