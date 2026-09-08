@@ -801,11 +801,10 @@ export default function pushToSpace({
         })
 
         const results = await Promise.all(v2Releases.map(async (release) => {
-          //TODO: I wonder if we're missing a step to where this release.transformed|orginal isn't getting parsed into just the release object.
           const existing = destinationDataById.releases?.get(release.transformed.sys.id)
 
-          if (existing) {
-            try {
+          try {
+            if (existing) {
               const payload: ReleasePayloadV2 = Object.assign(
                 {},
                 release.transformed,
@@ -823,33 +822,32 @@ export default function pushToSpace({
               )
               logEmitter.emit('info', `UPDATE Release ${existing.sys.id}`)
               return result
-            } catch (err: any) {
-              err.entity = release.transformed
-              logEmitter.emit('error', err)
-              return null
+            } else {
+              // POST /releases always server-generates sys.id (title + a generated uuid) - there's
+              // no createWithId for the base Release entity, unlike ReleaseAsset/ReleaseEntry. So a
+              // release created here can never be found by the `existing` lookup above on a later
+              // import run; re-importing the same source data creates additional releases rather
+              // than updating them. See the "Releases" section of the README.
+              const payload: ReleasePayloadV2 = Object.assign(
+                {},
+                release.transformed,
+                {
+                  entities: release.transformed.entities,
+                  sys: {
+                    ...release.transformed.sys,
+                    type: 'Release',
+                    schemaVersion: 'Release.v2'
+                  }
+                })
+
+              const result = await client.release.create({ spaceId, environmentId, }, payload)
+              logEmitter.emit('info', `CREATE Release ${result.sys.id}`)
+              return result
             }
-          } else {
-            // POST /releases always server-generates sys.id (title + a generated uuid) - there's
-            // no createWithId for the base Release entity, unlike ReleaseAsset/ReleaseEntry. So a
-            // release created here can never be found by the `existing` lookup above on a later
-            // import run; re-importing the same source data creates additional releases rather
-            // than updating them. See the "Releases" section of the README.
-            const payload: ReleasePayloadV2 = Object.assign(
-              {},
-              release.transformed,
-              {
-                entities: release.transformed.entities,
-                sys: {
-                  ...release.transformed.sys,
-                  type: 'Release',
-                  schemaVersion: 'Release.v2'
-                }
-              })
-
-            const result = await client.release.create({ spaceId, environmentId, }, payload)
-
-            logEmitter.emit('info', `CREATE Release ${result.sys.id}`)
-            return result
+          } catch (err: any) {
+            err.entity = release.transformed
+            logEmitter.emit('error', err)
+            return null
           }
         }))
         ctx.data.releases = results.filter(Boolean)

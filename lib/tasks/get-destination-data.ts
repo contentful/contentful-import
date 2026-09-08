@@ -3,7 +3,7 @@ import Promise from 'bluebird'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import type { AssetProps, ComponentProps, ContentTypeProps, DataAssemblyProps, DesignTokenProps, EntryProps, ExperienceProps, ExperienceFragmentProps, LocaleProps, PlainClientAPI, TagProps, ExperienceTemplateProps, WebhookProps, ReleaseProps } from 'contentful-management'
 import { OriginalSourceData } from '../types'
-import { isExoEntitlementError, spaceHasExoM1Entitlement } from '../utils/publish-exo-entities'
+import { isExoEntitlementError, isTimelineEntitlementError, spaceHasExoM1Entitlement } from '../utils/publish-exo-entities'
 import PQueue from 'p-queue'
 
 const BATCH_CHAR_LIMIT = 1990
@@ -208,7 +208,9 @@ async function cursorPaginatedQuery({ client, spaceId, environmentId, type, requ
 // A destination space without the ExO entitlement 403s on every ExO endpoint. That's a normal,
 // expected outcome (most spaces don't have ExO enabled) rather than a fatal error, so it's
 // handled the same way the `tags` fetch above handles spaces without Tags access: warn and
-// fall back to an empty array instead of failing the whole destination-data fetch.
+// fall back to an empty array instead of failing the whole destination-data fetch. Releases is
+// gated by a separate "timeline" feature entitlement (not exoM1) and 403s with a different
+// details.reasons string, so it gets the same treatment via a second check.
 async function cursorPaginatedQueryOrWarn(params: CursorPaginatedQueryParams): Promise<any[]> {
   try {
     return await cursorPaginatedQuery(params)
@@ -216,6 +218,8 @@ async function cursorPaginatedQueryOrWarn(params: CursorPaginatedQueryParams): P
     const { name: entityTypeName } = CURSOR_QUERY_METHODS[params.type]
     if (isExoEntitlementError(err)) {
       logEmitter.emit('error', new Error(`Skipping ${entityTypeName} import: Experience Orchestration (ExO) is not enabled for this space`))
+    } else if (isTimelineEntitlementError(err)) {
+      logEmitter.emit('error', new Error(`Skipping ${entityTypeName} import: Releases (Timeline) is not enabled for this organization`))
     } else {
       logEmitter.emit('error', err instanceof Error ? err : new Error(String(err)))
     }
