@@ -31,6 +31,9 @@ type ChildConceptMap = Map<string, { destConceptId: string; parentGroupId: strin
 // Maps parentGroupId → live scheme object (with sys.version for patching)
 type ParentGroupMap = Map<string, any>
 
+const VERSION_CONFLICT_MAX_ATTEMPTS = 5
+const VERSION_CONFLICT_RETRY_DELAY_MS = 250
+
 export class MissingExoFolderGroupSchemesError extends Error {
   readonly missingSchemeIds: string[]
 
@@ -77,6 +80,14 @@ function getSourceSpaceId(sourceEntities: SourceEntities): string | undefined {
     }
   }
   return undefined
+}
+
+function isVersionMismatchError(err: any): boolean {
+  return err?.error?.sys?.id === 'VersionMismatch'
+}
+
+async function waitForVersionConflictRetry(attempt: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, VERSION_CONFLICT_RETRY_DELAY_MS * attempt))
 }
 
 async function resolveSourceOrganizationId(client: PlainClientAPI, sourceSpaceId: string | undefined): Promise<string> {
@@ -277,21 +288,37 @@ export async function linkChildConceptsToParentGroups(
   parentGroups: ParentGroupMap,
 ): Promise<void> {
   for (const [, { destConceptId, parentGroupId }] of childConceptMap) {
-    const parentGroup = parentGroups.get(parentGroupId)
-    if (!parentGroup) continue
+    let parentGroup = parentGroups.get(parentGroupId)
 
-    const alreadyLinked = (parentGroup.concepts ?? []).some((c: any) => c.sys.id === destConceptId)
-    if (alreadyLinked) continue
+    for (let attempt = 1; parentGroup && attempt <= VERSION_CONFLICT_MAX_ATTEMPTS; attempt++) {
+      const alreadyLinked = (parentGroup.concepts ?? []).some((c: any) => c.sys.id === destConceptId)
+      if (alreadyLinked) break
 
-    try {
-      const updated = await client.conceptScheme.patch(
-        { organizationId: destinationOrganizationId, conceptSchemeId: parentGroupId, version: parentGroup.sys.version },
-        [{ op: 'add', path: '/concepts/-', value: { sys: { type: 'Link', linkType: 'TaxonomyConcept', id: destConceptId } } }]
-      )
-      parentGroups.set(parentGroupId, updated)
-      logEmitter.emit('info', `Linked child concept ${destConceptId} to parent group ${parentGroupId}`)
-    } catch (err: any) {
-      logEmitter.emit('error', `Failed to link child concept ${destConceptId} to parent group ${parentGroupId}: ${err?.message ?? err}`)
+      try {
+        const updated = await client.conceptScheme.patch(
+          { organizationId: destinationOrganizationId, conceptSchemeId: parentGroupId, version: parentGroup.sys.version },
+          [{ op: 'add', path: '/concepts/-', value: { sys: { type: 'Link', linkType: 'TaxonomyConcept', id: destConceptId } } }]
+        )
+        parentGroups.set(parentGroupId, updated)
+        logEmitter.emit('info', `Linked child concept ${destConceptId} to parent group ${parentGroupId}`)
+        break
+      } catch (err: any) {
+        if (!isVersionMismatchError(err) || attempt === VERSION_CONFLICT_MAX_ATTEMPTS) {
+          logEmitter.emit('error', `Failed to link child concept ${destConceptId} to parent group ${parentGroupId}: ${err?.message ?? err}`)
+          break
+        }
+
+        // Parent schemes are org-scoped and shared by concurrent imports. Refresh the
+        // entire scheme after a CAS failure so the next patch includes both the latest
+        // version and any links committed by the competing importer.
+        logEmitter.emit('warning', `Version mismatch linking child concept ${destConceptId} to parent group ${parentGroupId}; retrying`)
+        await waitForVersionConflictRetry(attempt)
+        parentGroup = await client.conceptScheme.get({
+          organizationId: destinationOrganizationId,
+          conceptSchemeId: parentGroupId,
+        })
+        parentGroups.set(parentGroupId, parentGroup)
+      }
     }
   }
 }

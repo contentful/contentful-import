@@ -375,6 +375,51 @@ describe('linkChildConceptsToParentGroups', () => {
     expect(client.conceptScheme.patch).not.toHaveBeenCalled()
   })
 
+  it('refreshes and retries a scheme patch after a concurrent version change', async () => {
+    const destId = `contentful.folder-a-AA-${DEST_SPACE}`
+    const parentGroupId = PARENT_FOLDER_GROUP_IDS.designToken
+    const parentGroups = new Map([[parentGroupId, makeScheme(parentGroupId, [], 1)]])
+    const client = makeClient()
+    const versionMismatch: any = new Error('scheme was updated concurrently')
+    versionMismatch.error = { sys: { id: 'VersionMismatch' } }
+    client.conceptScheme.patch.mockRejectedValueOnce(versionMismatch)
+    client.conceptScheme.get.mockResolvedValue(makeScheme(parentGroupId, [], 2))
+
+    const childConceptMap = new Map([
+      ['contentful.folder-a-AA', { destConceptId: destId, parentGroupId }],
+    ])
+    await linkChildConceptsToParentGroups(client, ORG, childConceptMap, parentGroups)
+
+    expect(client.conceptScheme.get).toHaveBeenCalledWith({
+      organizationId: ORG,
+      conceptSchemeId: parentGroupId,
+    })
+    expect(client.conceptScheme.patch).toHaveBeenCalledTimes(2)
+    expect(client.conceptScheme.patch.mock.calls[0][0].version).toBe(1)
+    expect(client.conceptScheme.patch.mock.calls[1][0].version).toBe(2)
+  })
+
+  it('does not duplicate a link committed by the competing importer', async () => {
+    const destId = `contentful.folder-a-AA-${DEST_SPACE}`
+    const parentGroupId = PARENT_FOLDER_GROUP_IDS.designToken
+    const parentGroups = new Map([[parentGroupId, makeScheme(parentGroupId, [], 1)]])
+    const client = makeClient()
+    const versionMismatch: any = new Error('scheme was updated concurrently')
+    versionMismatch.error = { sys: { id: 'VersionMismatch' } }
+    client.conceptScheme.patch.mockRejectedValueOnce(versionMismatch)
+    client.conceptScheme.get.mockResolvedValue(makeScheme(parentGroupId, [destId], 2))
+
+    const childConceptMap = new Map([
+      ['contentful.folder-a-AA', { destConceptId: destId, parentGroupId }],
+    ])
+    await linkChildConceptsToParentGroups(client, ORG, childConceptMap, parentGroups)
+
+    expect(client.conceptScheme.patch).toHaveBeenCalledTimes(1)
+    expect(parentGroups.get(parentGroupId)?.concepts).toEqual([
+      expect.objectContaining({ sys: expect.objectContaining({ id: destId }) }),
+    ])
+  })
+
   it('keeps scheme version current across multiple patches to the same scheme', async () => {
     const destId1 = `contentful.folder-a-AA-${DEST_SPACE}`
     const destId2 = `contentful.folder-b-BB-${DEST_SPACE}`
