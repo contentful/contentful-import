@@ -791,7 +791,8 @@ export default function pushToSpace({
           releases.importRelease(release, destinationDataById.releases?.get(release.transformed.sys.id), { client, spaceId, environmentId })
         ))
         ctx.data.releases = results.filter(Boolean)
-      })
+      }),
+      skip: () => !(sourceData.releases || []).length
     }
   ], listrOptions)
 }
