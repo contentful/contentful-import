@@ -75,7 +75,7 @@ Five well-known, fixed-ID concept schemes act as the registry for each entity ty
 | `contentful.folder-group-fragment`      | Fragments       |
 | `contentful.folder-group-designToken`   | DesignTokens    |
 
-These schemes are org-scoped (shared across all spaces in the org). Their `concepts[]` field is the registry of all child folder concepts for that entity type. They must be queried and created with `purpose: 'internal'`.
+These schemes are org-scoped (shared across all spaces in the org). Their `concepts[]` field is the registry of all child folder concepts for that entity type. They are platform-managed prerequisites and must be queried with `purpose: 'internal'`; the importer does not create missing schemes.
 
 **Layer 2 — Child Folder Concepts** (user-created, one per folder)
 
@@ -106,7 +106,7 @@ Cross-space imports require folder concepts to be recreated in the destination o
 
 **Step 1 — Ensure parent ConceptSchemes exist**
 
-All five `contentful.folder-group-*` schemes are checked in the destination org. Any that are missing are created with `purpose: 'internal'`. Same-org imports will find them already present.
+The `contentful.folder-group-*` schemes required by the folder concepts in the import are checked in the destination org with `purpose: 'internal'`. Same-org imports will normally find them already present. If a required scheme is missing, the import fails before ExO entities are upserted so that source folder concept IDs are not left in the destination payload.
 
 **Step 2 — Derive destination concept IDs**
 

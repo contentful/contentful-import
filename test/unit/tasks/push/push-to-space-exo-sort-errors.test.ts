@@ -10,7 +10,7 @@ import { PARENT_FOLDER_GROUP_IDS } from '../../../../lib/utils/import-exo-folder
 logEmitter.on('error', () => { })
 
 jest.mock('../../../../lib/utils/import-exo-folders.ts', () => {
-  return Promise.resolve()
+  return { importExoFolders: jest.fn().mockResolvedValue(undefined) }
 })
 jest.mock('../../../../lib/utils/sort-components', () => ({
   __esModule: true,
@@ -43,12 +43,14 @@ const baseDestinationData = {}
 
 function makeClientMock() {
   return {
-    getSpace: jest.fn(() => Promise.resolve({
-      getEnvironment: jest.fn(() => Promise.resolve({
-        getEditorInterfaceForContentType: jest.fn(() => Promise.resolve({ update: jest.fn() }))
-      })),
-      sys: { organization: { sys: { id: 'org-1' } } }
-    }))
+    space: {
+      get: jest.fn(() => Promise.resolve({
+        sys: { organization: { sys: { id: 'org-1' } } },
+        getEnvironment: jest.fn(() => Promise.resolve({
+          getEditorInterfaceForContentType: jest.fn(() => Promise.resolve({ update: jest.fn() }))
+        }))
+      }))
+    },
   }
 }
 

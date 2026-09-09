@@ -6,8 +6,10 @@ import { ComponentProps, DataAssemblyProps, ExperienceFragmentProps, ExperienceP
 import { makePlainClientMock } from '../../helpers/plain-client-mock'
 
 jest.mock('../../../../lib/utils/import-exo-folders.ts', () => {
-  return Promise.resolve()
+  return { importExoFolders: jest.fn() }
 })
+
+const mockImportExoFolders = (jest.requireMock('../../../../lib/utils/import-exo-folders.ts') as { importExoFolders: jest.Mock }).importExoFolders
 
 // logEmitter is a plain node:events EventEmitter. Node treats 'error' as a special
 // event name and throws synchronously if it's emitted with no listener attached, so
@@ -104,6 +106,7 @@ let requestQueue: PQueue
 
 beforeEach(() => {
   requestQueue = new PQueue({ interval: 1000, intervalCap: 1000 })
+  mockImportExoFolders.mockReset().mockResolvedValue(undefined)
 })
 
 // ─── Component ────────────────────────────────────────────────────────────
@@ -151,6 +154,61 @@ describe('Importing Components', () => {
     expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', componentId: 'ct-1' })
     expect(payload.sys.version).toBe(7)
     expect(payload.name).toBe('Hero')
+  })
+
+  test('aborts before entity upsert when ExO folder setup fails', async () => {
+    const missingSchemeError = new Error('missing required folder scheme')
+    missingSchemeError.name = 'MissingExoFolderGroupSchemesError'
+    mockImportExoFolders.mockRejectedValueOnce(missingSchemeError)
+    const client = mockClient()
+
+    await expect(pushToSpace({
+      sourceData: { ...baseSourceData, components: [entity] } as any,
+      destinationData: { ...baseDestinationData, components: [] },
+      client,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })).rejects.toThrow('missing required folder scheme')
+
+    expect(client.component.upsert).not.toHaveBeenCalled()
+  })
+
+  test('aborts before entity upsert when the source folder concept cannot be read', async () => {
+    const sourceConceptError = new Error('source folder concept not found')
+    sourceConceptError.name = 'SourceExoFolderConceptReadError'
+    mockImportExoFolders.mockRejectedValueOnce(sourceConceptError)
+    const client = mockClient()
+
+    await expect(pushToSpace({
+      sourceData: { ...baseSourceData, components: [entity] } as any,
+      destinationData: { ...baseDestinationData, components: [] },
+      client,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })).rejects.toThrow('source folder concept not found')
+
+    expect(client.component.upsert).not.toHaveBeenCalled()
+  })
+
+  test('continues when a non-prerequisite ExO folder error occurs', async () => {
+    mockImportExoFolders.mockRejectedValueOnce(new Error('folder API unavailable'))
+    const client = mockClient()
+
+    await expect(pushToSpace({
+      sourceData: { ...baseSourceData, components: [entity] } as any,
+      destinationData: { ...baseDestinationData, components: [] },
+      client,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })).resolves.not.toThrow()
+
+    expect(client.component.upsert).toHaveBeenCalledTimes(1)
   })
 
   test('skips task when includeExperienceOrchestration is false', async () => {

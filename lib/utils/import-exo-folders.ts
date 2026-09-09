@@ -31,6 +31,34 @@ type ChildConceptMap = Map<string, { destConceptId: string; parentGroupId: strin
 // Maps parentGroupId → live scheme object (with sys.version for patching)
 type ParentGroupMap = Map<string, any>
 
+export class MissingExoFolderGroupSchemesError extends Error {
+  readonly missingSchemeIds: string[]
+
+  constructor(missingSchemeIds: string[]) {
+    super(`Missing ExO folder-group concept scheme(s) in the destination organization: ${missingSchemeIds.join(', ')}`)
+    this.name = 'MissingExoFolderGroupSchemesError'
+    this.missingSchemeIds = missingSchemeIds
+  }
+}
+
+export class SourceExoFolderConceptReadError extends Error {
+  readonly sourceConceptId: string
+
+  constructor(sourceConceptId: string, error: unknown) {
+    const reason = error instanceof Error ? error.message : String(error)
+    super(`Unable to read source ExO folder concept ${sourceConceptId}: ${reason}`)
+    this.name = 'SourceExoFolderConceptReadError'
+    this.sourceConceptId = sourceConceptId
+  }
+}
+
+export class SourceOrganizationResolutionError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'SourceOrganizationResolutionError'
+  }
+}
+
 // ─── Private helpers ──────────────────────────────────────────────────────────
 
 const ENTITY_TYPE_TO_PARENT_GROUP_ID: Record<keyof SourceEntities, string> = {
@@ -53,29 +81,29 @@ function getSourceSpaceId(sourceEntities: SourceEntities): string | undefined {
 
 // ─── Step 1 ───────────────────────────────────────────────────────────────────
 /**
- * Ensure all 5 ExO folder group concept schemes exist in the target org.
- * Returns Map of all conceptSchemes if all are present, empty Map if any are missing.
- * Return Map is used in step 4 to link child concepts in.
+ * Verify that the ExO folder group concept schemes required by this import
+ * exist in the target org. The schemes are platform-managed prerequisites;
+ * this importer does not create them.
  */
 export async function ensureParentFolderGroupsExist(
   client: PlainClientAPI,
-  organizationId: string,
+  destinationOrganizationId: string,
+  requiredParentGroupIds: ReadonlySet<string>,
 ): Promise<ParentGroupMap> {
+  if (requiredParentGroupIds.size === 0) return new Map()
+
   const { items } = await client.conceptScheme.getMany({
-    organizationId,
+    organizationId: destinationOrganizationId,
     query: { purpose: 'internal' },
   })
 
   const existingIds = new Set<string>(items.map((s: any) => s.sys.id))
-  const allParentFolderGroupsExist = Object.values(PARENT_FOLDER_GROUP_IDS).every((id) => existingIds.has(id))
+  const missingSchemeIds = [...requiredParentGroupIds].filter((id) => !existingIds.has(id))
 
-  if (!allParentFolderGroupsExist) {
-    return new Map()
-  }
+  if (missingSchemeIds.length > 0) throw new MissingExoFolderGroupSchemesError(missingSchemeIds)
 
-  const parentGroupIdSet = new Set(Object.values(PARENT_FOLDER_GROUP_IDS))
   return new Map<string, any>(
-    items.filter((s: any) => parentGroupIdSet.has(s.sys.id)).map((s: any) => [s.sys.id, s])
+    items.filter((s: any) => requiredParentGroupIds.has(s.sys.id)).map((s: any) => [s.sys.id, s])
   )
 }
 
@@ -248,12 +276,12 @@ export function rewriteEntityFolderConcepts(
  */
 export async function importExoFolders({
   client,
-  organizationId,
+  destinationOrganizationId,
   destinationSpaceId,
   sourceEntities,
 }: {
   client: PlainClientAPI
-  organizationId: string
+  destinationOrganizationId: string
   destinationSpaceId: string
   sourceEntities: SourceEntities
 }): Promise<void> {
@@ -264,24 +292,22 @@ export async function importExoFolders({
   }
 
   // Step 1
-  const parentGroups = await ensureParentFolderGroupsExist(client, organizationId)
-
-  if (parentGroups.size === 0) {
-    logEmitter.emit('warn', 'One or more Experience Orchestration folder group concept schemes are missing in the destination organization. Please create them before importing.')
-    return;
-  }
-
-  // Step 2
   const childConceptMap = deriveChildConceptMap(sourceEntities, destinationSpaceId)
   if (childConceptMap.size === 0) return
+
+  // Step 2
+  const requiredParentGroupIds = new Set<string>(
+    [...childConceptMap.values()].map(({ parentGroupId }) => parentGroupId)
+  )
+  const parentGroups = await ensureParentFolderGroupsExist(client, destinationOrganizationId, requiredParentGroupIds)
 
   logEmitter.emit('info', `Importing ${childConceptMap.size} ExO folder concept(s) into destination space ${destinationSpaceId}`)
 
   // Step 3
-  await createOrPatchChildConcepts(client, organizationId, destinationSpaceId, childConceptMap)
+  await createOrPatchChildConcepts(client, destinationOrganizationId, destinationSpaceId, childConceptMap)
 
   // Step 4
-  await linkChildConceptsToParentGroups(client, organizationId, childConceptMap, parentGroups)
+  await linkChildConceptsToParentGroups(client, destinationOrganizationId, childConceptMap, parentGroups)
 
   // Step 5
   const allEntities = [

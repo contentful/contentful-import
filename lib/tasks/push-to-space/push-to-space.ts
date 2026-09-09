@@ -438,12 +438,11 @@ export default function pushToSpace({
     {
       title: 'Create ExO Folders',
       task: wrapTask(async () => {
-
         try {
           const space = await client.space.get({ spaceId })
           await importExoFolders({
             client,
-            organizationId: space.sys.organization.sys.id,
+            destinationOrganizationId: space.sys.organization.sys.id,
             destinationSpaceId: spaceId,
             sourceEntities: {
               designTokens: sourceData.designTokens,
@@ -454,6 +453,16 @@ export default function pushToSpace({
             },
           })
         } catch (error) {
+          if (
+            error instanceof Error &&
+            [
+              'MissingExoFolderGroupSchemesError',
+              'SourceOrganizationResolutionError',
+              'SourceExoFolderConceptReadError',
+            ].includes(error.name)
+          ) {
+            throw error
+          }
           logEmitter.emit('warning', `Unable to create Experience Orchestration (ExO) folders, error: ${error}`)
         }
       }),

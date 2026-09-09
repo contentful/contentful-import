@@ -6,6 +6,9 @@ import {
   rewriteEntityFolderConcepts,
   importExoFolders,
   PARENT_FOLDER_GROUP_IDS,
+  MissingExoFolderGroupSchemesError,
+  SourceExoFolderConceptReadError,
+  SourceOrganizationResolutionError,
 } from '../../../lib/utils/import-exo-folders'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { makePlainClientMock } from '../helpers/plain-client-mock'
@@ -84,38 +87,55 @@ afterEach(() => jest.clearAllMocks())
 // ---------------------------------------------------------------------------
 
 describe('ensureParentFolderGroupsExist', () => {
-  it('returns all 5 schemes when all exist', async () => {
+  it('returns all required schemes when they exist', async () => {
     const client = makeClient({ existingSchemes: ALL_PARENT_GROUPS })
-    const result = await ensureParentFolderGroupsExist(client, ORG)
+    const result = await ensureParentFolderGroupsExist(client, ORG, new Set(Object.values(PARENT_FOLDER_GROUP_IDS)))
 
     expect(result.size).toBe(5)
     expect(client.conceptScheme.createWithId).not.toHaveBeenCalled()
   })
 
-  it('returns empty map when any parent group is missing', async () => {
+  it('throws a specific error when a required scheme is missing', async () => {
     const partial = new Map([
       [PARENT_FOLDER_GROUP_IDS.designToken, makeScheme(PARENT_FOLDER_GROUP_IDS.designToken)],
       [PARENT_FOLDER_GROUP_IDS.componentType, makeScheme(PARENT_FOLDER_GROUP_IDS.componentType)],
     ])
     const client = makeClient({ existingSchemes: partial })
-    const result = await ensureParentFolderGroupsExist(client, ORG)
 
-    expect(result.size).toBe(0)
+    await expect(
+      ensureParentFolderGroupsExist(
+        client,
+        ORG,
+        new Set([PARENT_FOLDER_GROUP_IDS.designToken, PARENT_FOLDER_GROUP_IDS.template])
+      )
+    ).rejects.toMatchObject({
+      name: 'MissingExoFolderGroupSchemesError',
+      missingSchemeIds: [PARENT_FOLDER_GROUP_IDS.template],
+    })
     expect(client.conceptScheme.createWithId).not.toHaveBeenCalled()
   })
 
-  it('returns empty map when no parent groups exist', async () => {
-    const client = makeClient()
-    const result = await ensureParentFolderGroupsExist(client, ORG)
+  it('does not require unrelated schemes', async () => {
+    const client = makeClient({
+      existingSchemes: new Map([
+        [PARENT_FOLDER_GROUP_IDS.designToken, makeScheme(PARENT_FOLDER_GROUP_IDS.designToken)],
+      ]),
+    })
+    const result = await ensureParentFolderGroupsExist(
+      client,
+      ORG,
+      new Set([PARENT_FOLDER_GROUP_IDS.designToken])
+    )
 
-    expect(result.size).toBe(0)
+    expect(result.size).toBe(1)
+    expect(result.has(PARENT_FOLDER_GROUP_IDS.designToken)).toBe(true)
   })
 
   it('filters out non-folder-group schemes from the result', async () => {
     const schemes: Map<string, any> = new Map(ALL_PARENT_GROUPS)
     schemes.set('some-other-scheme', makeScheme('some-other-scheme'))
     const client = makeClient({ existingSchemes: schemes })
-    const result = await ensureParentFolderGroupsExist(client, ORG)
+    const result = await ensureParentFolderGroupsExist(client, ORG, new Set(Object.values(PARENT_FOLDER_GROUP_IDS)))
 
     expect(result.size).toBe(5)
     expect(result.has('some-other-scheme')).toBe(false)
@@ -417,7 +437,7 @@ describe('rewriteEntityFolderConcepts', () => {
 // ---------------------------------------------------------------------------
 
 describe('importExoFolders', () => {
-  const BASE_ARGS = { organizationId: ORG, destinationSpaceId: DEST_SPACE }
+  const BASE_ARGS = { destinationOrganizationId: ORG, destinationSpaceId: DEST_SPACE }
 
   it('skips all work when source and destination space are the same', async () => {
     const client = makeClient({ existingSchemes: ALL_PARENT_GROUPS })
@@ -443,7 +463,7 @@ describe('importExoFolders', () => {
     expect(client.concept.get).not.toHaveBeenCalled()
   })
 
-  it('does NOT reject when parent groups are missing', async () => {
+  it('rejects before creating folder concepts when a required scheme is missing', async () => {
     const client = makeClient()
     await expect(
       importExoFolders({
@@ -451,7 +471,8 @@ describe('importExoFolders', () => {
         ...BASE_ARGS,
         sourceEntities: { designTokens: [makeEntity(['contentful.folder-a-AA'])] },
       })
-    ).resolves.not.toThrow()
+    ).rejects.toBeInstanceOf(MissingExoFolderGroupSchemesError)
+    expect(client.concept.createWithId).not.toHaveBeenCalled()
   })
 
   it('runs all steps in sequence: creates concept, links to scheme, rewrites entity metadata', async () => {
