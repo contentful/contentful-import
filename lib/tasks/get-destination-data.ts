@@ -176,17 +176,20 @@ async function cursorPaginatedQuery({ client, spaceId, environmentId, type, requ
       let response: any
 
       if (type === 'releases') {
+        // Excludes releases created internally by other Contentful features (rather than by a
+        // user directly), so they don't leak into a destination-data comparison as if they
+        // were user-authored Releases.
         response = await client.release.query({
           environmentId,
           spaceId,
           query: {
-            "metadata.annotations.Contentful:Timeline.type[nin]": "Staging",
-            "sys.schemaVersion": "Release.v2",
-            "sys.status[in]": "active",
+            'metadata.annotations.Contentful:Timeline.type[nin]': 'Staging,Hidden',
+            'sys.schemaVersion': 'Release.v2',
+            'sys.status[in]': 'active',
             limit: BATCH_SIZE_LIMIT,
-            ...(pageNext && { pageNext }),
+            ...(pageNext && { pageNext })
           }
-        });
+        })
       } else {
         response = await (client[namespace] as any).getMany({
           spaceId,
