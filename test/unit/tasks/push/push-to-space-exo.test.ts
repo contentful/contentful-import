@@ -1,12 +1,17 @@
 import PQueue from 'p-queue'
 
 import pushToSpace from '../../../../lib/tasks/push-to-space/push-to-space'
+import {
+  MissingExoFolderGroupSchemesError,
+  SourceExoFolderConceptReadError,
+} from '../../../../lib/utils/import-exo-folders'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { ComponentProps, DataAssemblyProps, ExperienceFragmentProps, ExperienceProps, ExperienceTemplateProps } from 'contentful-management'
 import { makePlainClientMock } from '../../helpers/plain-client-mock'
 
 jest.mock('../../../../lib/utils/import-exo-folders.ts', () => {
-  return { importExoFolders: jest.fn() }
+  const actual = jest.requireActual('../../../../lib/utils/import-exo-folders.ts')
+  return { ...actual, importExoFolders: jest.fn() }
 })
 
 const mockImportExoFolders = (jest.requireMock('../../../../lib/utils/import-exo-folders.ts') as { importExoFolders: jest.Mock }).importExoFolders
@@ -157,8 +162,7 @@ describe('Importing Components', () => {
   })
 
   test('aborts before entity upsert when ExO folder setup fails', async () => {
-    const missingSchemeError = new Error('missing required folder scheme')
-    missingSchemeError.name = 'MissingExoFolderGroupSchemesError'
+    const missingSchemeError = new MissingExoFolderGroupSchemesError(['missing required folder scheme'])
     mockImportExoFolders.mockRejectedValueOnce(missingSchemeError)
     const client = mockClient()
 
@@ -176,8 +180,7 @@ describe('Importing Components', () => {
   })
 
   test('aborts before entity upsert when the source folder concept cannot be read', async () => {
-    const sourceConceptError = new Error('source folder concept not found')
-    sourceConceptError.name = 'SourceExoFolderConceptReadError'
+    const sourceConceptError = new SourceExoFolderConceptReadError('source-folder', new Error('source folder concept not found'))
     mockImportExoFolders.mockRejectedValueOnce(sourceConceptError)
     const client = mockClient()
 

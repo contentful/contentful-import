@@ -177,31 +177,57 @@ export async function createOrPatchChildConcepts(
   childConceptMap: ChildConceptMap,
 ): Promise<void> {
   const spaceLink = { sys: { type: 'Link', linkType: 'Space', id: destinationSpaceId } }
+  const existingDestinationConcepts = new Map<string, any>()
 
+  // Read the destination concepts first so we know which source labels are
+  // required. This keeps all source reads ahead of destination writes: a
+  // missing later source concept cannot leave earlier destination concepts
+  // partially created.
   for (const [sourceConceptId, { destConceptId }] of childConceptMap) {
-    // Check whether the destination concept already exists.
     let existing: any = null
     try {
-      existing = await client.concept.get({ organizationId: destinationOrganizationId, conceptId: destConceptId })
+      existing = await client.concept.get({
+        organizationId: destinationOrganizationId,
+        conceptId: destConceptId,
+      })
     } catch (err: any) {
       if (err?.name !== 'NotFound') {
         logEmitter.emit('warning', `Could not fetch destination child concept ${destConceptId}: ${err?.message ?? err}`)
       }
       // Ignore 404 errors — they just mean the concept doesn't exist yet. Log any other errors.
     }
+    existingDestinationConcepts.set(sourceConceptId, existing)
+  }
+
+  const sourceConceptLabels = new Map<string, Record<string, string>>()
+  for (const [sourceConceptId] of childConceptMap) {
+    if (existingDestinationConcepts.get(sourceConceptId)) {
+      continue
+    }
+
+    // A new destination concept needs the source concept's label. Read it from
+    // the source organization instead of assuming the destination can resolve
+    // the source concept ID.
+    try {
+      const sourceConcept = await client.concept.get({
+        organizationId: sourceOrganizationId,
+        conceptId: sourceConceptId,
+      })
+      if (!sourceConcept?.prefLabel) {
+        throw new Error('source concept has no prefLabel')
+      }
+      sourceConceptLabels.set(sourceConceptId, sourceConcept.prefLabel)
+    } catch (err) {
+      throw new SourceExoFolderConceptReadError(sourceConceptId, err)
+    }
+  }
+
+  for (const [sourceConceptId, { destConceptId }] of childConceptMap) {
+    const existing = existingDestinationConcepts.get(sourceConceptId)
 
     if (!existing) {
-      // A new destination concept needs the source concept's label. Read it from
-      // the source organization instead of assuming the destination can resolve
-      // the source concept ID.
-      let prefLabel: Record<string, string>
-      try {
-        const sourceConcept = await client.concept.get({ organizationId: sourceOrganizationId, conceptId: sourceConceptId })
-        if (!sourceConcept?.prefLabel) throw new Error('source concept has no prefLabel')
-        prefLabel = sourceConcept.prefLabel
-      } catch (err) {
-        throw new SourceExoFolderConceptReadError(sourceConceptId, err)
-      }
+      // Every missing destination concept was validated in the preceding loop.
+      const prefLabel = sourceConceptLabels.get(sourceConceptId)!
 
       try {
         await client.concept.createWithId(

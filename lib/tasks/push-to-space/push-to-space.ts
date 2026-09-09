@@ -27,7 +27,12 @@ import sortComponents from '../../utils/sort-components'
 import sortExperienceFragments from '../../utils/sort-experience-fragments'
 import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity } from '../../utils/publish-exo-entities'
 import { sortOrReport } from '../../utils/sort-or-report'
-import { importExoFolders } from '../../utils/import-exo-folders'
+import {
+  importExoFolders,
+  MissingExoFolderGroupSchemesError,
+  SourceExoFolderConceptReadError,
+  SourceOrganizationResolutionError,
+} from '../../utils/import-exo-folders'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
@@ -454,12 +459,9 @@ export default function pushToSpace({
           })
         } catch (error) {
           if (
-            error instanceof Error &&
-            [
-              'MissingExoFolderGroupSchemesError',
-              'SourceOrganizationResolutionError',
-              'SourceExoFolderConceptReadError',
-            ].includes(error.name)
+            error instanceof MissingExoFolderGroupSchemesError ||
+            error instanceof SourceOrganizationResolutionError ||
+            error instanceof SourceExoFolderConceptReadError
           ) {
             throw error
           }

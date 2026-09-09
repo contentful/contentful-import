@@ -244,6 +244,26 @@ describe('createOrPatchChildConcepts', () => {
     expect(client.concept.createWithId).not.toHaveBeenCalled()
   })
 
+  it('reads all required source concepts before creating destination concepts', async () => {
+    const firstSourceId = 'contentful.folder-first-source-AA'
+    const secondSourceId = 'contentful.folder-second-source-BB'
+    const client = makeClient({
+      existingConcepts: new Map([[firstSourceId, makeConcept(firstSourceId)]])
+    })
+    const childConceptMap = new Map([
+      [firstSourceId, { destConceptId: `${firstSourceId}-${DEST_SPACE}`, parentGroupId: PARENT_FOLDER_GROUP_IDS.designToken }],
+      [secondSourceId, { destConceptId: `${secondSourceId}-${DEST_SPACE}`, parentGroupId: PARENT_FOLDER_GROUP_IDS.designToken }],
+    ])
+
+    await expect(
+      createOrPatchChildConcepts(client, ORG, ORG, DEST_SPACE, childConceptMap)
+    ).rejects.toMatchObject({
+      name: 'SourceExoFolderConceptReadError',
+      sourceConceptId: secondSourceId,
+    })
+    expect(client.concept.createWithId).not.toHaveBeenCalled()
+  })
+
   it('patches space link when existing concept is missing destination space', async () => {
     const sourceId = 'contentful.folder-a-AA'
     const destId = `${sourceId}-${DEST_SPACE}`

@@ -10,7 +10,8 @@ import { PARENT_FOLDER_GROUP_IDS } from '../../../../lib/utils/import-exo-folder
 logEmitter.on('error', () => { })
 
 jest.mock('../../../../lib/utils/import-exo-folders.ts', () => {
-  return { importExoFolders: jest.fn().mockResolvedValue(undefined) }
+  const actual = jest.requireActual('../../../../lib/utils/import-exo-folders.ts')
+  return { ...actual, importExoFolders: jest.fn().mockResolvedValue(undefined) }
 })
 jest.mock('../../../../lib/utils/sort-components', () => ({
   __esModule: true,
