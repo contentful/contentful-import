@@ -363,12 +363,7 @@ export default async function getDestinationData({
     })
   }
 
-  const allReleases = await cursorPaginatedQueryOrWarn({ client, spaceId, environmentId, type: 'releases', requestQueue })
-
-  result.releases = allReleases
-
-
-
+  result.releases = cursorPaginatedQueryOrWarn({ client, spaceId, environmentId, type: 'releases', requestQueue })
 
   if (includeExperienceOrchestration && client) {
     // dataAssemblies is excluded here — confirmed live it isn't actually gated by exoM1,
