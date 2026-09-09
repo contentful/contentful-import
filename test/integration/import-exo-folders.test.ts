@@ -26,6 +26,9 @@ const ALL_PARENT_SCHEME_IDS = [
   EXPERIENCE_SCHEME_ID
 ]
 
+// Cross-org coverage is opt-in because the standard integration-test environment
+// uses a single organization. Set SOURCE_ORG_ID to a different test organization
+// with the required ExO prerequisites configured to run this suite.
 const describeCrossOrg = sourceOrganizationId && sourceOrganizationId !== orgId ? describe : describe.skip
 
 jest.setTimeout(2 * 60 * 1000) // 2min timeout - covers space/concept create+delete + 2 import runs
@@ -252,7 +255,7 @@ describe('Importing ExO entities organized into folders (cross-space)', () => {
   })
 })
 
-describeCrossOrg('Importing ExO folders across organizations', () => {
+describeCrossOrg('Importing ExO folders across organizations (opt-in)', () => {
   let sourceSpaceId: string
   let destinationSpaceId: string
   let sourceClient: any
