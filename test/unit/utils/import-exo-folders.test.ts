@@ -49,11 +49,16 @@ function makeConcept(id: string, { prefLabel = { 'en-US': id }, spaces = [] as s
 function makeClient({
   existingConcepts = new Map<string, any>(),
   existingSchemes = new Map<string, any>(),
+  sourceOrganizationId = ORG,
 }: {
   existingConcepts?: Map<string, any>
   existingSchemes?: Map<string, any>
+  sourceOrganizationId?: string
 } = {}) {
   return makePlainClientMock({
+    space: {
+      get: jest.fn().mockResolvedValue({ sys: { organization: { sys: { id: sourceOrganizationId } } } }),
+    },
     concept: {
       get: jest.fn().mockImplementation(({ conceptId }: { conceptId: string }) => {
         const c = existingConcepts.get(conceptId)
@@ -213,7 +218,9 @@ describe('createOrPatchChildConcepts', () => {
     const client = makeClient({ existingConcepts: new Map([[sourceId, sourceConcept]]) })
 
     const childConceptMap = new Map([[sourceId, { destConceptId: destId, parentGroupId: PARENT_FOLDER_GROUP_IDS.designToken }]])
-    await createOrPatchChildConcepts(client, ORG, DEST_SPACE, childConceptMap)
+    await createOrPatchChildConcepts(client, 'source-org', ORG, DEST_SPACE, childConceptMap)
+
+    expect(client.concept.get).toHaveBeenCalledWith({ organizationId: 'source-org', conceptId: sourceId })
 
     expect(client.concept.createWithId).toHaveBeenCalledWith(
       { organizationId: ORG, conceptId: destId },
@@ -225,18 +232,16 @@ describe('createOrPatchChildConcepts', () => {
     )
   })
 
-  it('falls back to destConceptId as prefLabel when source concept fetch fails', async () => {
+  it('fails when the source concept cannot be read', async () => {
     const sourceId = 'contentful.folder-missing-src-AA'
     const destId = `${sourceId}-${DEST_SPACE}`
     const client = makeClient()
 
     const childConceptMap = new Map([[sourceId, { destConceptId: destId, parentGroupId: PARENT_FOLDER_GROUP_IDS.designToken }]])
-    await createOrPatchChildConcepts(client, ORG, DEST_SPACE, childConceptMap)
-
-    expect(client.concept.createWithId).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ prefLabel: { 'en-US': destId } })
-    )
+    await expect(
+      createOrPatchChildConcepts(client, ORG, ORG, DEST_SPACE, childConceptMap)
+    ).rejects.toBeInstanceOf(SourceExoFolderConceptReadError)
+    expect(client.concept.createWithId).not.toHaveBeenCalled()
   })
 
   it('patches space link when existing concept is missing destination space', async () => {
@@ -246,7 +251,7 @@ describe('createOrPatchChildConcepts', () => {
     const client = makeClient({ existingConcepts: new Map([[destId, existing]]) })
 
     const childConceptMap = new Map([[sourceId, { destConceptId: destId, parentGroupId: PARENT_FOLDER_GROUP_IDS.designToken }]])
-    await createOrPatchChildConcepts(client, ORG, DEST_SPACE, childConceptMap)
+    await createOrPatchChildConcepts(client, ORG, ORG, DEST_SPACE, childConceptMap)
 
     expect(client.concept.createWithId).not.toHaveBeenCalled()
     expect(client.concept.patch).toHaveBeenCalledWith(
@@ -262,7 +267,7 @@ describe('createOrPatchChildConcepts', () => {
     const client = makeClient({ existingConcepts: new Map([[destId, existing]]) })
 
     const childConceptMap = new Map([[sourceId, { destConceptId: destId, parentGroupId: PARENT_FOLDER_GROUP_IDS.designToken }]])
-    await createOrPatchChildConcepts(client, ORG, DEST_SPACE, childConceptMap)
+    await createOrPatchChildConcepts(client, ORG, ORG, DEST_SPACE, childConceptMap)
 
     expect(client.concept.patch).toHaveBeenCalledTimes(1)
     const patch = client.concept.patch.mock.calls[0][1]
@@ -286,14 +291,19 @@ describe('createOrPatchChildConcepts', () => {
     const client = makeClient({ existingConcepts: new Map([[destId, existing]]) })
 
     const childConceptMap = new Map([[sourceId, { destConceptId: destId, parentGroupId: PARENT_FOLDER_GROUP_IDS.designToken }]])
-    await createOrPatchChildConcepts(client, ORG, DEST_SPACE, childConceptMap)
+    await createOrPatchChildConcepts(client, ORG, ORG, DEST_SPACE, childConceptMap)
 
     expect(client.concept.createWithId).not.toHaveBeenCalled()
     expect(client.concept.patch).not.toHaveBeenCalled()
   })
 
   it('logs a warning and continues when createWithId fails', async () => {
-    const client = makeClient()
+    const client = makeClient({
+      existingConcepts: new Map([
+        ['contentful.folder-a-AA', makeConcept('contentful.folder-a-AA')],
+        ['contentful.folder-b-BB', makeConcept('contentful.folder-b-BB')],
+      ]),
+    })
     client.concept.createWithId
       .mockRejectedValueOnce(new Error('create failed'))
       .mockResolvedValue({})
@@ -302,7 +312,7 @@ describe('createOrPatchChildConcepts', () => {
       ['contentful.folder-a-AA', { destConceptId: `contentful.folder-a-AA-${DEST_SPACE}`, parentGroupId: PARENT_FOLDER_GROUP_IDS.designToken }],
       ['contentful.folder-b-BB', { destConceptId: `contentful.folder-b-BB-${DEST_SPACE}`, parentGroupId: PARENT_FOLDER_GROUP_IDS.designToken }],
     ])
-    await createOrPatchChildConcepts(client, ORG, DEST_SPACE, childConceptMap)
+    await createOrPatchChildConcepts(client, ORG, ORG, DEST_SPACE, childConceptMap)
 
     expect(client.concept.createWithId).toHaveBeenCalledTimes(2)
     expect(logEmitter.emit).toHaveBeenCalledWith('error', expect.stringContaining('Failed to create child folder concept'))
@@ -461,6 +471,22 @@ describe('importExoFolders', () => {
     })
 
     expect(client.concept.get).not.toHaveBeenCalled()
+    expect(client.conceptScheme.getMany).not.toHaveBeenCalled()
+  })
+
+  it('fails clearly when a foldered export has no source space ID', async () => {
+    const client = makeClient({ existingSchemes: ALL_PARENT_GROUPS })
+    const entity = makeEntity(['contentful.folder-a-AA'])
+    delete entity.sys.space
+
+    await expect(
+      importExoFolders({
+        client,
+        ...BASE_ARGS,
+        sourceEntities: { designTokens: [entity] },
+      })
+    ).rejects.toBeInstanceOf(SourceOrganizationResolutionError)
+    expect(client.concept.createWithId).not.toHaveBeenCalled()
   })
 
   it('rejects before creating folder concepts when a required scheme is missing', async () => {
@@ -482,6 +508,7 @@ describe('importExoFolders', () => {
     const client = makeClient({
       existingSchemes: ALL_PARENT_GROUPS,
       existingConcepts: new Map([[sourceId, sourceConcept]]),
+      sourceOrganizationId: 'source-org',
     })
     const entity = makeEntity([sourceId])
 
@@ -496,6 +523,7 @@ describe('importExoFolders', () => {
       { organizationId: ORG, conceptId: destId },
       expect.objectContaining({ purpose: 'internal', prefLabel: { 'en-US': 'Brand Colors' } })
     )
+    expect(client.concept.get).toHaveBeenCalledWith({ organizationId: 'source-org', conceptId: sourceId })
     // Step 4: linked to parent group
     expect(client.conceptScheme.patch).toHaveBeenCalledWith(
       expect.objectContaining({ conceptSchemeId: PARENT_FOLDER_GROUP_IDS.designToken }),

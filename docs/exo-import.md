@@ -122,7 +122,7 @@ This is deterministic so re-running the import is idempotent — it won't create
 
 **Step 3 — Create or patch each destination concept**
 
-The source concept is fetched to copy its `prefLabel` (so the folder name carries over). Then for each destination concept:
+The source organization is resolved from the source space link in the exported ExO entity, and the source concept is fetched from that organization to copy its `prefLabel` (so the folder name carries over across organizations). The importer must have access to both organizations. If the source space or concept cannot be read, the import fails before ExO entity upserts. Then for each destination concept:
 
 - If it **doesn't exist**: create it via `createWithId` with `purpose: 'internal'`, the copied `prefLabel`, and `metadata.spaces` pointing to the destination space.
 - If it **already exists**: patch in the destination space link in `metadata.spaces` if missing.

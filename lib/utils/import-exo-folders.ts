@@ -79,6 +79,29 @@ function getSourceSpaceId(sourceEntities: SourceEntities): string | undefined {
   return undefined
 }
 
+async function resolveSourceOrganizationId(client: PlainClientAPI, sourceSpaceId: string | undefined): Promise<string> {
+  if (!sourceSpaceId) {
+    throw new SourceOrganizationResolutionError(
+      'Unable to resolve the source organization because the exported ExO entity does not include a source space ID'
+    )
+  }
+
+  try {
+    const sourceSpace = await client.space.get({ spaceId: sourceSpaceId })
+    const sourceOrganizationId = sourceSpace?.sys?.organization?.sys?.id
+    if (!sourceOrganizationId) {
+      throw new Error(`source space ${sourceSpaceId} has no organization link`)
+    }
+    return sourceOrganizationId
+  } catch (err) {
+    if (err instanceof SourceOrganizationResolutionError) throw err
+    const reason = err instanceof Error ? err.message : String(err)
+    throw new SourceOrganizationResolutionError(
+      `Unable to resolve the source organization for space ${sourceSpaceId}: ${reason}`
+    )
+  }
+}
+
 // ─── Step 1 ───────────────────────────────────────────────────────────────────
 /**
  * Verify that the ExO folder group concept schemes required by this import
@@ -148,26 +171,18 @@ export function deriveChildConceptMap(
  */
 export async function createOrPatchChildConcepts(
   client: PlainClientAPI,
-  organizationId: string,
+  sourceOrganizationId: string,
+  destinationOrganizationId: string,
   destinationSpaceId: string,
   childConceptMap: ChildConceptMap,
 ): Promise<void> {
   const spaceLink = { sys: { type: 'Link', linkType: 'Space', id: destinationSpaceId } }
 
   for (const [sourceConceptId, { destConceptId }] of childConceptMap) {
-    // Fetch the source concept to copy its prefLabel to the destination.
-    let prefLabel: Record<string, string> = { 'en-US': destConceptId }
-    try {
-      const sourceConcept = await client.concept.get({ organizationId, conceptId: sourceConceptId })
-      if (sourceConcept?.prefLabel) prefLabel = sourceConcept.prefLabel
-    } catch {
-      // Non-critical — fall back to the dest concept ID as label
-    }
-
     // Check whether the destination concept already exists.
     let existing: any = null
     try {
-      existing = await client.concept.get({ organizationId, conceptId: destConceptId })
+      existing = await client.concept.get({ organizationId: destinationOrganizationId, conceptId: destConceptId })
     } catch (err: any) {
       if (err?.name !== 'NotFound') {
         logEmitter.emit('warning', `Could not fetch destination child concept ${destConceptId}: ${err?.message ?? err}`)
@@ -176,9 +191,21 @@ export async function createOrPatchChildConcepts(
     }
 
     if (!existing) {
+      // A new destination concept needs the source concept's label. Read it from
+      // the source organization instead of assuming the destination can resolve
+      // the source concept ID.
+      let prefLabel: Record<string, string>
+      try {
+        const sourceConcept = await client.concept.get({ organizationId: sourceOrganizationId, conceptId: sourceConceptId })
+        if (!sourceConcept?.prefLabel) throw new Error('source concept has no prefLabel')
+        prefLabel = sourceConcept.prefLabel
+      } catch (err) {
+        throw new SourceExoFolderConceptReadError(sourceConceptId, err)
+      }
+
       try {
         await client.concept.createWithId(
-          { organizationId, conceptId: destConceptId },
+          { organizationId: destinationOrganizationId, conceptId: destConceptId },
           // @ts-expect-error - CMA.js type needs to be updated to be aware of purpose: 'internal'
           { purpose: 'internal', prefLabel, metadata: { spaces: [spaceLink] } }
         )
@@ -197,7 +224,7 @@ export async function createOrPatchChildConcepts(
       if (patches.length > 0) {
         try {
           await client.concept.patch(
-            { organizationId, conceptId: destConceptId, version: existing.sys.version },
+            { organizationId: destinationOrganizationId, conceptId: destConceptId, version: existing.sys.version },
             patches
           )
           logEmitter.emit('info', `Patched child folder concept ${destConceptId} (${patches.map((p) => p.path).join(', ')})`)
@@ -219,7 +246,7 @@ export async function createOrPatchChildConcepts(
  */
 export async function linkChildConceptsToParentGroups(
   client: PlainClientAPI,
-  organizationId: string,
+  destinationOrganizationId: string,
   childConceptMap: ChildConceptMap,
   parentGroups: ParentGroupMap,
 ): Promise<void> {
@@ -232,7 +259,7 @@ export async function linkChildConceptsToParentGroups(
 
     try {
       const updated = await client.conceptScheme.patch(
-        { organizationId, conceptSchemeId: parentGroupId, version: parentGroup.sys.version },
+        { organizationId: destinationOrganizationId, conceptSchemeId: parentGroupId, version: parentGroup.sys.version },
         [{ op: 'add', path: '/concepts/-', value: { sys: { type: 'Link', linkType: 'TaxonomyConcept', id: destConceptId } } }]
       )
       parentGroups.set(parentGroupId, updated)
@@ -299,12 +326,19 @@ export async function importExoFolders({
   const requiredParentGroupIds = new Set<string>(
     [...childConceptMap.values()].map(({ parentGroupId }) => parentGroupId)
   )
+  const sourceOrganizationId = await resolveSourceOrganizationId(client, sourceSpaceId)
   const parentGroups = await ensureParentFolderGroupsExist(client, destinationOrganizationId, requiredParentGroupIds)
 
   logEmitter.emit('info', `Importing ${childConceptMap.size} ExO folder concept(s) into destination space ${destinationSpaceId}`)
 
   // Step 3
-  await createOrPatchChildConcepts(client, destinationOrganizationId, destinationSpaceId, childConceptMap)
+  await createOrPatchChildConcepts(
+    client,
+    sourceOrganizationId,
+    destinationOrganizationId,
+    destinationSpaceId,
+    childConceptMap
+  )
 
   // Step 4
   await linkChildConceptsToParentGroups(client, destinationOrganizationId, childConceptMap, parentGroups)
