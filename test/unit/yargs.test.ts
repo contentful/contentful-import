@@ -31,6 +31,8 @@ describe("contentful-import yargs", () => {
       .stdout(/--skip-content-model/)
       .stdout(/--skip-locales/)
       .stdout(/--skip-content-publishing/)
+      .stdout(/--skip-exo-variants/)
+      .stdout(/--unpublish-draft-locales/)
       .stdout(/--upload-assets/)
       .stdout(/--assets-directory/)
       .stdout(/--timeout/)

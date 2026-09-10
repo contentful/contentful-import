@@ -45,6 +45,11 @@ export default yargs
     type: 'boolean',
     default: false
   })
+  .option('unpublish-draft-locales', {
+    describe: 'Unpublish locales that the content file marks as draft but that are still published in the destination. Only relevant when importing over content that is already published',
+    type: 'boolean',
+    default: false
+  })
   .option('upload-assets', {
     describe: 'Uses local asset files and uploads them instead of pointing to the URLs of previously uploaded assets. Requires assets-directory',
     type: 'boolean',
@@ -95,6 +100,11 @@ export default yargs
     describe: 'Import Experience Orchestration entities (designTokens, components, experienceTemplates, experienceFragments, dataAssemblies, experiences). Requires a space with ExO enabled.',
     type: 'boolean',
     default: true
+  })
+  .option('skip-exo-variants', {
+    describe: 'Skip importing Experience and Experience Fragment Optimization Variants',
+    type: 'boolean',
+    default: false
   })
   .config('config', 'An optional configuration JSON file containing all the options for a single run')
   .argv

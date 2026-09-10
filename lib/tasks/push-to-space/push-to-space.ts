@@ -15,7 +15,9 @@ import {
   UpsertExperienceProps,
   UpdateDataAssemblyProps,
   UpsertDesignTokenProps,
+  PlainClientAPI
 } from 'contentful-management'
+import PQueue from 'p-queue'
 
 import * as assets from './assets'
 import * as creation from './creation'
@@ -26,9 +28,12 @@ import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../..
 import { buildDataAssemblySys } from '../../utils/exo-entity-payloads'
 import sortComponents from '../../utils/sort-components'
 import sortExperienceFragments from '../../utils/sort-experience-fragments'
-import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity } from '../../utils/publish-exo-entities'
+import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity, filterVariantsToPublish, filterVariantsToArchive, publishVariant, archiveVariant } from '../../utils/publish-exo-entities'
 import { sortOrReport } from '../../utils/sort-or-report'
 import { importExoFolders } from '../../utils/import-exo-folders'
+import { buildLocalePublishPlan } from '../../utils/resolve-publish-locales'
+import { getDestinationLocaleCodes } from '../../utils/destination-locales'
+import { ensureLocalePublishingEntitlement, isLocaleScopingUnavailable } from '../../utils/locale-publishing'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
@@ -69,11 +74,13 @@ type PushToSpaceParams = {
   spaceId: string,
   environmentId: string,
   includeExperienceOrchestration?: boolean,
+  skipExoVariants?: boolean,
   contentModelOnly?: boolean,
   skipContentModel?: boolean,
   skipContentUpdates?: boolean,
   skipLocales?: boolean,
   skipContentPublishing?: boolean,
+  unpublishDraftLocales?: boolean,
   timeout?: number,
   retryLimit?: number,
   listrOptions?: any,
@@ -101,6 +108,8 @@ type PushToSpaceParams = {
  * - skipLocales: skips locales when synchronizing the content model
  * - skipContentModel: synchronizes only entries and assets
  * - skipContentPublishing: create content but don't publish it
+ * - skipExoVariants: skips importing Optimization Variants
+ * - unpublishDraftLocales: unpublish locales the content file marks as draft but that are still published in the destination
  * - uploadAssets: upload exported files instead of pointing to an existing URL
  * - assetsDirectory: path to exported asset files to be uploaded instead of pointing to an existing URL
  */
@@ -117,11 +126,13 @@ export default function pushToSpace({
   spaceId,
   environmentId,
   includeExperienceOrchestration,
+  skipExoVariants,
   contentModelOnly,
   skipContentModel,
   skipContentUpdates,
   skipLocales,
   skipContentPublishing,
+  unpublishDraftLocales,
   timeout,
   retryLimit,
   listrOptions,
@@ -137,6 +148,15 @@ export default function pushToSpace({
   destinationData = {
     ...DEFAULT_CONTENT_STRUCTURE,
     ...destinationData
+  }
+
+  const hasOptimizationVariants = [
+    ...(sourceData.experiences || []),
+    ...(sourceData.experienceFragments || [])
+  ].some((parent: any) => (parent.optimizationVariants || []).some(isRealOptimizationVariant))
+
+  if (includeExperienceOrchestration && !skipExoVariants && hasOptimizationVariants) {
+    logEmitter.emit('warning', 'Optimization Variants are imported with new destination IDs and can be duplicated by re-imports. Set skipExoVariants to true to skip them.')
   }
 
   listrOptions = listrOptions || {
@@ -355,7 +375,8 @@ export default function pushToSpace({
           client,
           spaceId,
           environmentId,
-          requestQueue
+          requestQueue,
+          destinationEntitiesById: unpublishDraftLocales ? destinationDataById.assets : undefined
         })
         ctx.data.publishedAssets = publishedAssets
       }),
@@ -399,7 +420,8 @@ export default function pushToSpace({
           client,
           spaceId,
           environmentId,
-          requestQueue
+          requestQueue,
+          destinationEntitiesById: unpublishDraftLocales ? destinationDataById.entries : undefined
         })
         ctx.data.publishedEntries = publishedEntries
       }),
@@ -632,12 +654,12 @@ export default function pushToSpace({
             if (existing) {
               // once an ExperienceFragment is created, its component cannot be changed to a different component -
               // the API rejects `component` on UPDATE even when the value is unchanged, so omit it entirely
-              const payload: UpsertExperienceFragmentProps = { ...entity, sys: { id: entity.sys.id, type: 'ExperienceFragment', version: existing.sys.version } }
+              const payload: UpsertExperienceFragmentProps = { ...omitSysAndOptimizationVariants(entity), sys: { id: entity.sys.id, type: 'ExperienceFragment', version: existing.sys.version } }
               const result = await client.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE ExperienceFragment ${entity.sys.id}`)
               results.push(result)
             } else {
-              const payload: UpsertExperienceFragmentProps = { ...omitSys(entity), component: entity.sys.component, sys: { id: entity.sys.id, type: 'ExperienceFragment' } }
+              const payload: UpsertExperienceFragmentProps = { ...omitSysAndOptimizationVariants(entity), component: entity.sys.component, sys: { id: entity.sys.id, type: 'ExperienceFragment' } }
               const result = await client.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE ExperienceFragment ${entity.sys.id}`)
               results.push(result)
@@ -678,12 +700,12 @@ export default function pushToSpace({
             if (existing) {
               // once an Experience is created, its experienceTemplate cannot be changed to a different experienceTemplate -
               // the API rejects `experienceTemplate` on UPDATE even when the value is unchanged, so omit it entirely
-              const payload: UpsertExperienceProps = { ...entity, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
+              const payload: UpsertExperienceProps = { ...omitSysAndOptimizationVariants(entity), sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
               const result = await client.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Experience ${entity.sys.id}`)
               return result
             } else {
-              const payload: UpsertExperienceProps = { ...omitSys(entity), experienceTemplate: entity.sys.experienceTemplate, sys: { id: entity.sys.id, type: 'Experience' } }
+              const payload: UpsertExperienceProps = { ...omitSysAndOptimizationVariants(entity), experienceTemplate: entity.sys.experienceTemplate, sys: { id: entity.sys.id, type: 'Experience' } }
               const result = await client.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE Experience ${entity.sys.id}`)
               return result
@@ -710,6 +732,87 @@ export default function pushToSpace({
         ctx.data.publishedExperiences = results.filter((entity): entity is ExperienceProps => entity !== null)
       }),
       skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experiences || []).length
+    },
+    // Optimization Variants are sub-resources nested on their parent Experience/ExperienceFragment
+    // (sourceData.experiences[].optimizationVariants), not a flat top-level array. A variant's
+    // sys.id is borrowed from its parent, not unique, so variant creation/publish/archive is
+    // handled by new, self-contained functions (importVariantsForParents, filterVariantsToPublish,
+    // filterVariantsToArchive, publishVariant, archiveVariant) rather than by generalizing
+    // destinationDataById / filterExoEntitiesToPublish / filterExoEntitiesToUnpublish, which all
+    // assume sys.id uniqueness.
+    //
+    // Unlike the base Experience/Fragment create/update, there is no upsert-by-known-ID for
+    // variants: the upstream API's create endpoint always server-generates a fresh variantId
+    // (crypto.randomUUID()) and its update endpoint 404s on an unknown variantId rather than
+    // creating one. So every import run creates fresh destination variants via POST rather than
+    // matching against any existing destination variant.
+    {
+      title: 'Importing Experience Optimization Variants',
+      task: wrapTask(async (ctx) => {
+        const results = await importVariantsForParents({
+          parents: ctx.data.experiences || [],
+          sourceParents: sourceData.experiences || [],
+          client,
+          spaceId,
+          environmentId,
+          kind: 'experience'
+        })
+        ctx.data.experienceVariants = results.flatMap((r) => r.created)
+      }),
+      skip: () => !includeExperienceOrchestration || skipExoVariants || !(sourceData.experiences || []).some((e: any) => (e.optimizationVariants || []).some(isRealOptimizationVariant))
+    },
+    {
+      title: 'Publishing Experience Optimization Variants',
+      task: wrapTask(async (ctx: { data: { experienceVariants: any[] } }) => {
+        const toPublish = filterVariantsToPublish(ctx.data.experienceVariants || [])
+        await Promise.all(toPublish.map((v) =>
+          publishVariant('ExperienceVariant', v, () => client.experienceVariant.publish(
+            { spaceId, environmentId, experienceId: v.sys.id, variantId: v.sys.variant, version: v.sys.version }
+          ))
+        ))
+        // filterVariantsToArchive excludes anything filterVariantsToPublish already matched
+        // above (mutually exclusive by construction), so no overlap check is needed here.
+        const toArchive = filterVariantsToArchive(ctx.data.experienceVariants || [])
+        await Promise.all(toArchive.map((v) =>
+          archiveVariant('ExperienceVariant', v, () => client.experienceVariant.archive(
+            { spaceId, environmentId, experienceId: v.sys.id, variantId: v.sys.variant, version: v.sys.version }
+          ))
+        ))
+      }),
+      skip: () => !includeExperienceOrchestration || skipExoVariants || skipContentPublishing || !(sourceData.experiences || []).some((e: any) => (e.optimizationVariants || []).some(isRealOptimizationVariant))
+    },
+    {
+      title: 'Importing Experience Fragment Optimization Variants',
+      task: wrapTask(async (ctx) => {
+        const results = await importVariantsForParents({
+          parents: ctx.data.experienceFragments || [],
+          sourceParents: sourceData.experienceFragments || [],
+          client,
+          spaceId,
+          environmentId,
+          kind: 'experienceFragment'
+        })
+        ctx.data.experienceFragmentVariants = results.flatMap((r) => r.created)
+      }),
+      skip: () => !includeExperienceOrchestration || skipExoVariants || !(sourceData.experienceFragments || []).some((f: any) => (f.optimizationVariants || []).some(isRealOptimizationVariant))
+    },
+    {
+      title: 'Publishing Experience Fragment Optimization Variants',
+      task: wrapTask(async (ctx: { data: { experienceFragmentVariants: any[] } }) => {
+        const toPublish = filterVariantsToPublish(ctx.data.experienceFragmentVariants || [])
+        await Promise.all(toPublish.map((v) =>
+          publishVariant('ExperienceFragmentVariant', v, () => client.experienceFragmentVariant.publish(
+            { spaceId, environmentId, experienceFragmentId: v.sys.id, variantId: v.sys.variant, version: v.sys.version }
+          ))
+        ))
+        const toArchive = filterVariantsToArchive(ctx.data.experienceFragmentVariants || [])
+        await Promise.all(toArchive.map((v) =>
+          archiveVariant('ExperienceFragmentVariant', v, () => client.experienceFragmentVariant.archive(
+            { spaceId, environmentId, experienceFragmentId: v.sys.id, variantId: v.sys.variant, version: v.sys.version }
+          ))
+        ))
+      }),
+      skip: () => !includeExperienceOrchestration || skipExoVariants || skipContentPublishing || !(sourceData.experienceFragments || []).some((f: any) => (f.optimizationVariants || []).some(isRealOptimizationVariant))
     },
     // Unpublishing runs after all Importing/Publishing tasks, in reverse dependency order
     // (Experience first, DataAssembly last) - the API rejects unpublishing an entity that a
@@ -803,6 +906,73 @@ function omitSys(entity) {
   return rest
 }
 
+// Experience/ExperienceFragment source objects carry a nested `optimizationVariants` array
+// (contentful-export's storage shape) that isn't a field the CMA upsert endpoint accepts -
+// sending it triggers a 422 (unrecognized_keys / invalid_union) on every create/update.
+function omitSysAndOptimizationVariants(entity) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { sys: _sys, optimizationVariants: _variants, ...rest } = entity
+  return rest
+}
+
+function omitVariantSys(variant: any) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { sys: _sys, ...rest } = variant
+  return rest
+}
+
+function isRealOptimizationVariant(variant: any): boolean {
+  return Boolean(variant?.sys) && variant.sys.variantType !== 'default'
+}
+
+/**
+ * Creates each parent's source-listed Optimization Variants against the destination via
+ * POST (there is no upsert-by-known-ID for variants - see the "Importing Experience
+ * Optimization Variants" task comment above), then carries the source's publish/archive
+ * intent onto the freshly-created object so the following Publishing task can act on it -
+ * a fresh POST response is always a draft and never has publishedVersion/archivedVersion set.
+ */
+async function importVariantsForParents({
+  parents, sourceParents, client, spaceId, environmentId, kind
+}: {
+  parents: { sys: { id: string } }[]
+  sourceParents: any[]
+  client: any
+  spaceId: string
+  environmentId: string
+  kind: 'experience' | 'experienceFragment'
+}): Promise<Array<{ parentId: string; created: any[] }>> {
+  const ns = kind === 'experience' ? client.experienceVariant : client.experienceFragmentVariant
+  const idParam = kind === 'experience' ? 'experienceId' : 'experienceFragmentId'
+  const label = kind === 'experience' ? 'ExperienceVariant' : 'ExperienceFragmentVariant'
+  // Create requires the parent-reference field back (mirrors why the parent's own create call
+  // re-adds `entity.sys.experienceTemplate`/`entity.sys.component` after omitSys elsewhere in this file).
+  const parentRefField = kind === 'experience' ? 'experienceTemplate' : 'component'
+  const sourceParentsById = new Map(sourceParents.map((sourceParent) => [sourceParent.sys.id, sourceParent]))
+
+  return Promise.all(parents.map(async (parent) => {
+    const sourceParent = sourceParentsById.get(parent.sys.id)
+    // The optimization_variants list endpoint always includes the parent's own base view as an
+    // item with sys.variantType 'default' (borrowing the parent's sys.id) - that's not a real
+    // sub-resource to create, it's the parent itself surfaced through the same list. Creating it
+    // would POST a spurious extra variant onto every parent, including ones with zero real variants.
+    const sourceVariants = (sourceParent?.optimizationVariants ?? []).filter(isRealOptimizationVariant)
+    const created: any[] = []
+    for (const variant of sourceVariants) {
+      try {
+        const payload = { ...omitVariantSys(variant), [parentRefField]: variant.sys[parentRefField] }
+        const result = await ns.create({ spaceId, environmentId, [idParam]: parent.sys.id }, payload)
+        logEmitter.emit('info', `CREATE ${label} ${result.sys.variant} (parent ${parent.sys.id})`)
+        created.push({ ...result, sys: { ...result.sys, publishedVersion: variant.sys.publishedVersion, archivedVersion: variant.sys.archivedVersion } })
+      } catch (err: any) {
+        err.entity = variant
+        logEmitter.emit('error', err)
+      }
+    }
+    return { parentId: parent.sys.id, created }
+  }))
+}
+
 // function archiveEntities({ entities, sourceEntities, requestQueue }) {
 function archiveEntities({ entities, sourceEntities, client, spaceId, environmentId, requestQueue }) {
   const entityIdsToArchive = sourceEntities
@@ -815,16 +985,69 @@ function archiveEntities({ entities, sourceEntities, client, spaceId, environmen
   return publishing.archiveEntities({ entities: entitiesToArchive, client, spaceId, environmentId, requestQueue })
 }
 
-// function publishEntities({ entities, sourceEntities, requestQueue }) {
-function publishEntities({ entities, sourceEntities, client, spaceId, environmentId, requestQueue }) {
+type PublishEntitiesParams = {
+  // Plain CMA entity props, not SDK-wrapped instances. Content types come through
+  // here too, not only entries and assets.
+  entities: any[]
+  sourceEntities: { original: any }[]
+  client: PlainClientAPI
+  spaceId: string
+  environmentId: string
+  requestQueue: PQueue
+  /** Destination entities, passed only when `unpublishDraftLocales` is enabled. */
+  destinationEntitiesById?: Map<string, any>
+}
+
+async function publishEntities({ entities, sourceEntities, client, spaceId, environmentId, requestQueue, destinationEntitiesById }: PublishEntitiesParams) {
   // Find all entities in source content which are published
   const entityIdsToPublish = sourceEntities
     .filter(({ original }) => original.sys.publishedVersion)
     .map(({ original }) => original.sys.id)
 
   // Filter imported entities and publish only these who got published in the source
-  const entitiesToPublish = entities
+  let entitiesToPublish = entities
     .filter((entity) => entityIdsToPublish.indexOf(entity.sys.id) !== -1)
 
-  return publishing.publishEntities({ entities: entitiesToPublish, client, spaceId, environmentId, requestQueue })
+  const publishAllLocales = () => publishing.publishEntities({ entities: entitiesToPublish, client, spaceId, environmentId, requestQueue })
+
+  // Only pay for the entitlement and locale lookups when the content file actually
+  // carries per-locale state. Content types never do.
+  const hasFieldStatus = sourceEntities.some(({ original }) => original.sys.fieldStatus)
+
+  if (!hasFieldStatus) {
+    return publishAllLocales()
+  }
+
+  await ensureLocalePublishingEntitlement(client, spaceId)
+
+  if (isLocaleScopingUnavailable(client)) {
+    return publishAllLocales()
+  }
+
+  const destinationLocaleCodes = await getDestinationLocaleCodes({ client, spaceId, environmentId, requestQueue })
+
+  const localePublishing = buildLocalePublishPlan(
+    sourceEntities,
+    destinationLocaleCodes,
+    { destinationEntitiesById }
+  )
+
+  if (localePublishing.skippedEntityIds.size) {
+    entitiesToPublish = entitiesToPublish.filter((entity) => {
+      if (!localePublishing.skippedEntityIds.has(entity.sys.id)) {
+        return true
+      }
+      logEmitter.emit('warning', `Not publishing ${entity.sys.type} ${entity.sys.id} because none of the locales it was published for exist in the destination environment`)
+      return false
+    })
+  }
+
+  return publishing.publishEntities({
+    entities: entitiesToPublish,
+    client,
+    spaceId,
+    environmentId,
+    requestQueue,
+    localePublishing
+  })
 }
