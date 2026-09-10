@@ -87,7 +87,7 @@ async function batchedIdQuery({ client, spaceId, environmentId, type, ids, reque
   return responses.flat()
 }
 
-async function batchedPageQuery({ client, spaceId, environmentId, type, requestQueue }: BatchedPageQueryParams) {
+export async function batchedPageQuery({ client, spaceId, environmentId, type, requestQueue }: BatchedPageQueryParams) {
   const { name, ns } = ENTITY_METHODS[type]
 
   let totalFetched = 0
