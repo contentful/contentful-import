@@ -32,8 +32,7 @@ const ENTITY_METHODS = {
   entries: { name: 'entries', ns: 'entry' },
   assets: { name: 'assets', ns: 'asset' },
   locales: { name: 'locales', ns: 'locale' },
-  tags: { name: 'tags', ns: 'tag' },
-  releases: { name: 'releases', ns: 'release' }
+  tags: { name: 'tags', ns: 'tag' }
 } as const
 
 type BatchedIdQueryParams = {
