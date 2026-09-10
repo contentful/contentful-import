@@ -6,7 +6,7 @@ import VerboseRenderer from 'listr-verbose-renderer'
 import { startCase } from 'lodash-es'
 import PQueue from 'p-queue'
 
-import { displayErrorLog, setupLogging, writeErrorLogFile } from 'contentful-batch-libs/dist/logging'
+import { setupLogging, writeErrorLogFile } from 'contentful-batch-libs/dist/logging'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
 
 import initClient from './tasks/init-client'
@@ -16,6 +16,7 @@ import transformSpace from './transform/transform-space'
 import { assertDefaultLocale, assertPayload } from './utils/validations'
 import parseOptions from './parseOptions'
 import { ContentfulMultiError, LogItem } from './utils/errors'
+import displayErrorLog from './utils/display-error-log'
 
 const ONE_SECOND = 1000
 
