@@ -113,6 +113,24 @@ export function isExoEntitlementError (err: unknown): boolean {
   }
 }
 
+/**
+ * Timeline (Releases) is gated by its own "timeline" feature entitlement, separate from
+ * exoM1 — a destination org without it 403s with a different `details.reasons` string
+ * (confirmed against content_api's release-v2 create-test.ts entitlement test), so
+ * isExoEntitlementError doesn't catch it.
+ */
+export function isTimelineEntitlementError (err: unknown): boolean {
+  if (!(err instanceof Error)) {
+    return false
+  }
+  try {
+    const parsed = JSON.parse(err.message)
+    return parsed?.status === 403 && parsed?.details?.reasons === 'Timeline is not enabled for this organization'
+  } catch {
+    return false
+  }
+}
+
 const EXO_M1_FEATURE = 'exoM1'
 
 type OrganizationEntitlementSet = {

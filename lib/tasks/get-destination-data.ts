@@ -1,9 +1,9 @@
 import Promise from 'bluebird'
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
-import type { AssetProps, ComponentProps, ContentTypeProps, DataAssemblyProps, DesignTokenProps, EntryProps, ExperienceProps, ExperienceFragmentProps, LocaleProps, PlainClientAPI, TagProps, ExperienceTemplateProps, WebhookProps } from 'contentful-management'
+import type { AssetProps, ComponentProps, ContentTypeProps, DataAssemblyProps, DesignTokenProps, EntryProps, ExperienceProps, ExperienceFragmentProps, LocaleProps, PlainClientAPI, TagProps, ExperienceTemplateProps, WebhookProps, ReleaseProps } from 'contentful-management'
 import { OriginalSourceData } from '../types'
-import { isExoEntitlementError, spaceHasExoM1Entitlement } from '../utils/publish-exo-entities'
+import { isExoEntitlementError, isTimelineEntitlementError, spaceHasExoM1Entitlement } from '../utils/publish-exo-entities'
 import PQueue from 'p-queue'
 
 const BATCH_CHAR_LIMIT = 1990
@@ -23,7 +23,8 @@ const CURSOR_QUERY_METHODS = {
   experienceTemplates: { name: 'experience templates', namespace: 'experienceTemplate' },
   experienceFragments: { name: 'experience fragments', namespace: 'experienceFragment' },
   dataAssemblies: { name: 'data assemblies', namespace: 'dataAssembly' },
-  experiences: { name: 'experiences', namespace: 'experience' }
+  experiences: { name: 'experiences', namespace: 'experience' },
+  releases: { name: 'releases', namespace: 'release' }
 }
 
 const ENTITY_METHODS = {
@@ -31,7 +32,7 @@ const ENTITY_METHODS = {
   entries: { name: 'entries', ns: 'entry' },
   assets: { name: 'assets', ns: 'asset' },
   locales: { name: 'locales', ns: 'locale' },
-  tags: { name: 'tags', ns: 'tag' },
+  tags: { name: 'tags', ns: 'tag' }
 } as const
 
 type BatchedIdQueryParams = {
@@ -171,11 +172,30 @@ async function cursorPaginatedQuery({ client, spaceId, environmentId, type, requ
 
   do {
     const items: any[] = await requestQueue.add(async () => {
-      const response = await (client[namespace] as any).getMany({
-        spaceId,
-        environmentId,
-        query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) }
-      })
+      let response: any
+
+      if (type === 'releases') {
+        // Excludes releases created internally by other Contentful features (rather than by a
+        // user directly), so they don't leak into a destination-data comparison as if they
+        // were user-authored Releases.
+        response = await client.release.query({
+          environmentId,
+          spaceId,
+          query: {
+            'metadata.annotations.Contentful:Timeline.type[nin]': 'Staging,Hidden',
+            'sys.schemaVersion': 'Release.v2',
+            'sys.status[in]': 'active',
+            limit: BATCH_SIZE_LIMIT,
+            ...(pageNext && { pageNext })
+          }
+        })
+      } else {
+        response = await (client[namespace] as any).getMany({
+          spaceId,
+          environmentId,
+          query: { limit: BATCH_SIZE_LIMIT, ...(pageNext && { pageNext }) }
+        })
+      }
       totalFetched += response.items.length
       logEmitter.emit('info', `Fetched ${totalFetched} ${entityTypeName}`)
       pageNext = response.pages?.next
@@ -190,7 +210,9 @@ async function cursorPaginatedQuery({ client, spaceId, environmentId, type, requ
 // A destination space without the ExO entitlement 403s on every ExO endpoint. That's a normal,
 // expected outcome (most spaces don't have ExO enabled) rather than a fatal error, so it's
 // handled the same way the `tags` fetch above handles spaces without Tags access: warn and
-// fall back to an empty array instead of failing the whole destination-data fetch.
+// fall back to an empty array instead of failing the whole destination-data fetch. Releases is
+// gated by a separate "timeline" feature entitlement (not exoM1) and 403s with a different
+// details.reasons string, so it gets the same treatment via a second check.
 async function cursorPaginatedQueryOrWarn(params: CursorPaginatedQueryParams): Promise<any[]> {
   try {
     return await cursorPaginatedQuery(params)
@@ -198,6 +220,8 @@ async function cursorPaginatedQueryOrWarn(params: CursorPaginatedQueryParams): P
     const { name: entityTypeName } = CURSOR_QUERY_METHODS[params.type]
     if (isExoEntitlementError(err)) {
       logEmitter.emit('error', new Error(`Skipping ${entityTypeName} import: Experience Orchestration (ExO) is not enabled for this space`))
+    } else if (isTimelineEntitlementError(err)) {
+      logEmitter.emit('error', new Error(`Skipping ${entityTypeName} import: Timeline (Releases) is not enabled for this organization`))
     } else {
       logEmitter.emit('error', err instanceof Error ? err : new Error(String(err)))
     }
@@ -211,6 +235,7 @@ type AllDestinationData = {
   locales: Promise<LocaleProps[]>
   entries: Promise<EntryProps[]>
   assets: Promise<AssetProps[]>
+  releases: Promise<ReleaseProps[]>
   webhooks?: Promise<WebhookProps[]>
   components?: Promise<ComponentProps[]>
   experienceTemplates?: Promise<ExperienceTemplateProps[]>
@@ -265,6 +290,7 @@ export default async function getDestinationData({
     dataAssemblies: [],
     designTokens: [],
     webhooks: [],
+    releases: []
   }
 
   // Make sure all required properties are available and at least an empty array
@@ -335,6 +361,8 @@ export default async function getDestinationData({
       requestQueue
     })
   }
+
+  result.releases = cursorPaginatedQueryOrWarn({ client, spaceId, environmentId, type: 'releases', requestQueue })
 
   if (includeExperienceOrchestration && client) {
     // dataAssemblies is excluded here — confirmed live it isn't actually gated by exoM1,

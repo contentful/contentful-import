@@ -62,7 +62,6 @@ type RunContentfulImportParams = {
   useVerboseRenderer?: boolean,
   includeExperienceOrchestration?: boolean,
   skipExoVariants?: boolean,
-  // TODO These properties are not documented in the Readme
   timeout?: number,
   retryLimit?: number,
   config?: string,

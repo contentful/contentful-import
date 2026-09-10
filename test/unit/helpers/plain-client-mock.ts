@@ -93,6 +93,11 @@ function buildDefaultNamespaces(): Record<string, Record<string, any>> {
     experienceTemplate: exoNamespaceDefaults('ExperienceTemplate'),
     experienceFragment: exoNamespaceDefaults('ExperienceFragment'),
     dataAssembly: exoNamespaceDefaults('DataAssembly'),
+    release: {
+      query: jest.fn().mockResolvedValue({ items: [] }),
+      create: jest.fn().mockResolvedValue(sys('Release')),
+      update: jest.fn().mockResolvedValue(sys('Release')),
+    },
     experience: exoNamespaceDefaults('Experience'),
   }
 }

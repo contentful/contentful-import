@@ -22,6 +22,7 @@ import PQueue from 'p-queue'
 import * as assets from './assets'
 import * as creation from './creation'
 import * as publishing from './publishing'
+import * as releases from './releases'
 import type { DestinationData, TransformedSourceData, Resources, TransformedAsset } from '../../types'
 import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../../utils/graphql-schema-backoff'
 import { buildDataAssemblySys } from '../../utils/exo-entity-payloads'
@@ -181,6 +182,7 @@ export default function pushToSpace({
         if (!destinationDataById.locales) {
           return
         }
+
         const locales = await creation.createLocales({
           context: { client, spaceId, environmentId, type: 'Locale' },
           entities: sourceData.locales,
@@ -881,6 +883,19 @@ export default function pushToSpace({
         ))
       }),
       skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.dataAssemblies || []).length
+    },
+    {
+      title: 'Importing Releases',
+      task: wrapTask(async (ctx) => {
+        const { supported: v2Releases, unsupported: v1Releases } = releases.partitionReleasesBySchemaVersion(sourceData.releases || [])
+        v1Releases.forEach(releases.logUnsupportedRelease)
+
+        const results = await Promise.all(v2Releases.map((release) =>
+          releases.importRelease(release, destinationDataById.releases?.get(release.transformed.sys.id), { client, spaceId, environmentId })
+        ))
+        ctx.data.releases = results.filter(Boolean)
+      }),
+      skip: () => !(sourceData.releases || []).length
     }
   ], listrOptions)
 }

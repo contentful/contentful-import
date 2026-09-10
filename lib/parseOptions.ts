@@ -22,10 +22,11 @@ const SUPPORTED_ENTITY_TYPES = [
   'experienceTemplates',
   'dataAssemblies',
   'experienceFragments',
-  'experiences'
+  'experiences',
+  'releases'
 ]
 
-export default async function parseOptions (params) {
+export default async function parseOptions(params) {
   const defaultOptions = {
     skipContentModel: false,
     skipLocales: false,
