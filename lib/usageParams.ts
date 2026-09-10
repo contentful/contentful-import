@@ -96,5 +96,10 @@ export default yargs
     type: 'boolean',
     default: true
   })
+  .option('skip-exo-variants', {
+    describe: 'Skip importing Experience and Experience Fragment Optimization Variants',
+    type: 'boolean',
+    default: false
+  })
   .config('config', 'An optional configuration JSON file containing all the options for a single run')
   .argv

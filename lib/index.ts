@@ -59,6 +59,7 @@ type RunContentfulImportParams = {
   errorLogFile?: string,
   useVerboseRenderer?: boolean,
   includeExperienceOrchestration?: boolean,
+  skipExoVariants?: boolean,
   // TODO These properties are not documented in the Readme
   timeout?: number,
   retryLimit?: number,
@@ -105,13 +106,13 @@ async function runContentfulImport (params: RunContentfulImportParams) {
   const experienceVariantCount = (options.content.experiences || []).reduce(
     (sum: number, e: any) => sum + (e.optimizationVariants?.length ?? 0), 0
   )
-  if (experienceVariantCount > 0) {
+  if (!options.skipExoVariants && experienceVariantCount > 0) {
     infoTable.push(['Experience Optimization Variants', experienceVariantCount])
   }
   const experienceFragmentVariantCount = (options.content.experienceFragments || []).reduce(
     (sum: number, f: any) => sum + (f.optimizationVariants?.length ?? 0), 0
   )
-  if (experienceFragmentVariantCount > 0) {
+  if (!options.skipExoVariants && experienceFragmentVariantCount > 0) {
     infoTable.push(['Experience Fragment Optimization Variants', experienceFragmentVariantCount])
   }
 
@@ -166,6 +167,7 @@ async function runContentfulImport (params: RunContentfulImportParams) {
           client: ctx.client,
           spaceId: options.spaceId,
           includeExperienceOrchestration: options.includeExperienceOrchestration,
+          skipExoVariants: options.skipExoVariants,
           environmentId: options.environmentId,
           contentModelOnly: options.contentModelOnly,
           skipLocales: options.skipLocales,

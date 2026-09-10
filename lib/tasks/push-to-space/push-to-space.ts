@@ -68,6 +68,7 @@ type PushToSpaceParams = {
   spaceId: string,
   environmentId: string,
   includeExperienceOrchestration?: boolean,
+  skipExoVariants?: boolean,
   contentModelOnly?: boolean,
   skipContentModel?: boolean,
   skipContentUpdates?: boolean,
@@ -100,6 +101,7 @@ type PushToSpaceParams = {
  * - skipLocales: skips locales when synchronizing the content model
  * - skipContentModel: synchronizes only entries and assets
  * - skipContentPublishing: create content but don't publish it
+ * - skipExoVariants: skips importing Optimization Variants
  * - uploadAssets: upload exported files instead of pointing to an existing URL
  * - assetsDirectory: path to exported asset files to be uploaded instead of pointing to an existing URL
  */
@@ -116,6 +118,7 @@ export default function pushToSpace({
   spaceId,
   environmentId,
   includeExperienceOrchestration,
+  skipExoVariants,
   contentModelOnly,
   skipContentModel,
   skipContentUpdates,
@@ -136,6 +139,15 @@ export default function pushToSpace({
   destinationData = {
     ...DEFAULT_CONTENT_STRUCTURE,
     ...destinationData
+  }
+
+  const hasOptimizationVariants = [
+    ...(sourceData.experiences || []),
+    ...(sourceData.experienceFragments || [])
+  ].some((parent: any) => (parent.optimizationVariants || []).some(isRealOptimizationVariant))
+
+  if (includeExperienceOrchestration && !skipExoVariants && hasOptimizationVariants) {
+    logEmitter.emit('warning', 'Optimization Variants are imported with new destination IDs and can be duplicated by re-imports. Set skipExoVariants to true to skip them.')
   }
 
   listrOptions = listrOptions || {
@@ -735,7 +747,7 @@ export default function pushToSpace({
         })
         ctx.data.experienceVariants = results.flatMap((r) => r.created)
       }),
-      skip: () => !includeExperienceOrchestration || !(sourceData.experiences || []).some((e: any) => e.optimizationVariants?.length)
+      skip: () => !includeExperienceOrchestration || skipExoVariants || !(sourceData.experiences || []).some((e: any) => (e.optimizationVariants || []).some(isRealOptimizationVariant))
     },
     {
       title: 'Publishing Experience Optimization Variants',
@@ -755,7 +767,7 @@ export default function pushToSpace({
           ))
         ))
       }),
-      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experiences || []).some((e: any) => e.optimizationVariants?.length)
+      skip: () => !includeExperienceOrchestration || skipExoVariants || skipContentPublishing || !(sourceData.experiences || []).some((e: any) => (e.optimizationVariants || []).some(isRealOptimizationVariant))
     },
     {
       title: 'Importing Experience Fragment Optimization Variants',
@@ -770,7 +782,7 @@ export default function pushToSpace({
         })
         ctx.data.experienceFragmentVariants = results.flatMap((r) => r.created)
       }),
-      skip: () => !includeExperienceOrchestration || !(sourceData.experienceFragments || []).some((f: any) => f.optimizationVariants?.length)
+      skip: () => !includeExperienceOrchestration || skipExoVariants || !(sourceData.experienceFragments || []).some((f: any) => (f.optimizationVariants || []).some(isRealOptimizationVariant))
     },
     {
       title: 'Publishing Experience Fragment Optimization Variants',
@@ -788,7 +800,7 @@ export default function pushToSpace({
           ))
         ))
       }),
-      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experienceFragments || []).some((f: any) => f.optimizationVariants?.length)
+      skip: () => !includeExperienceOrchestration || skipExoVariants || skipContentPublishing || !(sourceData.experienceFragments || []).some((f: any) => (f.optimizationVariants || []).some(isRealOptimizationVariant))
     },
     // Unpublishing runs after all Importing/Publishing tasks, in reverse dependency order
     // (Experience first, DataAssembly last) - the API rejects unpublishing an entity that a
@@ -884,6 +896,10 @@ function omitVariantSys(variant: any) {
   return rest
 }
 
+function isRealOptimizationVariant(variant: any): boolean {
+  return Boolean(variant?.sys) && variant.sys.variantType !== 'default'
+}
+
 /**
  * Creates each parent's source-listed Optimization Variants against the destination via
  * POST (there is no upsert-by-known-ID for variants - see the "Importing Experience
@@ -907,14 +923,15 @@ async function importVariantsForParents({
   // Create requires the parent-reference field back (mirrors why the parent's own create call
   // re-adds `entity.sys.experienceTemplate`/`entity.sys.component` after omitSys elsewhere in this file).
   const parentRefField = kind === 'experience' ? 'experienceTemplate' : 'component'
+  const sourceParentsById = new Map(sourceParents.map((sourceParent) => [sourceParent.sys.id, sourceParent]))
 
   return Promise.all(parents.map(async (parent) => {
-    const sourceParent = sourceParents.find((p) => p.sys.id === parent.sys.id)
+    const sourceParent = sourceParentsById.get(parent.sys.id)
     // The optimization_variants list endpoint always includes the parent's own base view as an
     // item with sys.variantType 'default' (borrowing the parent's sys.id) - that's not a real
     // sub-resource to create, it's the parent itself surfaced through the same list. Creating it
     // would POST a spurious extra variant onto every parent, including ones with zero real variants.
-    const sourceVariants = (sourceParent?.optimizationVariants ?? []).filter((v: any) => v.sys.variantType !== 'default')
+    const sourceVariants = (sourceParent?.optimizationVariants ?? []).filter(isRealOptimizationVariant)
     const created: any[] = []
     for (const variant of sourceVariants) {
       try {

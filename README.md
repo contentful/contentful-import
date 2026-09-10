@@ -219,6 +219,10 @@ Path to a JSON file with the configuration options. This file will be merged wit
 
 Flag controlling whether Experience Orchestration (ExO) entities — Design Tokens, Components, Experience Templates, Experience Fragments, Data Assemblies, and Experiences — are imported when present in the source content. Requires the `exoM1` entitlement on the destination space's organization. Set to `false` to opt out. See the "Experience Orchestration (ExO) entities" section below for what happens when the destination isn't entitled.
 
+#### `skipExoVariants` [boolean] [default: false]
+
+Skip importing nested Experience and Experience Fragment Optimization Variants. This can be useful when re-importing the same export because the upstream API generates new variant IDs on every create and cannot upsert by the source variant ID.
+
 ## :rescue_worker_helmet: Troubleshooting
 
 ### Proxy
@@ -283,6 +287,8 @@ The `designTokens`, `components`, `experienceTemplates`, `dataAssemblies`, `expe
 > **Experimental:** ExO entities (`designTokens`, `components`, `experienceTemplates`, `dataAssemblies`, `experienceFragments`, `experiences`) are `@internal` and considered experimental. Their shape and import behavior are subject to change without notice.
 
 ExO import is on by default (`includeExperienceOrchestration: true`) — for the CLI and the module API alike. Pass `includeExperienceOrchestration: false` (`--include-experience-orchestration=false` on the CLI) to opt out.
+
+Optimization Variant import is on automatically when the source contains nested variants. Pass `skipExoVariants: true` (or `--skip-exo-variants`) to leave them out of the import. When variants are imported, a warning is logged because each run creates fresh destination variant IDs and re-importing can create duplicates.
 
 ```javascript
 import contentfulImport from 'contentful-import'

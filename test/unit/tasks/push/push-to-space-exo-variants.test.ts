@@ -103,6 +103,25 @@ describe('Importing Experience Optimization Variants', () => {
     expect(payload.name).toBe('Homepage Variant')
   })
 
+  test('warns once that re-importing variants can create duplicates', async () => {
+    const client = mockClient()
+    const emitSpy = jest.spyOn(logEmitter, 'emit')
+
+    await pushToSpace({
+      sourceData: { ...baseSourceData, experiences: [{ ...experience, optimizationVariants: [variant] }] } as any,
+      destinationData: { ...baseDestinationData, experiences: [] },
+      client,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })
+
+    const duplicateWarnings = emitSpy.mock.calls.filter(([level, message]) => level === 'warning' && typeof message === 'string' && message.includes('skipExoVariants'))
+    expect(duplicateWarnings).toHaveLength(1)
+    emitSpy.mockRestore()
+  })
+
   test('skips the task when the source has no optimization variants', async () => {
     const client = mockClient()
     await pushToSpace({
@@ -114,6 +133,40 @@ describe('Importing Experience Optimization Variants', () => {
       includeExperienceOrchestration: true,
       requestQueue
     }).run({ data: {} })
+
+    expect(client.experienceVariant.create).not.toHaveBeenCalled()
+  })
+
+  test('skips a source parent whose variants contain only the synthetic default entry', async () => {
+    const client = mockClient()
+    const defaultVariant = { sys: { id: 'exp-1', variant: 'default', variantType: 'default' }, name: 'Homepage' }
+
+    await pushToSpace({
+      sourceData: { ...baseSourceData, experiences: [{ ...experience, optimizationVariants: [defaultVariant] }] } as any,
+      destinationData: { ...baseDestinationData, experiences: [] },
+      client,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })
+
+    expect(client.experienceVariant.create).not.toHaveBeenCalled()
+  })
+
+  test('ignores a malformed variant without sys instead of throwing', async () => {
+    const client = mockClient()
+    const malformedVariant = { name: 'Malformed Variant' }
+
+    await expect(pushToSpace({
+      sourceData: { ...baseSourceData, experiences: [{ ...experience, optimizationVariants: [malformedVariant] }] } as any,
+      destinationData: { ...baseDestinationData, experiences: [] },
+      client,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })).resolves.not.toThrow()
 
     expect(client.experienceVariant.create).not.toHaveBeenCalled()
   })
@@ -131,6 +184,23 @@ describe('Importing Experience Optimization Variants', () => {
     }).run({ data: {} })
 
     expect(client.experienceVariant.create).not.toHaveBeenCalled()
+  })
+
+  test('skips variant import when skipExoVariants is true', async () => {
+    const client = mockClient()
+    await pushToSpace({
+      sourceData: { ...baseSourceData, experiences: [{ ...experience, optimizationVariants: [variant] }] } as any,
+      destinationData: { ...baseDestinationData, experiences: [] },
+      client,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      skipExoVariants: true,
+      requestQueue
+    }).run({ data: {} })
+
+    expect(client.experienceVariant.create).not.toHaveBeenCalled()
+    expect(client.experienceVariant.publish).not.toHaveBeenCalled()
   })
 
   test('attaches the variant to the error before emitting, and continues on failure without aborting siblings', async () => {

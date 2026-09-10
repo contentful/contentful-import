@@ -38,6 +38,7 @@ export default async function parseOptions (params) {
     uploadAssets: false,
     rateLimit: 7,
     includeExperienceOrchestration: true,
+    skipExoVariants: false,
     host: 'api.contentful.com'
   }
 
