@@ -63,7 +63,9 @@ export type TransformedSourceData = {
   webhooks: EntityTransformed<WebhookProps, any>[]
   editorInterfaces: EditorInterfaceProps[]
 
-  // TODO: QUESTION: should these be EntityTransformed types as well? If so, we need to update the type accordingly.
+  // These 6 ExO entity types are plain arrays, not EntityTransformed like releases/entries/
+  // assets/tags/webhooks. Inconsistent but not broken today (push-to-space.ts never reads
+  // .original/.transformed for these). Needs a decision - see AIS-553.
   components?: ComponentProps[]
   experienceTemplates?: ExperienceTemplateProps[]
   experienceFragments?: ExperienceFragmentProps[]

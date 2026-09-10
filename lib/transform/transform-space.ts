@@ -6,11 +6,10 @@ import sortLocales from '../utils/sort-locales'
 import { upgradeExoResources } from './exo-rename'
 import { DestinationData, OriginalSourceData, TransformedSourceData } from '../types'
 
-// POSSIBLE TODO: should experience orchestration entities be included here? If so, we need to update the type accordingly.
-// exo entities are added to this default functions return entities via `upgradeExoResources()`
-// Ethan's take Sept 4th 2026, functionally it doesn't make a difference because exo entities DO get added to the returned
-// entities via `upgradeExoResources()`.  It's maybe a little hard to read because there are 2 separate patterns for transforming
-// entities, but the end result is the same.
+// ExO entities bypass this loop and are transformed separately via upgradeExoResources()
+// (called below) - intentional split, see that call site. But the two paths aren't fully
+// equivalent: entries/assets strip metadata.tags here when the destination lacks Tags access;
+// ExO entities don't get that treatment. See AIS-552.
 const entities = [
   'contentTypes', 'entries', 'assets', 'locales', 'webhooks', 'tags', 'releases'
 ]

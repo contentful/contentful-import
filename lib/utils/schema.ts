@@ -66,7 +66,8 @@ const webhookSchema = {
 }
 
 /**
- * TODO: SHOULD exo entities and releases be included?
+ * Doesn't validate ExO entities or releases - unknown keys pass through via allowUnknown.
+ * Needs a decision - see AIS-553.
  * @returns normalized validation object. Don't use normalized output as payload
  */
 const payloadSchema = Joi.object({
