@@ -11,6 +11,8 @@ const customEditorInterfaceFile = join(__dirname, 'exports/with-custom-editor-in
 const withAssetsSpaceFile = join(__dirname, 'exports/with-assets/space-with-downloaded-assets.json')
 const assetsDirectory = join(__dirname, 'exports/with-assets')
 
+const client = createClient({ accessToken: managementToken })
+
 let space
 
 type Error = {
@@ -24,13 +26,12 @@ type Error = {
 jest.setTimeout(1.5 * 60 * 1000) // 1.5min timeout
 
 beforeEach(async () => {
-  const client = createClient({ accessToken: managementToken }, { type: 'legacy' })
-  space = await client.createSpace({ name: 'IMPORT [AUTO] TOOL TMP' }, orgId)
+  space = await client.space.create({ organizationId: orgId }, { name: 'IMPORT [AUTO] TOOL TMP' })
 })
 
 afterEach(async () => {
   if (space) {
-    await space.delete()
+    await client.space.delete({ spaceId: space.sys.id })
   }
 })
 
@@ -69,7 +70,19 @@ test('It should import a space properly when used as a lib', async () => {
   })
   expect(failedPublishErrors).toHaveLength(0)
 
-  await space.delete()
+  // Webhooks have no createWithId endpoint on the plain client, so createInDestination()
+  // works around it by calling client.webhook.update() against an id that doesn't exist yet.
+  // Assert against the real CMA API that this actually behaves like a create.
+  const webhooks = await client.webhook.getMany({ spaceId: space.sys.id })
+  expect(webhooks.items).toHaveLength(1)
+  expect(webhooks.items[0]).toMatchObject({
+    name: 'Import test webhook',
+    url: 'https://example.com/webhook',
+    topics: ['Entry.publish'],
+    sys: expect.objectContaining({ id: 'importTestWebhook' })
+  })
+
+  await client.space.delete({ spaceId: space.sys.id })
   // Ensures that there is no deletion attempt in the afterEach function if the
   // deletion had been successful
   space = undefined
@@ -112,7 +125,7 @@ test('It should import a space with assets properly when used as a lib', async (
     return true
   })
   expect(failedPublishErrors).toHaveLength(0)
-  await space.delete()
+  await client.space.delete({ spaceId: space.sys.id })
   // Ensures that there is no deletion attempt in the afterEach function if the
   // deletion had been successful
   space = undefined
@@ -132,8 +145,7 @@ test('It should import a space with custom editor interfaces properly when used 
 
   await wrappedFunc()
 
-  const localClient = createClient({ accessToken: managementToken })
-  const editorInterfaces = await localClient.editorInterface.getMany({
+  const editorInterfaces = await client.editorInterface.getMany({
     spaceId: space.sys.id,
     environmentId: 'master'
   })
@@ -148,7 +160,7 @@ test('It should import a space with custom editor interfaces properly when used 
     widgetNamespace: 'app'
   })
 
-  await space.delete()
+  await client.space.delete({ spaceId: space.sys.id })
   // Ensures that there is no deletion attempt in the afterEach function if the
   // deletion had been successful
   space = undefined

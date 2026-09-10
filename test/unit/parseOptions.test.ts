@@ -1,6 +1,6 @@
 import { basename, isAbsolute, join, resolve, sep } from 'path'
 
-import {HttpsProxyAgent} from 'https-proxy-agent'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 
 import parseOptions from '../../lib/parseOptions'
 
@@ -68,6 +68,24 @@ test('parseOptions does allow skipLocales only when contentModelOnly is set', as
       skipLocales: true
     })
   ).rejects.toThrow('`skipLocales` can only be used together with `contentModelOnly`')
+})
+
+test('parseOptions requires assetsDirectory when uploadAssets is enabled', async () => {
+  await expect(parseOptions({
+    spaceId,
+    managementToken,
+    uploadAssets: true,
+    content: {}
+  })).rejects.toThrow('`uploadAssets` requires `assetsDirectory`')
+})
+
+test('parseOptions requires uploadAssets when assetsDirectory is provided', async () => {
+  await expect(parseOptions({
+    spaceId,
+    managementToken,
+    assetsDirectory: 'assets',
+    content: {}
+  })).rejects.toThrow('`assetsDirectory` requires `uploadAssets`')
 })
 
 test('parseOptions sets correct default options', async () => {
@@ -194,6 +212,67 @@ test('parseOption cleans up content to only include supported entity types', asy
   const content = options.content
   expect(Object.keys(content)).toHaveLength(13)
   expect(content.invalid).toBeUndefined()
+})
+
+test('parseOptions rejects embargoed assets without local upload options', async () => {
+  await expect(parseOptions({
+    spaceId,
+    managementToken,
+    content: {
+      assets: [{
+        sys: { id: 'embargoed-asset' },
+        fields: {
+          file: {
+            'en-US': {
+              url: '//assets.secure.ctfassets.net/space/asset/file.pdf'
+            }
+          }
+        }
+      }]
+    }
+  })).rejects.toThrow(
+    'Found 1 embargoed asset file in the import data. Embargoed asset URLs cannot be processed directly during import.'
+  )
+})
+
+test('parseOptions accepts embargoed assets when local uploads are enabled', async () => {
+  await expect(parseOptions({
+    spaceId,
+    managementToken,
+    uploadAssets: true,
+    assetsDirectory: 'assets',
+    content: {
+      assets: [{
+        sys: { id: 'embargoed-asset' },
+        fields: {
+          file: {
+            'en-US': {
+              url: '//assets.secure.ctfassets.net/space/asset/file.pdf'
+            }
+          }
+        }
+      }]
+    }
+  })).resolves.toBeTruthy()
+})
+
+test('parseOptions skips embargoed asset validation for content model imports', async () => {
+  await expect(parseOptions({
+    spaceId,
+    managementToken,
+    contentModelOnly: true,
+    content: {
+      assets: [{
+        fields: {
+          file: {
+            'en-US': {
+              url: '//assets.secure.ctfassets.net/space/asset/file.pdf'
+            }
+          }
+        }
+      }]
+    }
+  })).resolves.toBeTruthy()
 })
 
 test('parseOptions accepts custom application & feature', async () => {

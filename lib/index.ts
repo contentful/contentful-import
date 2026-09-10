@@ -1,16 +1,15 @@
 import Table from 'cli-table3'
-import differenceInSeconds from 'date-fns/differenceInSeconds'
-import formatDistance from 'date-fns/formatDistance'
+import { differenceInSeconds, formatDistance } from 'date-fns'
 import Listr from 'listr'
 import UpdateRenderer from 'listr-update-renderer'
 import VerboseRenderer from 'listr-verbose-renderer'
-import { startCase } from 'lodash'
+import { startCase } from 'lodash-es'
 import PQueue from 'p-queue'
 
 import { displayErrorLog, setupLogging, writeErrorLogFile } from 'contentful-batch-libs/dist/logging'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
 
-import initClient, { initPlainClient } from './tasks/init-client'
+import initClient from './tasks/init-client'
 import getDestinationData from './tasks/get-destination-data'
 import pushToSpace from './tasks/push-to-space/push-to-space'
 import transformSpace from './transform/transform-space'
@@ -113,8 +112,7 @@ async function runContentfulImport (params: RunContentfulImportParams) {
     {
       title: 'Initialize client',
       task: wrapTask(async (ctx) => {
-        ctx.client = initClient({ ...options, content: undefined })
-        ctx.plainClient = initPlainClient({ ...options, content: undefined })
+        ctx.client = initClient({ ...options })
       })
     },
     {
@@ -122,7 +120,6 @@ async function runContentfulImport (params: RunContentfulImportParams) {
       task: wrapTask(async (ctx) => {
         const destinationData = await getDestinationData({
           client: ctx.client,
-          plainClient: ctx.plainClient,
           spaceId: options.spaceId,
           environmentId: options.environmentId,
           sourceData: options.content,
@@ -151,7 +148,6 @@ async function runContentfulImport (params: RunContentfulImportParams) {
           sourceData: ctx.sourceData,
           destinationData: ctx.destinationData,
           client: ctx.client,
-          plainClient: ctx.plainClient,
           spaceId: options.spaceId,
           includeExperienceOrchestration: options.includeExperienceOrchestration,
           environmentId: options.environmentId,
@@ -231,19 +227,4 @@ async function runContentfulImport (params: RunContentfulImportParams) {
     })
 }
 
-// We are providing default exports both for CommonJS and ES6 module
-// systems here as a workaround, because we have some contraints which
-// don't allow us to generate compatibility for both es6 and common js
-// otherwise. We originally wanted to set 'esModuleInterop' to false
-// to keep compatibility with direct 'require()' calls in JavaScript,
-// ensuring that consumers can simply use 'require("package-name")'
-// without the '.default'. However, we have a dependency on
-// 'cli-table3' that requires 'esModuleInterop' to be set to true for
-// its default imports to work. Thats why we just provide both export
-// mechanisms.
-
-// Default export for ES6-style imports
 export default runContentfulImport
-
-// Export for CommonJS-style imports
-module.exports = runContentfulImport

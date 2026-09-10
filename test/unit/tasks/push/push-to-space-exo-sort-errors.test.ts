@@ -7,8 +7,11 @@ import { PARENT_FOLDER_GROUP_IDS } from '../../../../lib/utils/import-exo-folder
 // logEmitter is a plain node:events EventEmitter. Node treats 'error' as a special
 // event name and throws synchronously if it's emitted with no listener attached, so
 // register a no-op listener before any test exercises an error/log-and-continue path.
-logEmitter.on('error', () => {})
+logEmitter.on('error', () => { })
 
+jest.mock('../../../../lib/utils/import-exo-folders.ts', () => {
+  return Promise.resolve()
+})
 jest.mock('../../../../lib/utils/sort-components', () => ({
   __esModule: true,
   default: jest.fn(() => {
@@ -24,6 +27,7 @@ jest.mock('../../../../lib/utils/sort-experience-fragments', () => ({
 
 // Imported after the mocks above so push-to-space picks up the mocked sort modules.
 import pushToSpace from '../../../../lib/tasks/push-to-space/push-to-space'
+import { makePlainClientMock } from '../../helpers/plain-client-mock'
 
 const baseSourceData = {
   locales: [],
@@ -48,8 +52,8 @@ function makeClientMock() {
   }
 }
 
-function makePlainClientMock() {
-  return {
+function makeClientMockForPlainClient() {
+  return makePlainClientMock({
     component: { upsert: jest.fn(), publish: jest.fn() },
     experienceFragment: { upsert: jest.fn(), publish: jest.fn() },
     conceptScheme: {
@@ -61,7 +65,7 @@ function makePlainClientMock() {
         }))
       }))
     }
-  }
+  })
 }
 
 let requestQueue: PQueue
@@ -74,14 +78,13 @@ describe('Importing Components: setup-code failures', () => {
   const entity: any = { sys: { id: 'ct-1', type: 'Component', version: 1 }, name: 'Hero' }
 
   test('logs the sort failure via logEmitter and still aborts the run', async () => {
-    const plainClient = makePlainClientMock()
+    const plainClient = makeClientMockForPlainClient()
     const emitSpy = jest.spyOn(logEmitter, 'emit')
 
     await expect(pushToSpace({
       sourceData: { ...baseSourceData, components: [entity] } as any,
       destinationData: { ...baseDestinationData, components: [] },
       client: makeClientMock(),
-      plainClient,
       spaceId: 'space-1',
       environmentId: 'master',
       includeExperienceOrchestration: true,
@@ -100,14 +103,13 @@ describe('Importing Experience Fragments: setup-code failures', () => {
   const entity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 1 }, name: 'Hero Fragment' }
 
   test('logs the sort failure via logEmitter and still aborts the run', async () => {
-    const plainClient = makePlainClientMock()
+    const plainClient = makeClientMockForPlainClient()
     const emitSpy = jest.spyOn(logEmitter, 'emit')
 
     await expect(pushToSpace({
       sourceData: { ...baseSourceData, experienceFragments: [entity] } as any,
       destinationData: { ...baseDestinationData, experienceFragments: [] },
       client: makeClientMock(),
-      plainClient,
       spaceId: 'space-1',
       environmentId: 'master',
       includeExperienceOrchestration: true,

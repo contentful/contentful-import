@@ -4,13 +4,14 @@ import pushToSpace from '../../../../lib/tasks/push-to-space/push-to-space'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { publishEntities } from '../../../../lib/tasks/push-to-space/publishing'
 import { TransformedSourceData } from '../../../../lib/types'
+import { makePlainClientMock } from '../../helpers/plain-client-mock'
 
 logEmitter.on('error', () => {})
 
 jest.mock('../../../../lib/tasks/push-to-space/creation', () => ({
   createEntities: jest.fn(() => Promise.resolve([])),
   createEntries: jest.fn(({ entities }) => Promise.resolve(
-    entities.map(({ original }) => ({ sys: { ...original.sys }, publish: jest.fn() }))
+    entities.map(({ original }) => ({ sys: { ...original.sys } }))
   )),
   createLocales: jest.fn(() => Promise.resolve([]))
 }))
@@ -48,23 +49,26 @@ function makeSourceData(entries: ReturnType<typeof makeEntry>[]) {
   } as unknown as TransformedSourceData
 }
 
+const DESTINATION_LOCALES = [{ code: 'en-US' }, { code: 'es' }, { code: 'zh-Hant-TW' }]
+
 let getLocalesMock: jest.Mock
 let clientMock: any
 let requestQueue: PQueue
 
+// Paging mirrors `batchedPageQuery`: page one, then the remaining offsets.
+function localePage(items: { code: string }[]) {
+  return jest.fn(({ query }: any = {}) => {
+    const skip = query?.skip ?? 0
+    const limit = query?.limit ?? 100
+    return Promise.resolve({ items: items.slice(skip, skip + limit), total: items.length, skip, limit })
+  })
+}
+
 beforeEach(() => {
-  getLocalesMock = jest.fn(() => Promise.resolve({
-    items: [{ code: 'en-US' }, { code: 'es' }, { code: 'zh-Hant-TW' }]
-  }))
-  clientMock = {
-    getSpace: jest.fn(() => Promise.resolve({
-      getEnvironment: jest.fn(() => Promise.resolve({
-        getLocales: getLocalesMock,
-        getEditorInterfaceForContentType: jest.fn(),
-        createUpload: jest.fn()
-      }))
-    }))
-  }
+  getLocalesMock = localePage(DESTINATION_LOCALES)
+  clientMock = makePlainClientMock({
+    locale: { getMany: getLocalesMock }
+  })
   requestQueue = new PQueue({ interval: 1000, intervalCap: 1000 })
 })
 
@@ -72,22 +76,24 @@ afterEach(() => {
   publishEntitiesMock.mockClear()
 })
 
-function run(sourceData: TransformedSourceData) {
+function run(sourceData: TransformedSourceData, options: Record<string, any> = {}, client = clientMock) {
   return pushToSpace({
     sourceData,
     destinationData: {},
-    client: clientMock,
-    plainClient: { entry: { publish: jest.fn() }, asset: { publish: jest.fn() } },
+    client,
     spaceId: 'spaceid',
     environmentId: 'master',
-    requestQueue
-  }).run({ data: {} })
+    requestQueue,
+    ...options
+  } as any).run({ data: {} })
 }
 
+// The entry pass is the only one that receives entities here; assets and content
+// types are stubbed out to empty collections above.
 function entryPublishCall() {
   return publishEntitiesMock.mock.calls
     .map(([args]) => args)
-    .find((args) => args.localePublishing?.namespace === 'entry')
+    .find((args) => args.entities.length > 0 || args.localePublishing)
 }
 
 test('scopes entry publishing to the live locales from fieldStatus', async () => {
@@ -96,9 +102,9 @@ test('scopes entry publishing to the live locales from fieldStatus', async () =>
   ]))
 
   const call = entryPublishCall()
-  expect(call.localePublishing.plainClient).toBeDefined()
-  expect(call.localePublishing.spaceId).toBe('spaceid')
-  expect(call.localePublishing.environmentId).toBe('master')
+  expect(call.client).toBe(clientMock)
+  expect(call.spaceId).toBe('spaceid')
+  expect(call.environmentId).toBe('master')
   expect([...call.localePublishing.localesByEntityId.entries()]).toEqual([
     ['mixed', ['en-US', 'zh-Hant-TW']]
   ])
@@ -116,7 +122,7 @@ test('does not read destination locales when no entity carries fieldStatus', asy
   await run(makeSourceData([makeEntry('legacy-export')]))
 
   expect(getLocalesMock).not.toHaveBeenCalled()
-  expect(entryPublishCall().localePublishing.localesByEntityId.size).toBe(0)
+  expect(entryPublishCall().localePublishing).toBeUndefined()
 })
 
 test('drops locales that do not exist in the destination environment', async () => {
@@ -151,25 +157,73 @@ test('falls back to whole-entity publishing when destination locales cannot be r
   expect(call.localePublishing.localesByEntityId.size).toBe(0)
 })
 
-test('publishes whole entities when no plain client is available', async () => {
-  await pushToSpace({
-    sourceData: makeSourceData([makeEntry('mixed', { 'en-US': 'published', es: 'draft' })]),
-    destinationData: {},
-    client: clientMock,
-    spaceId: 'spaceid',
-    environmentId: 'master',
-    requestQueue
-  }).run({ data: {} })
+describe('the locale-based publishing entitlement', () => {
+  function clientEntitled(value: boolean | undefined) {
+    return makePlainClientMock({
+      locale: { getMany: localePage(DESTINATION_LOCALES) },
+      space: {
+        get: jest.fn().mockResolvedValue({
+          sys: { type: 'Space', organization: { sys: { id: 'org-1' } } }
+        })
+      },
+      raw: {
+        get: jest.fn().mockResolvedValue(
+          value === undefined ? { features: {} } : { features: { localeBasedPublishing: { value } } }
+        )
+      }
+    })
+  }
 
-  const call = publishEntitiesMock.mock.calls
-    .map(([args]) => args)
-    .find((args) => args.entities.length > 0)
-  expect(call.localePublishing).toBeUndefined()
-  expect(getLocalesMock).not.toHaveBeenCalled()
+  const sourceData = () => makeSourceData([
+    makeEntry('mixed', { 'en-US': 'published', es: 'draft' })
+  ])
+
+  test('does not scope publishing when the organization is not entitled', async () => {
+    const client = clientEntitled(false)
+
+    await run(sourceData(), {}, client)
+
+    expect(entryPublishCall().localePublishing).toBeUndefined()
+    // No point reading destination locales for a plan that will not be used.
+    expect(client.locale.getMany).not.toHaveBeenCalled()
+  })
+
+  test('scopes publishing when the organization is entitled', async () => {
+    const client = clientEntitled(true)
+
+    await run(sourceData(), {}, client)
+
+    expect([...entryPublishCall().localePublishing.localesByEntityId.entries()]).toEqual([
+      ['mixed', ['en-US']]
+    ])
+  })
+
+  test('treats an entitlement set that names neither feature as inconclusive and still tries', async () => {
+    const client = clientEntitled(undefined)
+
+    await run(sourceData(), {}, client)
+
+    expect([...entryPublishCall().localePublishing.localesByEntityId.entries()]).toEqual([
+      ['mixed', ['en-US']]
+    ])
+  })
+
+  test('treats a failed entitlement check as inconclusive and still tries', async () => {
+    const client = makePlainClientMock({
+      locale: { getMany: localePage(DESTINATION_LOCALES) },
+      space: { get: jest.fn().mockRejectedValue(new Error('404 NotFound')) }
+    })
+
+    await run(sourceData(), {}, client)
+
+    expect([...entryPublishCall().localePublishing.localesByEntityId.entries()]).toEqual([
+      ['mixed', ['en-US']]
+    ])
+  })
 })
 
 describe('unpublishDraftLocales', () => {
-  const sourceData = makeSourceData([
+  const sourceData = () => makeSourceData([
     makeEntry('mixed', { 'en-US': 'published', es: 'draft', 'zh-Hant-TW': 'draft' })
   ])
   // Same entry already in the destination, published for a locale that should be draft.
@@ -186,15 +240,14 @@ describe('unpublishDraftLocales', () => {
 
   function runWith(unpublishDraftLocales?: boolean) {
     return pushToSpace({
-      sourceData,
+      sourceData: sourceData(),
       destinationData: destinationData as any,
       client: clientMock,
-      plainClient: { entry: { publish: jest.fn() }, asset: { publish: jest.fn() } },
       spaceId: 'spaceid',
       environmentId: 'master',
       unpublishDraftLocales,
       requestQueue
-    }).run({ data: {} })
+    } as any).run({ data: {} })
   }
 
   test('plans no demotions by default', async () => {
@@ -217,16 +270,11 @@ test('pages through destination locales beyond the 100-item default page size', 
     ...Array.from({ length: 148 }, (_, i) => ({ code: `xx-${i}` })),
     { code: 'es' }
   ]
-  getLocalesMock.mockImplementation(({ skip = 0, limit = 100 } = {} as any) => Promise.resolve({
-    items: allLocales.slice(skip, skip + limit),
-    total: allLocales.length,
-    skip,
-    limit
-  }))
+  const client = makePlainClientMock({ locale: { getMany: localePage(allLocales) } })
 
   await run(makeSourceData([
     makeEntry('paged', { 'en-US': 'published', es: 'published', 'xx-0': 'draft' })
-  ]))
+  ]), {}, client)
 
   // 'es' only exists on the second page. Without paging it looks absent from the
   // destination and gets silently dropped from the publish.

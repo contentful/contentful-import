@@ -1,10 +1,11 @@
 import { spaceHasExoM1Entitlement } from '../../../lib/utils/publish-exo-entities'
+import { makePlainClientMock } from '../helpers/plain-client-mock'
 
 function makePlainClient({ spaceGet, rawGet }: { spaceGet: () => Promise<any>, rawGet: () => Promise<any> }) {
-  return {
+  return makePlainClientMock({
     space: { get: spaceGet },
     raw: { get: rawGet }
-  }
+  })
 }
 
 test('returns true when the org entitlement set has exoM1.value === true', async () => {

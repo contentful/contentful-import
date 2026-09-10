@@ -114,8 +114,7 @@ describe('Importing ExO entities organized into folders (cross-space)', () => {
   beforeAll(async () => {
     plainClient = createClient({ accessToken: managementToken })
 
-    const legacyClient = createClient({ accessToken: managementToken }, { type: 'legacy' })
-    const space = await legacyClient.createSpace({ name: 'IMPORT [AUTO] TOOL EXO FOLDER TMP' }, orgId)
+    const space = await plainClient.space.create({ organizationId: orgId }, { name: 'IMPORT [AUTO] TOOL EXO FOLDER TMP' })
     spaceId = space.sys.id
 
     // Keep the source IDs short enough for the importer-derived destination IDs
@@ -168,9 +167,7 @@ describe('Importing ExO entities organized into folders (cross-space)', () => {
     } finally {
       // Always delete the throwaway space, even if org-level concept/scheme cleanup above
       // failed - the two are independent resources and one failing shouldn't leak the other.
-      const legacyClient = createClient({ accessToken: managementToken }, { type: 'legacy' })
-      const space = await legacyClient.getSpace(spaceId)
-      await space.delete()
+      await plainClient.space.delete({ spaceId })
     }
   })
 
@@ -248,10 +245,9 @@ describe('Importing ExO entities organized into folders (same-space)', () => {
   let folderConceptId: string
 
   beforeAll(async () => {
-    const legacyClient = createClient({ accessToken: managementToken }, { type: 'legacy' })
-    const space = await legacyClient.createSpace({ name: 'IMPORT [AUTO] TOOL EXO FOLDER SAMESPACE TMP' }, orgId)
-    spaceId = space.sys.id
     plainClient = createClient({ accessToken: managementToken })
+    const space = await plainClient.space.create({ organizationId: orgId }, { name: 'IMPORT [AUTO] TOOL EXO FOLDER SAMESPACE TMP' })
+    spaceId = space.sys.id
     folderConceptId = `contentful.folder-samespace-${spaceId}`
 
     await plainClient.concept.createWithId(
@@ -286,9 +282,7 @@ describe('Importing ExO entities organized into folders (same-space)', () => {
       await unlinkConceptFromSchemeIfPresent(plainClient, COMPONENT_TYPE_SCHEME_ID, folderConceptId)
       await deleteConceptIfPresent(plainClient, folderConceptId)
     } finally {
-      const legacyClient = createClient({ accessToken: managementToken }, { type: 'legacy' })
-      const space = await legacyClient.getSpace(spaceId)
-      await space.delete()
+      await plainClient.space.delete({ spaceId })
     }
   })
 

@@ -1,5 +1,5 @@
 import { ContentTypeProps, EntryProps, TagProps, WebhookProps } from 'contentful-management'
-import { find, omit, pick, reduce } from 'lodash'
+import { find, omit, pick, reduce } from 'lodash-es'
 
 /**
  * Default transformer methods for each kind of entity.

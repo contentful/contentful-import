@@ -15,11 +15,7 @@ import {
   UpsertExperienceProps,
   UpdateDataAssemblyProps,
   UpsertDesignTokenProps,
-  PlainClientAPI,
-  Environment,
-  Entry,
-  Asset,
-  ContentType
+  PlainClientAPI
 } from 'contentful-management'
 import PQueue from 'p-queue'
 
@@ -35,7 +31,8 @@ import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEnt
 import { sortOrReport } from '../../utils/sort-or-report'
 import { importExoFolders } from '../../utils/import-exo-folders'
 import { buildLocalePublishPlan } from '../../utils/resolve-publish-locales'
-import { batchedPageQuery } from '../get-destination-data'
+import { getDestinationLocaleCodes } from '../../utils/destination-locales'
+import { ensureLocalePublishingEntitlement, isLocaleScopingUnavailable } from '../../utils/locale-publishing'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
@@ -73,7 +70,6 @@ type PushToSpaceParams = {
   destinationData: DestinationData,
   sourceData: TransformedSourceData,
   client?: any,
-  plainClient?: any,
   spaceId: string,
   environmentId: string,
   includeExperienceOrchestration?: boolean,
@@ -124,7 +120,6 @@ export default function pushToSpace({
   sourceData,
   destinationData = {},
   client,
-  plainClient,
   spaceId,
   environmentId,
   includeExperienceOrchestration,
@@ -169,23 +164,13 @@ export default function pushToSpace({
 
   return new Listr([
     {
-      title: 'Connecting to space',
-      task: wrapTask(async (ctx) => {
-        const space = await client.getSpace(spaceId)
-        const environment = await space.getEnvironment(environmentId)
-
-        ctx.space = space
-        ctx.environment = environment
-      })
-    },
-    {
       title: 'Importing Locales',
       task: wrapTask(async (ctx) => {
         if (!destinationDataById.locales) {
           return
         }
         const locales = await creation.createLocales({
-          context: { target: ctx.environment, type: 'Locale' },
+          context: { client, spaceId, environmentId, type: 'Locale' },
           entities: sourceData.locales,
           destinationEntitiesById: destinationDataById.locales,
           requestQueue
@@ -202,7 +187,7 @@ export default function pushToSpace({
           return
         }
         const contentTypes = await creation.createEntities({
-          context: { target: ctx.environment, type: 'ContentType' },
+          context: { client, spaceId, environmentId, type: 'ContentType' },
           entities: sourceData.contentTypes,
           destinationEntitiesById: destinationDataById.contentTypes,
           skipUpdates: false,
@@ -219,6 +204,9 @@ export default function pushToSpace({
         const publishedContentTypes = await publishEntities({
           entities: ctx.data.contentTypes,
           sourceEntities: sourceData.contentTypes,
+          client,
+          spaceId,
+          environmentId,
           requestQueue
         })
         ctx.data.contentTypes = publishedContentTypes
@@ -230,7 +218,7 @@ export default function pushToSpace({
       task: wrapTask(async (ctx) => {
         if (sourceData.tags && destinationDataById.tags) {
           const tags = await creation.createEntities({
-            context: { target: ctx.environment, type: 'Tag' },
+            context: { client, spaceId, environmentId, type: 'Tag' },
             entities: sourceData.tags,
             destinationEntitiesById: destinationDataById.tags,
             skipUpdates: false,
@@ -260,15 +248,26 @@ export default function pushToSpace({
           }
 
           try {
-            const ctEditorInterface = await requestQueue.add(() => ctx.environment.getEditorInterfaceForContentType(contentType.sys.id))
+            const ctEditorInterface = await requestQueue.add(() =>
+              client.editorInterface.get({ spaceId, environmentId, contentTypeId: contentType.sys.id })
+            )
             logEmitter.emit('info', `Fetched editor interface for ${contentType.name}`)
-            ctEditorInterface.controls = editorInterface.controls
-            ctEditorInterface.groupControls = editorInterface.groupControls
-            ctEditorInterface.editorLayout = editorInterface.editorLayout
-            ctEditorInterface.sidebar = editorInterface.sidebar
-            ctEditorInterface.editors = editorInterface.editors
 
-            const updatedEditorInterface = await requestQueue.add(() => ctEditorInterface.update())
+            const updatedData = {
+              ...ctEditorInterface,
+              controls: editorInterface.controls,
+              groupControls: editorInterface.groupControls,
+              editorLayout: editorInterface.editorLayout,
+              sidebar: editorInterface.sidebar,
+              editors: editorInterface.editors,
+            }
+
+            const updatedEditorInterface = await requestQueue.add(() =>
+              client.editorInterface.update(
+                { spaceId, environmentId, contentTypeId: contentType.sys.id },
+                updatedData
+              )
+            )
             return updatedEditorInterface
           } catch (err: any) {
             err.entity = editorInterface
@@ -295,10 +294,10 @@ export default function pushToSpace({
               try {
                 logEmitter.emit('info', `Uploading Asset file ${file.upload}`)
                 const assetStream = await assets.getAssetStreamForURL(file.upload, assetsDirectory)
-                const upload = await ctx.environment.createUpload({
-                  fileName: asset.transformed.sys.id,
-                  file: assetStream
-                })
+                const upload = await client.upload.create(
+                  { spaceId, environmentId },
+                  { file: assetStream }
+                )
 
                 delete file.upload
 
@@ -333,7 +332,7 @@ export default function pushToSpace({
           return
         }
         const assetsToProcess = await creation.createEntities({
-          context: { target: ctx.environment, type: 'Asset' },
+          context: { client, spaceId, environmentId, type: 'Asset' },
           entities: sourceData.assets,
           destinationEntitiesById: destinationDataById.assets,
           skipUpdates: skipAssetUpdates,
@@ -342,6 +341,9 @@ export default function pushToSpace({
 
         const processedAssets = await assets.processAssets({
           assets: assetsToProcess,
+          client,
+          spaceId,
+          environmentId,
           timeout,
           retryLimit,
           requestQueue
@@ -356,15 +358,11 @@ export default function pushToSpace({
         const publishedAssets = await publishEntities({
           entities: ctx.data.assets,
           sourceEntities: sourceData.assets,
+          client,
+          spaceId,
+          environmentId,
           requestQueue,
-          localePublishing: {
-            plainClient,
-            spaceId,
-            environmentId,
-            namespace: 'asset',
-            environment: ctx.environment,
-            destinationEntitiesById: unpublishDraftLocales ? destinationDataById.assets : undefined
-          }
+          destinationEntitiesById: unpublishDraftLocales ? destinationDataById.assets : undefined
         })
         ctx.data.publishedAssets = publishedAssets
       }),
@@ -376,6 +374,9 @@ export default function pushToSpace({
         const archivedAssets = await archiveEntities({
           entities: ctx.data.assets,
           sourceEntities: sourceData.assets,
+          client,
+          spaceId,
+          environmentId,
           requestQueue
         })
         ctx.data.archivedAssets = archivedAssets
@@ -386,7 +387,7 @@ export default function pushToSpace({
       title: 'Importing Content Entries',
       task: wrapTask(async (ctx) => {
         const entries = await creation.createEntries({
-          context: { target: ctx.environment, skipContentModel },
+          context: { client, spaceId, environmentId, skipContentModel, type: 'Entry' },
           entities: sourceData.entries,
           destinationEntitiesById: destinationDataById.entries,
           skipUpdates: skipContentUpdates,
@@ -402,15 +403,11 @@ export default function pushToSpace({
         const publishedEntries = await publishEntities({
           entities: ctx.data.entries,
           sourceEntities: sourceData.entries,
+          client,
+          spaceId,
+          environmentId,
           requestQueue,
-          localePublishing: {
-            plainClient,
-            spaceId,
-            environmentId,
-            namespace: 'entry',
-            environment: ctx.environment,
-            destinationEntitiesById: unpublishDraftLocales ? destinationDataById.entries : undefined
-          }
+          destinationEntitiesById: unpublishDraftLocales ? destinationDataById.entries : undefined
         })
         ctx.data.publishedEntries = publishedEntries
       }),
@@ -422,6 +419,9 @@ export default function pushToSpace({
         const archivedEntries = await archiveEntities({
           entities: ctx.data.entries,
           sourceEntities: sourceData.entries,
+          client,
+          spaceId,
+          environmentId,
           requestQueue
         })
         ctx.data.archivedEntries = archivedEntries
@@ -435,7 +435,7 @@ export default function pushToSpace({
           return
         }
         const webhooks = await creation.createEntities({
-          context: { target: ctx.space, type: 'Webhook' },
+          context: { client, spaceId, environmentId, type: 'Webhook' },
           entities: sourceData.webhooks,
           destinationEntitiesById: destinationDataById.webhooks,
           requestQueue
@@ -447,19 +447,25 @@ export default function pushToSpace({
     },
     {
       title: 'Create ExO Folders',
-      task: wrapTask(async (ctx) => {
-        await importExoFolders({
-          plainClient,
-          organizationId: ctx.space.sys.organization.sys.id,
-          destinationSpaceId: spaceId,
-          sourceEntities: {
-            designTokens: sourceData.designTokens,
-            components: sourceData.components,
-            experienceTemplates: sourceData.experienceTemplates,
-            experienceFragments: sourceData.experienceFragments,
-            experiences: sourceData.experiences,
-          },
-        })
+      task: wrapTask(async () => {
+
+        try {
+          const space = await client.space.get({ spaceId })
+          await importExoFolders({
+            client,
+            organizationId: space.sys.organization.sys.id,
+            destinationSpaceId: spaceId,
+            sourceEntities: {
+              designTokens: sourceData.designTokens,
+              components: sourceData.components,
+              experienceTemplates: sourceData.experienceTemplates,
+              experienceFragments: sourceData.experienceFragments,
+              experiences: sourceData.experiences,
+            },
+          })
+        } catch (error) {
+          logEmitter.emit('warning', `Unable to create Experience Orchestration (ExO) folders, error: ${error}`)
+        }
       }),
       skip: () => !includeExperienceOrchestration
     },
@@ -472,14 +478,14 @@ export default function pushToSpace({
             let result
             if (existing) {
               const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: buildDataAssemblySys(entity, existing.sys.version) }
-              result = await withGraphQLSchemaBackoff(() => plainClient.dataAssembly.update(
+              result = await withGraphQLSchemaBackoff(() => client.dataAssembly.update(
                 { spaceId, environmentId, dataAssemblyId: entity.sys.id },
                 payload
               ))
               logEmitter.emit('info', `UPDATE DataAssembly ${entity.sys.id}`)
             } else {
               const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: buildDataAssemblySys(entity, 0) }
-              result = await withGraphQLSchemaBackoff(() => plainClient.dataAssembly.update(
+              result = await withGraphQLSchemaBackoff(() => client.dataAssembly.update(
                 { spaceId, environmentId, dataAssemblyId: entity.sys.id },
                 payload
               ))
@@ -501,7 +507,7 @@ export default function pushToSpace({
       task: wrapTask(async (ctx: { data: { dataAssemblies: DataAssemblyProps[], publishedDataAssemblies: DataAssemblyProps[] } }) => {
         const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.dataAssemblies, sourceData.dataAssemblies || [])
         const results = await Promise.all(entitiesToPublish.map((entity) =>
-          publishExoEntity<DataAssemblyProps>('DataAssembly', entity, () => plainClient.dataAssembly.publish(
+          publishExoEntity<DataAssemblyProps>('DataAssembly', entity, () => client.dataAssembly.publish(
             { spaceId, environmentId, dataAssemblyId: entity.sys.id, version: entity.sys.version }
           ))
         ))
@@ -517,12 +523,12 @@ export default function pushToSpace({
             const existing = destinationDataById.designTokens?.get(entity.sys.id)
             if (existing) {
               const payload: UpsertDesignTokenProps = { ...entity, sys: { id: entity.sys.id, type: 'DesignToken', version: existing.sys.version } }
-              const result = await plainClient.designToken.upsert({ spaceId, environmentId, designTokenId: entity.sys.id }, payload)
+              const result = await client.designToken.upsert({ spaceId, environmentId, designTokenId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE DesignToken ${entity.sys.id}`)
               return result
             } else {
               const payload: UpsertDesignTokenProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'DesignToken' } }
-              const result = await plainClient.designToken.upsert({ spaceId, environmentId, designTokenId: entity.sys.id }, payload)
+              const result = await client.designToken.upsert({ spaceId, environmentId, designTokenId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE DesignToken ${entity.sys.id}`)
               return result
             }
@@ -546,12 +552,12 @@ export default function pushToSpace({
             const existing = destinationDataById.components?.get(entity.sys.id)
             if (existing) {
               const payload: UpsertComponentProps = { ...entity, sys: { id: entity.sys.id, type: 'Component', version: existing.sys.version } }
-              const result = await plainClient.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
+              const result = await client.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Component ${entity.sys.id}`)
               results.push(result)
             } else {
               const payload: UpsertComponentProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'Component' } }
-              const result = await plainClient.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
+              const result = await client.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE Component ${entity.sys.id}`)
               results.push(result)
             }
@@ -574,7 +580,7 @@ export default function pushToSpace({
         const sorted = sortOrReport(() => sortComponents(entitiesToPublish))
         const results: ComponentProps[] = []
         for (const entity of sorted) {
-          const published = await publishExoEntity<ComponentProps>('Component', entity, () => plainClient.component.publish(
+          const published = await publishExoEntity<ComponentProps>('Component', entity, () => client.component.publish(
             { spaceId, environmentId, componentId: entity.sys.id, version: entity.sys.version }
           ))
           if (published) results.push(published)
@@ -591,12 +597,12 @@ export default function pushToSpace({
             const existing = destinationDataById.experienceTemplates?.get(entity.sys.id)
             if (existing) {
               const payload: UpsertExperienceTemplateProps = { ...entity, sys: { id: entity.sys.id, type: 'ExperienceTemplate', version: existing.sys.version } }
-              const result = await plainClient.experienceTemplate.upsert({ spaceId, environmentId, experienceTemplateId: entity.sys.id }, payload)
+              const result = await client.experienceTemplate.upsert({ spaceId, environmentId, experienceTemplateId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE ExperienceTemplate ${entity.sys.id}`)
               return result
             } else {
               const payload: UpsertExperienceTemplateProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'ExperienceTemplate' } }
-              const result = await plainClient.experienceTemplate.upsert({ spaceId, environmentId, experienceTemplateId: entity.sys.id }, payload)
+              const result = await client.experienceTemplate.upsert({ spaceId, environmentId, experienceTemplateId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE ExperienceTemplate ${entity.sys.id}`)
               return result
             }
@@ -615,7 +621,7 @@ export default function pushToSpace({
       task: wrapTask(async (ctx: { data: { experienceTemplates: ExperienceTemplateProps[], publishedExperienceTemplates: ExperienceTemplateProps[] } }) => {
         const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.experienceTemplates, sourceData.experienceTemplates || [])
         const results = await Promise.all(entitiesToPublish.map((entity) =>
-          publishExoEntity<ExperienceTemplateProps>('ExperienceTemplate', entity, () => plainClient.experienceTemplate.publish(
+          publishExoEntity<ExperienceTemplateProps>('ExperienceTemplate', entity, () => client.experienceTemplate.publish(
             { spaceId, environmentId, experienceTemplateId: entity.sys.id, version: entity.sys.version }
           ))
         ))
@@ -635,12 +641,12 @@ export default function pushToSpace({
               // once an ExperienceFragment is created, its component cannot be changed to a different component -
               // the API rejects `component` on UPDATE even when the value is unchanged, so omit it entirely
               const payload: UpsertExperienceFragmentProps = { ...entity, sys: { id: entity.sys.id, type: 'ExperienceFragment', version: existing.sys.version } }
-              const result = await plainClient.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
+              const result = await client.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE ExperienceFragment ${entity.sys.id}`)
               results.push(result)
             } else {
               const payload: UpsertExperienceFragmentProps = { ...omitSys(entity), component: entity.sys.component, sys: { id: entity.sys.id, type: 'ExperienceFragment' } }
-              const result = await plainClient.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
+              const result = await client.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE ExperienceFragment ${entity.sys.id}`)
               results.push(result)
             }
@@ -662,7 +668,7 @@ export default function pushToSpace({
         const sorted = sortOrReport(() => sortExperienceFragments(entitiesToPublish))
         const results: ExperienceFragmentProps[] = []
         for (const entity of sorted) {
-          const published = await publishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => plainClient.experienceFragment.publish(
+          const published = await publishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => client.experienceFragment.publish(
             { spaceId, environmentId, experienceFragmentId: entity.sys.id, version: entity.sys.version }
           ))
           if (published) results.push(published)
@@ -681,12 +687,12 @@ export default function pushToSpace({
               // once an Experience is created, its experienceTemplate cannot be changed to a different experienceTemplate -
               // the API rejects `experienceTemplate` on UPDATE even when the value is unchanged, so omit it entirely
               const payload: UpsertExperienceProps = { ...entity, sys: { id: entity.sys.id, type: 'Experience', version: existing.sys.version } }
-              const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
+              const result = await client.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `UPDATE Experience ${entity.sys.id}`)
               return result
             } else {
               const payload: UpsertExperienceProps = { ...omitSys(entity), experienceTemplate: entity.sys.experienceTemplate, sys: { id: entity.sys.id, type: 'Experience' } }
-              const result = await plainClient.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
+              const result = await client.experience.upsert({ spaceId, environmentId, experienceId: entity.sys.id }, payload)
               logEmitter.emit('info', `CREATE Experience ${entity.sys.id}`)
               return result
             }
@@ -705,7 +711,7 @@ export default function pushToSpace({
       task: wrapTask(async (ctx: { data: { experiences: ExperienceProps[], publishedExperiences: ExperienceProps[] } }) => {
         const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.experiences, sourceData.experiences || [])
         const results = await Promise.all(entitiesToPublish.map((entity) =>
-          publishExoEntity<ExperienceProps>('Experience', entity, () => plainClient.experience.publish(
+          publishExoEntity<ExperienceProps>('Experience', entity, () => client.experience.publish(
             { spaceId, environmentId, experienceId: entity.sys.id, version: entity.sys.version }
           ))
         ))
@@ -721,7 +727,7 @@ export default function pushToSpace({
       task: wrapTask(async (ctx: { data: { experiences: ExperienceProps[] } }) => {
         const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.experiences, sourceData.experiences || [])
         await Promise.all(entitiesToUnpublish.map((entity) =>
-          unpublishExoEntity<ExperienceProps>('Experience', entity, () => plainClient.experience.unpublish(
+          unpublishExoEntity<ExperienceProps>('Experience', entity, () => client.experience.unpublish(
             { spaceId, environmentId, experienceId: entity.sys.id, version: entity.sys.version }
           ))
         ))
@@ -737,7 +743,7 @@ export default function pushToSpace({
         // unpublish first.
         const sorted = sortExperienceFragments(entitiesToUnpublish).reverse()
         for (const entity of sorted) {
-          await unpublishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => plainClient.experienceFragment.unpublish(
+          await unpublishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => client.experienceFragment.unpublish(
             { spaceId, environmentId, experienceFragmentId: entity.sys.id, version: entity.sys.version }
           ))
         }
@@ -749,7 +755,7 @@ export default function pushToSpace({
       task: wrapTask(async (ctx: { data: { experienceTemplates: ExperienceTemplateProps[] } }) => {
         const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.experienceTemplates, sourceData.experienceTemplates || [])
         await Promise.all(entitiesToUnpublish.map((entity) =>
-          unpublishExoEntity<ExperienceTemplateProps>('ExperienceTemplate', entity, () => plainClient.experienceTemplate.unpublish(
+          unpublishExoEntity<ExperienceTemplateProps>('ExperienceTemplate', entity, () => client.experienceTemplate.unpublish(
             { spaceId, environmentId, experienceTemplateId: entity.sys.id, version: entity.sys.version }
           ))
         ))
@@ -764,7 +770,7 @@ export default function pushToSpace({
         // a Component that a still-published parent references, so ancestors must unpublish first.
         const sorted = sortComponents(entitiesToUnpublish).reverse()
         for (const entity of sorted) {
-          await unpublishExoEntity<ComponentProps>('Component', entity, () => plainClient.component.unpublish(
+          await unpublishExoEntity<ComponentProps>('Component', entity, () => client.component.unpublish(
             { spaceId, environmentId, componentId: entity.sys.id, version: entity.sys.version }
           ))
         }
@@ -776,7 +782,7 @@ export default function pushToSpace({
       task: wrapTask(async (ctx: { data: { dataAssemblies: DataAssemblyProps[] } }) => {
         const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.dataAssemblies, sourceData.dataAssemblies || [])
         await Promise.all(entitiesToUnpublish.map((entity) =>
-          unpublishExoEntity<DataAssemblyProps>('DataAssembly', entity, () => plainClient.dataAssembly.unpublish(
+          unpublishExoEntity<DataAssemblyProps>('DataAssembly', entity, () => client.dataAssembly.unpublish(
             { spaceId, environmentId, dataAssemblyId: entity.sys.id, version: entity.sys.version }
           ))
         ))
@@ -792,7 +798,8 @@ function omitSys(entity) {
   return rest
 }
 
-function archiveEntities({ entities, sourceEntities, requestQueue }) {
+// function archiveEntities({ entities, sourceEntities, requestQueue }) {
+function archiveEntities({ entities, sourceEntities, client, spaceId, environmentId, requestQueue }) {
   const entityIdsToArchive = sourceEntities
     .filter(({ original }) => original.sys.archivedVersion)
     .map(({ original }) => original.sys.id)
@@ -800,63 +807,23 @@ function archiveEntities({ entities, sourceEntities, requestQueue }) {
   const entitiesToArchive = entities
     .filter((entity) => entityIdsToArchive.indexOf(entity.sys.id) !== -1)
 
-  return publishing.archiveEntities({ entities: entitiesToArchive, requestQueue })
+  return publishing.archiveEntities({ entities: entitiesToArchive, client, spaceId, environmentId, requestQueue })
 }
 
-type LocalePublishingSetup = {
-  plainClient: PlainClientAPI
+type PublishEntitiesParams = {
+  // Plain CMA entity props, not SDK-wrapped instances. Content types come through
+  // here too, not only entries and assets.
+  entities: any[]
+  sourceEntities: { original: any }[]
+  client: PlainClientAPI
   spaceId: string
   environmentId: string
-  namespace: 'entry' | 'asset'
-  // The legacy environment entity, not EnvironmentProps — batchedPageQuery calls
-  // getLocales() on it, which only exists on the entity.
-  environment: Environment
+  requestQueue: PQueue
   /** Destination entities, passed only when `unpublishDraftLocales` is enabled. */
   destinationEntitiesById?: Map<string, any>
 }
 
-// Cached per environment so assets and entries share one lookup per import.
-const destinationLocaleCodesCache = new WeakMap<object, Promise<string[] | null>>()
-
-/**
- * Locale codes of the destination environment, or null when they cannot be read.
- *
- * This reuses `batchedPageQuery` from `get-destination-data`, so the paging and the
- * `getLocales` registration are shared. What it cannot reuse is the *result* on
- * `destinationData.locales`: that field is only filled when `!skipContentModel &&
- * !skipLocales` and the content file itself carries locales
- * (get-destination-data.ts:266-274), and it stays an empty array otherwise. An
- * empty array is indistinguishable from "the destination has no locales", which
- * would make `resolvePublishLocales` skip every entity. Publish scoping has to
- * know the destination locales whatever the skip flags say, so it asks for them
- * directly and caches the answer for the run.
- */
-function getDestinationLocaleCodes(environment: Environment, requestQueue: PQueue): Promise<string[] | null> {
-  let localeCodes = destinationLocaleCodesCache.get(environment)
-
-  if (!localeCodes) {
-    // Paged: an environment can hold more locales than a single page returns, and a
-    // locale missed here would be silently dropped from the publish.
-    localeCodes = batchedPageQuery({ environment, type: 'locales', requestQueue })
-      .then((items) => items.map((locale) => locale.code))
-      .catch((err) => {
-        logEmitter.emit('warning', `Could not read the locales of the destination environment, falling back to publishing all locales: ${err.message}`)
-        return null
-      })
-    destinationLocaleCodesCache.set(environment, localeCodes as Promise<string[] | null>)
-  }
-
-  return localeCodes as Promise<string[] | null>
-}
-
-async function publishEntities({ entities, sourceEntities, requestQueue, localePublishing }: {
-  // Legacy SDK entities, not *Props — publishing.ts calls entity.publish() on these.
-  // Content types go through here too, not only entries and assets.
-  entities: (Entry | Asset | ContentType)[]
-  sourceEntities: { original: any }[]
-  requestQueue: PQueue
-  localePublishing?: LocalePublishingSetup
-}) {
+async function publishEntities({ entities, sourceEntities, client, spaceId, environmentId, requestQueue, destinationEntitiesById }: PublishEntitiesParams) {
   // Find all entities in source content which are published
   const entityIdsToPublish = sourceEntities
     .filter(({ original }) => original.sys.publishedVersion)
@@ -866,29 +833,33 @@ async function publishEntities({ entities, sourceEntities, requestQueue, localeP
   let entitiesToPublish = entities
     .filter((entity) => entityIdsToPublish.indexOf(entity.sys.id) !== -1)
 
-  // Locale-scoped publishing needs the plain client; the legacy client's
-  // `entity.publish()` cannot express a locale scope.
-  if (!localePublishing?.plainClient) {
-    return publishing.publishEntities({ entities: entitiesToPublish, requestQueue })
+  const publishAllLocales = () => publishing.publishEntities({ entities: entitiesToPublish, client, spaceId, environmentId, requestQueue })
+
+  // Only pay for the entitlement and locale lookups when the content file actually
+  // carries per-locale state. Content types never do.
+  const hasFieldStatus = sourceEntities.some(({ original }) => original.sys.fieldStatus)
+
+  if (!hasFieldStatus) {
+    return publishAllLocales()
   }
 
-  const { environment, destinationEntitiesById, ...clientContext } = localePublishing
+  await ensureLocalePublishingEntitlement(client, spaceId)
 
-  // Only pay for the locale lookup when the export actually carries per-locale state.
-  const hasFieldStatus = sourceEntities.some(({ original }) => original.sys.fieldStatus)
-  const destinationLocaleCodes = hasFieldStatus
-    ? await getDestinationLocaleCodes(environment, requestQueue)
-    : null
+  if (isLocaleScopingUnavailable(client)) {
+    return publishAllLocales()
+  }
 
-  const { localesByEntityId, skippedEntityIds, demoteLocalesByEntityId } = buildLocalePublishPlan(
+  const destinationLocaleCodes = await getDestinationLocaleCodes({ client, spaceId, environmentId, requestQueue })
+
+  const localePublishing = buildLocalePublishPlan(
     sourceEntities,
     destinationLocaleCodes,
     { destinationEntitiesById }
   )
 
-  if (skippedEntityIds.size) {
+  if (localePublishing.skippedEntityIds.size) {
     entitiesToPublish = entitiesToPublish.filter((entity) => {
-      if (!skippedEntityIds.has(entity.sys.id)) {
+      if (!localePublishing.skippedEntityIds.has(entity.sys.id)) {
         return true
       }
       logEmitter.emit('warning', `Not publishing ${entity.sys.type} ${entity.sys.id} because none of the locales it was published for exist in the destination environment`)
@@ -898,7 +869,10 @@ async function publishEntities({ entities, sourceEntities, requestQueue, localeP
 
   return publishing.publishEntities({
     entities: entitiesToPublish,
+    client,
+    spaceId,
+    environmentId,
     requestQueue,
-    localePublishing: { ...clientContext, localesByEntityId, demoteLocalesByEntityId }
+    localePublishing
   })
 }

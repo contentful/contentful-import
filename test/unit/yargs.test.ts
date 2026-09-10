@@ -34,6 +34,8 @@ describe("contentful-import yargs", () => {
       .stdout(/--unpublish-draft-locales/)
       .stdout(/--upload-assets/)
       .stdout(/--assets-directory/)
+      .stdout(/--timeout/)
+      .stdout(/--retry-limit/)
       .stdout(/--error-log-file/)
       .stdout(/--host/)
       .stdout(/--proxy/)
@@ -61,4 +63,3 @@ describe("contentful-import yargs", () => {
       .end(done);
   });
 });
-

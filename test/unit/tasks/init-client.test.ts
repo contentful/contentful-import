@@ -31,7 +31,8 @@ test('does create clients and passes custom logHandler', () => {
     port: 'port',
     proxy: 'proxy',
     accessToken: 'accessToken',
-    spaceId: 'spaceId'
+    spaceId: 'spaceId',
+    environmentId: 'master'
   }
 
   initClient(opts)
@@ -50,6 +51,13 @@ test('does create clients and passes custom logHandler', () => {
   })
   expect((contentfulManagement.createClient as jest.Mock).mock.calls[0][0]).toHaveProperty('logHandler')
   expect((contentfulManagement.createClient as jest.Mock).mock.calls[0][0].timeout).toEqual(30000)
+  expect((contentfulManagement.createClient as jest.Mock).mock.calls[0][1]).toEqual({
+    type: 'plain',
+    defaults: {
+      spaceId: 'spaceId',
+      environmentId: 'master'
+    }
+  })
   expect((contentfulManagement.createClient as jest.Mock).mock.calls).toHaveLength(1);
 
   // Call passed log handler

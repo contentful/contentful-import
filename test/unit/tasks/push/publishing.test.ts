@@ -6,6 +6,7 @@ import {
 
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { AssetProps } from 'contentful-management'
+import { makePlainClientMock as makeClient } from '../../helpers/plain-client-mock'
 
 jest.mock('contentful-batch-libs/dist/logging', () => ({
   logEmitter: {
@@ -16,6 +17,9 @@ jest.mock('contentful-batch-libs/dist/logging', () => ({
 const mockEmit = jest.mocked(logEmitter.emit)
 
 let requestQueue
+
+const spaceId = 'test-space'
+const environmentId = 'master'
 
 beforeEach(() => {
   // We set a high interval cap here because with the amount of data to fetch
@@ -31,18 +35,23 @@ afterEach(() => {
 })
 
 test('Publish entities', () => {
-  const publishStub = jest.fn()
-  publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '123', publishedVersion: 2 } }))
-  publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '456', publishedVersion: 3 } }))
+  const client = makeClient()
+  client.asset.publish
+    .mockResolvedValueOnce({ sys: { type: 'Asset', id: '123', publishedVersion: 2 } })
+    .mockResolvedValueOnce({ sys: { type: 'Asset', id: '456', publishedVersion: 3 } })
+
   return publishEntities({
     entities: [
-      { sys: { id: '123' }, publish: publishStub },
-      { sys: { id: '456' }, publish: publishStub }
+      { sys: { id: '123', type: 'Asset' } },
+      { sys: { id: '456', type: 'Asset' } }
     ],
+    client,
+    spaceId,
+    environmentId,
     requestQueue
   })
     .then((response) => {
-      expect(publishStub.mock.calls).toHaveLength(2)
+      expect(client.asset.publish.mock.calls).toHaveLength(2)
       expect((response[0] as AssetProps).sys.publishedVersion).toBeTruthy()
       expect(mockEmit.mock.calls).toHaveLength(4)
       const warningCount = mockEmit.mock.calls.filter((args) => args[0] === 'warning').length
@@ -54,53 +63,54 @@ test('Publish entities', () => {
 
 test('Only publishes valid entities and does not fail when api error occur', () => {
   const errorValidation = new Error('failed to publish')
-  const publishStub = jest.fn()
-  publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '123', publishedVersion: 2 } }))
-  publishStub.mockImplementationOnce(() => Promise.reject(errorValidation))
-  publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '456', publishedVersion: 3 } }))
+  const client = makeClient()
+  client.asset.publish
+    .mockResolvedValueOnce({ sys: { type: 'Asset', id: '123', publishedVersion: 2 } })
+    .mockRejectedValueOnce(errorValidation)
+    .mockResolvedValueOnce({ sys: { type: 'Asset', id: '456', publishedVersion: 3 } })
 
   return publishEntities({
     entities: [
-      { sys: { id: '123', type: 'asset' }, publish: publishStub },
-      undefined,
-      { sys: { id: '456', type: 'asset' }, publish: publishStub }
+      { sys: { id: '123', type: 'Asset' } },
+      { sys: { id: '456', type: 'Asset' } }
     ],
+    client,
+    spaceId,
+    environmentId,
     requestQueue
   })
     .then((result) => {
-      expect(publishStub.mock.calls).toHaveLength(3)
-      expect(mockEmit.mock.calls[0][0]).toBe('warning')
-      expect(mockEmit.mock.calls[0][1]).toBe('Unable to publish unknown')
-      expect(mockEmit.mock.calls[4][0]).toBe('error')
-      expect(mockEmit.mock.calls[4][1]).toBe(errorValidation)
-      expect(mockEmit.mock.calls).toHaveLength(7)
-      const lastLogIndex = mockEmit.mock.calls.length - 1
-      expect(mockEmit.mock.calls[lastLogIndex][0]).toBe('info')
-      expect(mockEmit.mock.calls[lastLogIndex][1]).toBe('Successfully published 2 assets')
+      expect(client.asset.publish.mock.calls).toHaveLength(3)
       expect(result).toHaveLength(2)
       const warningCount = mockEmit.mock.calls.filter((args) => args[0] === 'warning').length
       const errorCount = mockEmit.mock.calls.filter((args) => args[0] === 'error').length
-      expect(warningCount).toBe(1)
+      expect(warningCount).toBe(0)
       expect(errorCount).toBe(1)
+      const errorCall = mockEmit.mock.calls.find((args) => args[0] === 'error')
+      expect(errorCall![1]).toBe(errorValidation)
+      const lastLogIndex = mockEmit.mock.calls.length - 1
+      expect(mockEmit.mock.calls[lastLogIndex][0]).toBe('info')
+      expect(mockEmit.mock.calls[lastLogIndex][1]).toBe('Successfully published 2 Assets')
     })
 })
 
 test('Aborts publishing queue when all publishes fail', () => {
   const errorValidation = new Error('failed to publish')
-  const publishStub = jest.fn(() => Promise.reject(errorValidation))
+  const client = makeClient()
+  client.asset.publish.mockRejectedValue(errorValidation)
 
   return publishEntities({
     entities: [
-      { sys: { id: '123', type: 'asset' }, publish: publishStub },
-      { sys: { id: '456', type: 'asset' }, publish: publishStub }
+      { sys: { id: '123', type: 'Asset' } },
+      { sys: { id: '456', type: 'Asset' } }
     ],
+    client,
+    spaceId,
+    environmentId,
     requestQueue
   })
     .then((result) => {
-      expect(publishStub.mock.calls).toHaveLength(2)
-      expect(mockEmit.mock.calls[4][0]).toBe('error')
-      expect(mockEmit.mock.calls[4][1]).toBe(errorValidation)
-      expect(mockEmit.mock.calls).toHaveLength(7)
+      expect(client.asset.publish.mock.calls).toHaveLength(2)
       expect(result).toHaveLength(0)
       const warningCount = mockEmit.mock.calls.filter((args) => args[0] === 'warning').length
       const errorCount = mockEmit.mock.calls.filter((args) => args[0] === 'error').length
@@ -108,26 +118,30 @@ test('Aborts publishing queue when all publishes fail', () => {
       expect(errorCount).toBe(3)
       const lastLogIndex = mockEmit.mock.calls.length - 1
       expect(mockEmit.mock.calls[lastLogIndex][0]).toBe('info')
-      expect(mockEmit.mock.calls[lastLogIndex][1]).toBe('Successfully published 0 assets')
+      expect(mockEmit.mock.calls[lastLogIndex][1]).toBe('Successfully published 0 Assets')
     })
 })
 
 test('Aborts publishing queue when some publishes fail', () => {
   const errorValidation = new Error('failed to publish')
-  const publishStub = jest.fn()
-  publishStub.mockImplementationOnce(() => Promise.resolve({ sys: { type: 'Asset', id: '123', publishedVersion: 2 } }))
-  publishStub.mockImplementationOnce(() => Promise.reject(errorValidation))
-  publishStub.mockImplementationOnce(() => Promise.reject(errorValidation))
+  const client = makeClient()
+  client.asset.publish
+    .mockResolvedValueOnce({ sys: { type: 'Asset', id: '123', publishedVersion: 2 } })
+    .mockRejectedValueOnce(errorValidation)
+    .mockRejectedValueOnce(errorValidation)
 
   return publishEntities({
     entities: [
-      { sys: { id: '123', type: 'asset' }, publish: publishStub },
-      { sys: { id: '456', type: 'asset' }, publish: publishStub }
+      { sys: { id: '123', type: 'Asset' } },
+      { sys: { id: '456', type: 'Asset' } }
     ],
+    client,
+    spaceId,
+    environmentId,
     requestQueue
   })
     .then((result) => {
-      expect(publishStub.mock.calls).toHaveLength(3)
+      expect(client.asset.publish.mock.calls).toHaveLength(3)
       expect(result).toHaveLength(1)
       const warningCount = mockEmit.mock.calls.filter((args) => args[0] === 'warning').length
       const errorCount = mockEmit.mock.calls.filter((args) => args[0] === 'error').length
@@ -135,13 +149,17 @@ test('Aborts publishing queue when some publishes fail', () => {
       expect(errorCount).toBe(3)
       const lastLogIndex = mockEmit.mock.calls.length - 1
       expect(mockEmit.mock.calls[lastLogIndex][0]).toBe('info')
-      expect(mockEmit.mock.calls[lastLogIndex][1]).toBe('Successfully published 1 assets')
+      expect(mockEmit.mock.calls[lastLogIndex][1]).toBe('Successfully published 1 Assets')
     })
 })
 
 test('Skips publishing when no entities are given', () => {
+  const client = makeClient()
   return publishEntities({
     entities: [],
+    client,
+    spaceId,
+    environmentId,
     requestQueue
   })
     .then((result) => {
@@ -157,44 +175,43 @@ test('Skips publishing when no entities are given', () => {
     })
 })
 
-test('Archiving detects entities that can not be archived', () => {
+test('Skips archiving when no entities are given', () => {
+  const client = makeClient()
   return archiveEntities({
-    entities: [null, {}],
+    entities: [],
+    client,
+    spaceId,
+    environmentId,
     requestQueue
   })
     .then((result) => {
       expect(result).toHaveLength(0)
       const warningCount = mockEmit.mock.calls.filter((args) => args[0] === 'warning').length
       const errorCount = mockEmit.mock.calls.filter((args) => args[0] === 'error').length
-      expect(warningCount).toBe(2)
+      expect(warningCount).toBe(0)
       expect(errorCount).toBe(0)
       const lastLogIndex = mockEmit.mock.calls.length - 1
       expect(mockEmit.mock.calls[lastLogIndex][0]).toBe('info')
       expect(mockEmit.mock.calls[lastLogIndex][1]).toBe('Skipping archiving since zero valid entities passed')
-      expect(mockEmit.mock.calls).toHaveLength(3)
+      expect(mockEmit.mock.calls).toHaveLength(1)
     })
 })
 
-test('Skips archiving when no entities are given', () => {
-  const archiveMock = jest.fn()
+test('Archives entities and handles errors', () => {
   const errorArchiving = new Error('failed to archive')
-  archiveMock.mockImplementationOnce(() => Promise.resolve({ archived: true }))
-  archiveMock.mockImplementationOnce(() => Promise.reject(errorArchiving))
+  const client = makeClient()
+  client.entry.archive
+    .mockResolvedValueOnce({ sys: { type: 'Entry', id: '123' }, archived: true })
+    .mockRejectedValueOnce(errorArchiving)
+
   return archiveEntities({
     entities: [
-      {
-        sys: {
-          type: 'Entry'
-        },
-        archive: archiveMock
-      },
-      {
-        sys: {
-          type: 'Entry'
-        },
-        archive: archiveMock
-      }
+      { sys: { id: '123', type: 'Entry' } },
+      { sys: { id: '456', type: 'Entry' } }
     ],
+    client,
+    spaceId,
+    environmentId,
     requestQueue
   })
     .then((result) => {
@@ -204,121 +221,125 @@ test('Skips archiving when no entities are given', () => {
       const errorCount = mockEmit.mock.calls.filter((args) => args[0] === 'error').length
       expect(warningCount).toBe(0)
       expect(errorCount).toBe(1)
-      // Init info
       expect(mockEmit.mock.calls[0][0]).toBe('info')
       expect(mockEmit.mock.calls[0][1]).toBe('Archiving 2 Entrys')
-      // Error log
       expect(mockEmit.mock.calls[1][0]).toBe('error')
       expect(mockEmit.mock.calls[1][1]).toBe(errorArchiving)
-      // Success info
       expect(mockEmit.mock.calls[2][0]).toBe('info')
       expect(mockEmit.mock.calls[2][1]).toBe('Successfully archived 1 Entrys')
       expect(mockEmit.mock.calls).toHaveLength(3)
     })
 })
 
+function plan (overrides: any = {}) {
+  return {
+    localesByEntityId: new Map<string, string[]>(),
+    skippedEntityIds: new Set<string>(),
+    demoteLocalesByEntityId: new Map<string, string[]>(),
+    ...overrides
+  }
+}
+
+// A destination with locale-based publishing on reports per-locale state back on
+// the publish response. `destinationScopedThePublish` keys off exactly that.
+function scopedSys (type: string, id: string, version = 9) {
+  return {
+    sys: {
+      type,
+      id,
+      version,
+      publishedVersion: version - 1,
+      fieldStatus: { '*': { 'en-US': 'published', es: 'draft' } }
+    }
+  }
+}
+
 describe('locale-scoped publishing', () => {
-  function makePlainClient(): any {
+  function makeClient (): any {
     return {
       entry: {
-        publish: jest.fn((params: any) => Promise.resolve({
-          sys: { type: 'Entry', id: params.entryId, publishedVersion: 4 }
-        }))
+        publish: jest.fn((params: any) => Promise.resolve(scopedSys('Entry', params.entryId))),
+        unpublish: jest.fn((params: any) => Promise.resolve(scopedSys('Entry', params.entryId, 11)))
       },
       asset: {
-        publish: jest.fn((params: any) => Promise.resolve({
-          sys: { type: 'Asset', id: params.assetId, publishedVersion: 4 }
-        }))
+        publish: jest.fn((params: any) => Promise.resolve(scopedSys('Asset', params.assetId))),
+        unpublish: jest.fn((params: any) => Promise.resolve(scopedSys('Asset', params.assetId, 11)))
       }
     }
   }
 
   test('publishes only the locales named in the plan', async () => {
-    const plainClient = makePlainClient()
-    const legacyPublish = jest.fn()
-    const entity = { sys: { type: 'Entry', id: 'entry-1', version: 7 }, publish: legacyPublish }
+    const client = makeClient()
+    const entity = { sys: { type: 'Entry', id: 'entry-1', version: 7 } }
 
     await publishEntities({
       entities: [entity],
+      client,
+      spaceId: 'space-1',
+      environmentId: 'env-1',
       requestQueue,
-      localePublishing: {
-        plainClient,
-        spaceId: 'space-1',
-        environmentId: 'env-1',
-        namespace: 'entry',
-        localesByEntityId: new Map([['entry-1', ['en-US']]])
-      }
+      localePublishing: plan({ localesByEntityId: new Map([['entry-1', ['en-US']]]) })
     })
 
-    expect(legacyPublish).not.toHaveBeenCalled()
-    expect(plainClient.entry.publish).toHaveBeenCalledTimes(1)
-    expect(plainClient.entry.publish).toHaveBeenCalledWith(
+    expect(client.entry.publish).toHaveBeenCalledTimes(1)
+    expect(client.entry.publish).toHaveBeenCalledWith(
       { spaceId: 'space-1', environmentId: 'env-1', entryId: 'entry-1', locales: ['en-US'] },
       entity
     )
   })
 
-  test('falls back to a whole-entity publish for entities absent from the plan', async () => {
-    const plainClient = makePlainClient()
-    const legacyPublish = jest.fn(() => Promise.resolve({
-      sys: { type: 'Entry', id: 'entry-2', publishedVersion: 2 }
-    }))
-
-    await publishEntities({
-      entities: [{ sys: { type: 'Entry', id: 'entry-2', version: 3 }, publish: legacyPublish }],
-      requestQueue,
-      localePublishing: {
-        plainClient,
-        spaceId: 'space-1',
-        environmentId: 'env-1',
-        namespace: 'entry',
-        localesByEntityId: new Map([['entry-1', ['en-US']]])
-      }
-    })
-
-    expect(legacyPublish).toHaveBeenCalledTimes(1)
-    expect(plainClient.entry.publish).not.toHaveBeenCalled()
-  })
-
-  test('publishes assets through the asset endpoint', async () => {
-    const plainClient = makePlainClient()
-    const entity = { sys: { type: 'Asset', id: 'asset-1', version: 5 }, publish: jest.fn() }
+  test('publishes the whole entity for entities absent from the plan', async () => {
+    const client = makeClient()
+    const entity = { sys: { type: 'Entry', id: 'entry-2', version: 3 } }
 
     await publishEntities({
       entities: [entity],
+      client,
+      spaceId: 'space-1',
+      environmentId: 'env-1',
       requestQueue,
-      localePublishing: {
-        plainClient,
-        spaceId: 'space-1',
-        environmentId: 'env-1',
-        namespace: 'asset',
-        localesByEntityId: new Map([['asset-1', ['en-US', 'es']]])
-      }
+      localePublishing: plan({ localesByEntityId: new Map([['entry-1', ['en-US']]]) })
     })
 
-    expect(plainClient.entry.publish).not.toHaveBeenCalled()
-    expect(plainClient.asset.publish).toHaveBeenCalledWith(
+    expect(client.entry.publish).toHaveBeenCalledWith(
+      { spaceId: 'space-1', environmentId: 'env-1', entryId: 'entry-2', locales: undefined },
+      entity
+    )
+  })
+
+  test('publishes assets through the asset endpoint', async () => {
+    const client = makeClient()
+    const entity = { sys: { type: 'Asset', id: 'asset-1', version: 5 } }
+
+    await publishEntities({
+      entities: [entity],
+      client,
+      spaceId: 'space-1',
+      environmentId: 'env-1',
+      requestQueue,
+      localePublishing: plan({ localesByEntityId: new Map([['asset-1', ['en-US', 'es']]]) })
+    })
+
+    expect(client.entry.publish).not.toHaveBeenCalled()
+    expect(client.asset.publish).toHaveBeenCalledWith(
       { spaceId: 'space-1', environmentId: 'env-1', assetId: 'asset-1', locales: ['en-US', 'es'] },
       entity
     )
   })
 
   test('reports a locale-scoped publish failure without failing the import', async () => {
-    const plainClient = makePlainClient()
-    plainClient.entry.publish = jest.fn((params: any) => Promise.reject(
+    const client = makeClient()
+    client.entry.publish = jest.fn((params: any) => Promise.reject(
       new Error(`422 InvalidEntry for ${params.entryId}`)
     ))
 
     const result = await publishEntities({
-      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 }, publish: jest.fn() }],
+      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 } }],
+      client,
+      spaceId: 'space-1',
+      environmentId: 'env-1',
       requestQueue,
-      localePublishing: {
-        plainClient,
-        spaceId: 'space-1',
-        environmentId: 'env-1',
-        namespace: 'entry',
-        localesByEntityId: new Map([['entry-1', ['en-US']]])
-      }
+      localePublishing: plan({ localesByEntityId: new Map([['entry-1', ['en-US']]]) })
     })
 
     expect(result).toHaveLength(0)
@@ -328,92 +349,76 @@ describe('locale-scoped publishing', () => {
 })
 
 describe('demoting draft locales', () => {
-  function makePlainClient(): any {
+  function makeClient (): any {
     return {
       entry: {
-        publish: jest.fn((params: any) => Promise.resolve({
-          sys: { type: 'Entry', id: params.entryId, version: 9, publishedVersion: 8 }
-        })),
-        unpublish: jest.fn((params: any) => Promise.resolve({
-          sys: { type: 'Entry', id: params.entryId, version: 11, publishedVersion: 10 }
-        }))
+        publish: jest.fn((params: any) => Promise.resolve(scopedSys('Entry', params.entryId))),
+        unpublish: jest.fn((params: any) => Promise.resolve(scopedSys('Entry', params.entryId, 11)))
       },
       asset: { publish: jest.fn(), unpublish: jest.fn() }
     }
   }
 
-  const baseContext = {
-    spaceId: 'space-1',
-    environmentId: 'env-1',
-    namespace: 'entry' as const,
-    localesByEntityId: new Map([['entry-1', ['en-US']]])
-  }
+  const base = { spaceId: 'space-1', environmentId: 'env-1' }
+  const localesByEntityId = new Map([['entry-1', ['en-US']]])
 
   test('unpublishes the demoted locales after publishing, using the published version', async () => {
-    const plainClient = makePlainClient()
+    const client = makeClient()
 
     await publishEntities({
-      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 }, publish: jest.fn() }],
+      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 } }],
+      client,
+      ...base,
       requestQueue,
-      localePublishing: {
-        ...baseContext,
-        plainClient,
+      localePublishing: plan({
+        localesByEntityId,
         demoteLocalesByEntityId: new Map([['entry-1', ['es']]])
-      }
+      })
     })
 
-    expect(plainClient.entry.publish).toHaveBeenCalledTimes(1)
-    expect(plainClient.entry.unpublish).toHaveBeenCalledTimes(1)
-    expect(plainClient.entry.unpublish).toHaveBeenCalledWith(
+    expect(client.entry.publish).toHaveBeenCalledTimes(1)
+    expect(client.entry.unpublish).toHaveBeenCalledTimes(1)
+    expect(client.entry.unpublish).toHaveBeenCalledWith(
       { spaceId: 'space-1', environmentId: 'env-1', entryId: 'entry-1', locales: ['es'] },
       // version 9 comes from the publish response, not the stale pre-publish entity
-      { sys: { type: 'Entry', id: 'entry-1', version: 9, publishedVersion: 8 } }
+      scopedSys('Entry', 'entry-1')
     )
   })
 
   test('does not unpublish when the entity has nothing to demote', async () => {
-    const plainClient = makePlainClient()
+    const client = makeClient()
 
     await publishEntities({
-      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 }, publish: jest.fn() }],
+      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 } }],
+      client,
+      ...base,
       requestQueue,
-      localePublishing: { ...baseContext, plainClient, demoteLocalesByEntityId: new Map() }
+      localePublishing: plan({ localesByEntityId })
     })
 
-    expect(plainClient.entry.publish).toHaveBeenCalledTimes(1)
-    expect(plainClient.entry.unpublish).not.toHaveBeenCalled()
-  })
-
-  test('does not unpublish when no demotion plan is supplied at all', async () => {
-    const plainClient = makePlainClient()
-
-    await publishEntities({
-      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 }, publish: jest.fn() }],
-      requestQueue,
-      localePublishing: { ...baseContext, plainClient }
-    })
-
-    expect(plainClient.entry.unpublish).not.toHaveBeenCalled()
+    expect(client.entry.publish).toHaveBeenCalledTimes(1)
+    expect(client.entry.unpublish).not.toHaveBeenCalled()
   })
 
   test('reports a failed demotion without failing the import', async () => {
-    const plainClient = makePlainClient()
-    plainClient.entry.unpublish = jest.fn((params: any) => Promise.reject(
+    const client = makeClient()
+    client.entry.unpublish = jest.fn((params: any) => Promise.reject(
       new Error(`cannot unpublish ${params.entryId}`)
     ))
 
     const result = await publishEntities({
-      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 }, publish: jest.fn() }],
+      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 } }],
+      client,
+      ...base,
       requestQueue,
-      localePublishing: {
-        ...baseContext,
-        plainClient,
+      localePublishing: plan({
+        localesByEntityId,
         demoteLocalesByEntityId: new Map([['entry-1', ['es']]])
-      }
+      })
     })
 
     // The publish succeeded, so the entity still counts as published even though
-    // the demotion failed — otherwise runQueue retries it with a stale version.
+    // the demotion failed - otherwise runQueue retries it with a stale version.
     expect(result).toHaveLength(1)
     expect((result[0] as any).sys.id).toBe('entry-1')
     const errorCount = mockEmit.mock.calls.filter((args) => args[0] === 'error').length
@@ -424,17 +429,15 @@ describe('demoting draft locales', () => {
 describe('a failed demotion must not invalidate a successful publish', () => {
   test('keeps the published entity, does not retry it, and reports one failure', async () => {
     const publishAttempts: string[] = []
-    const plainClient: any = {
+    const client: any = {
       entry: {
         publish: jest.fn((params: any, rawData: any) => {
           publishAttempts.push(`${params.entryId}@v${rawData.sys.version}`)
-          return Promise.resolve({
-            sys: { type: 'Entry', id: params.entryId, version: 8, publishedVersion: 7 }
-          })
+          return Promise.resolve(scopedSys('Entry', params.entryId, 8))
         }),
         unpublish: jest.fn((params: any) => params.entryId === 'entry-demote-fails'
           ? Promise.reject(new Error('unpublish rejected'))
-          : Promise.resolve({ sys: { type: 'Entry', id: params.entryId, version: 10 } })
+          : Promise.resolve(scopedSys('Entry', params.entryId, 10))
         )
       },
       asset: { publish: jest.fn(), unpublish: jest.fn() }
@@ -442,21 +445,20 @@ describe('a failed demotion must not invalidate a successful publish', () => {
 
     const result = await publishEntities({
       entities: [
-        { sys: { type: 'Entry', id: 'entry-ok', version: 7 }, publish: jest.fn() },
-        { sys: { type: 'Entry', id: 'entry-demote-fails', version: 7 }, publish: jest.fn() }
+        { sys: { type: 'Entry', id: 'entry-ok', version: 7 } },
+        { sys: { type: 'Entry', id: 'entry-demote-fails', version: 7 } }
       ],
+      client,
+      spaceId: 'space-1',
+      environmentId: 'env-1',
       requestQueue,
-      localePublishing: {
-        plainClient,
-        spaceId: 'space-1',
-        environmentId: 'env-1',
-        namespace: 'entry',
+      localePublishing: plan({
         localesByEntityId: new Map([
           ['entry-ok', ['en-US']],
           ['entry-demote-fails', ['en-US']]
         ]),
         demoteLocalesByEntityId: new Map([['entry-demote-fails', ['es']]])
-      }
+      })
     })
 
     // The publish succeeded for both, so neither may be re-sent with a stale version.
@@ -465,7 +467,7 @@ describe('a failed demotion must not invalidate a successful publish', () => {
     // Both entities are published; only the demotion failed.
     expect(result.map((e: any) => e.sys.id).sort()).toEqual(['entry-demote-fails', 'entry-ok'])
 
-    // Exactly one error — the demotion — and no misleading "could not publish".
+    // Exactly one error - the demotion - and no misleading "could not publish".
     const errors = mockEmit.mock.calls.filter((args) => args[0] === 'error')
     expect(errors).toHaveLength(1)
     expect(String(errors[0][1])).toMatch(/unpublish rejected/)
@@ -475,116 +477,177 @@ describe('a failed demotion must not invalidate a successful publish', () => {
   })
 })
 
-describe('a space without the locale-based publishing entitlement', () => {
-  function forbidden (message: string) {
-    return new Error(JSON.stringify({ status: 403, message }))
+describe('a destination that cannot honour a locale scope', () => {
+  function rejection (status: number, message: string) {
+    return new Error(JSON.stringify({ status, message }))
   }
 
   test('falls back to a whole-entity publish and only warns once for the run', async () => {
-    const legacyPublishes: string[] = []
-    const makeEntity = (id: string) => ({
-      sys: { type: 'Entry', id, version: 7 },
-      publish: jest.fn(() => {
-        legacyPublishes.push(id)
-        return Promise.resolve({ sys: { type: 'Entry', id, version: 8, publishedVersion: 7 } })
-      })
-    })
-
-    const plainClient: any = {
+    const client: any = {
       entry: {
-        publish: jest.fn(() => Promise.reject(forbidden('locale based publishing not enabled'))),
+        publish: jest.fn((params: any) => params.locales
+          ? Promise.reject(rejection(403, 'locale based publishing not enabled'))
+          : Promise.resolve({ sys: { type: 'Entry', id: params.entryId, version: 8, publishedVersion: 7 } })
+        ),
         unpublish: jest.fn()
       },
       asset: { publish: jest.fn(), unpublish: jest.fn() }
     }
 
-    const localePublishing = {
-      plainClient,
+    const result = await publishEntities({
+      entities: [
+        { sys: { type: 'Entry', id: 'entry-1', version: 7 } },
+        { sys: { type: 'Entry', id: 'entry-2', version: 7 } }
+      ],
+      client,
       spaceId: 'space-1',
       environmentId: 'env-1',
-      namespace: 'entry' as const,
-      localesByEntityId: new Map([['entry-1', ['en-US']], ['entry-2', ['en-US']]]),
-      demoteLocalesByEntityId: new Map([['entry-1', ['es']]])
-    }
-
-    const result = await publishEntities({
-      entities: [makeEntity('entry-1'), makeEntity('entry-2')],
       requestQueue,
-      localePublishing
+      localePublishing: plan({
+        localesByEntityId: new Map([['entry-1', ['en-US']], ['entry-2', ['en-US']]]),
+        demoteLocalesByEntityId: new Map([['entry-1', ['es']]])
+      })
     })
 
-    // Both entities published, through the legacy whole-entity path.
     expect(result.map((e: any) => e.sys.id)).toEqual(['entry-1', 'entry-2'])
-    expect(legacyPublishes).toEqual(['entry-1', 'entry-2'])
 
-    // Only the first entity pays for the rejected locale-scoped attempt.
-    expect(plainClient.entry.publish).toHaveBeenCalledTimes(1)
+    // entry-1 pays for the rejected scoped attempt, then both go through unscoped.
+    const scoped = client.entry.publish.mock.calls.filter((args: any[]) => args[0].locales)
+    const unscoped = client.entry.publish.mock.calls.filter((args: any[]) => !args[0].locales)
+    expect(scoped).toHaveLength(1)
+    expect(unscoped).toHaveLength(2)
 
-    // No demotion is attempted once locale scoping is off — it would 403 too.
-    expect(plainClient.entry.unpublish).not.toHaveBeenCalled()
+    // No demotion is attempted once locale scoping is off - it would be rejected too.
+    expect(client.entry.unpublish).not.toHaveBeenCalled()
 
     const warnings = mockEmit.mock.calls.filter((args) => args[0] === 'warning')
     expect(warnings).toHaveLength(1)
-    expect(String(warnings[0][1])).toMatch(/locale-based publishing may not be enabled/i)
+    expect(String(warnings[0][1])).toMatch(/Settings > Locales > Publishing options/)
 
     const errors = mockEmit.mock.calls.filter((args) => args[0] === 'error')
     expect(errors).toHaveLength(0)
   })
 
-  test('reads the 403 off err.status as well as off a JSON message', async () => {
+  test('reads the status off err.status as well as off a JSON message', async () => {
     const err: any = new Error('Forbidden')
     err.status = 403
 
-    const legacyPublish = jest.fn(() => Promise.resolve({
-      sys: { type: 'Asset', id: 'asset-1', version: 8, publishedVersion: 7 }
-    }))
-    const plainClient: any = {
+    const client: any = {
       entry: { publish: jest.fn(), unpublish: jest.fn() },
-      asset: { publish: jest.fn(() => Promise.reject(err)), unpublish: jest.fn() }
+      asset: {
+        publish: jest.fn((params: any) => params.locales
+          ? Promise.reject(err)
+          : Promise.resolve({ sys: { type: 'Asset', id: params.assetId, version: 8, publishedVersion: 7 } })
+        ),
+        unpublish: jest.fn()
+      }
     }
 
     const result = await publishEntities({
-      entities: [{ sys: { type: 'Asset', id: 'asset-1', version: 7 }, publish: legacyPublish }],
+      entities: [{ sys: { type: 'Asset', id: 'asset-1', version: 7 } }],
+      client,
+      spaceId: 'space-1',
+      environmentId: 'env-1',
       requestQueue,
-      localePublishing: {
-        plainClient,
-        spaceId: 'space-1',
-        environmentId: 'env-1',
-        namespace: 'asset' as const,
-        localesByEntityId: new Map([['asset-1', ['en-US']]])
-      }
+      localePublishing: plan({ localesByEntityId: new Map([['asset-1', ['en-US']]]) })
     })
 
     expect(result).toHaveLength(1)
-    expect(legacyPublish).toHaveBeenCalledTimes(1)
     expect(mockEmit.mock.calls.filter((args) => args[0] === 'warning')).toHaveLength(1)
   })
 
-  test('a non-403 rejection is still reported rather than silently downgraded', async () => {
-    const legacyPublish = jest.fn()
-    const plainClient: any = {
+  test('a 400 rejection is treated the same as a 403', async () => {
+    const client: any = {
       entry: {
-        publish: jest.fn(() => Promise.reject(new Error(JSON.stringify({ status: 422, message: 'InvalidEntry' })))),
+        publish: jest.fn((params: any) => params.locales
+          ? Promise.reject(rejection(400, 'unknown payload'))
+          : Promise.resolve({ sys: { type: 'Entry', id: params.entryId, version: 8, publishedVersion: 7 } })
+        ),
         unpublish: jest.fn()
       },
       asset: { publish: jest.fn(), unpublish: jest.fn() }
     }
 
     const result = await publishEntities({
-      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 }, publish: legacyPublish }],
+      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 } }],
+      client,
+      spaceId: 'space-1',
+      environmentId: 'env-1',
       requestQueue,
-      localePublishing: {
-        plainClient,
-        spaceId: 'space-1',
-        environmentId: 'env-1',
-        namespace: 'entry' as const,
-        localesByEntityId: new Map([['entry-1', ['en-US']]])
-      }
+      localePublishing: plan({ localesByEntityId: new Map([['entry-1', ['en-US']]]) })
+    })
+
+    expect(result).toHaveLength(1)
+    expect(mockEmit.mock.calls.filter((args) => args[0] === 'warning')).toHaveLength(1)
+  })
+
+  test('a non-rejectable error is still reported rather than silently downgraded', async () => {
+    const client: any = {
+      entry: {
+        publish: jest.fn(() => Promise.reject(rejection(422, 'InvalidEntry'))),
+        unpublish: jest.fn()
+      },
+      asset: { publish: jest.fn(), unpublish: jest.fn() }
+    }
+
+    const result = await publishEntities({
+      entities: [{ sys: { type: 'Entry', id: 'entry-1', version: 7 } }],
+      client,
+      spaceId: 'space-1',
+      environmentId: 'env-1',
+      requestQueue,
+      localePublishing: plan({ localesByEntityId: new Map([['entry-1', ['en-US']]]) })
     })
 
     expect(result).toHaveLength(0)
-    expect(legacyPublish).not.toHaveBeenCalled()
     expect(mockEmit.mock.calls.filter((args) => args[0] === 'error').length).toBeGreaterThan(0)
     expect(mockEmit.mock.calls.filter((args) => args[0] === 'warning')).toHaveLength(0)
+  })
+
+  // Ethan's repro: the destination is entitled but the environment is still on
+  // "Publish all locales". The CMA accepts the payload and publishes everything,
+  // so there is no error to catch - the tell is the missing per-locale state.
+  test('detects a destination that accepts the payload but ignores the scope', async () => {
+    const client: any = {
+      entry: {
+        publish: jest.fn((params: any) => Promise.resolve({
+          sys: { type: 'Entry', id: params.entryId, version: 8, publishedVersion: 7 }
+        })),
+        unpublish: jest.fn()
+      },
+      asset: { publish: jest.fn(), unpublish: jest.fn() }
+    }
+
+    const result = await publishEntities({
+      entities: [
+        { sys: { type: 'Entry', id: 'entry-1', version: 7 } },
+        { sys: { type: 'Entry', id: 'entry-2', version: 7 } }
+      ],
+      client,
+      spaceId: 'space-1',
+      environmentId: 'env-1',
+      requestQueue,
+      localePublishing: plan({
+        localesByEntityId: new Map([['entry-1', ['en-US']], ['entry-2', ['en-US']]]),
+        demoteLocalesByEntityId: new Map([['entry-1', ['es']], ['entry-2', ['es']]])
+      })
+    })
+
+    expect(result).toHaveLength(2)
+
+    // Only the first entity is sent with a scope; the rest of the run gives up on it.
+    const scoped = client.entry.publish.mock.calls.filter((args: any[]) => args[0].locales)
+    expect(scoped).toHaveLength(1)
+
+    // Crucially, no demotion is attempted: an unpublish the destination would not
+    // scope either is a pointless write against a destination that cannot express it.
+    expect(client.entry.unpublish).not.toHaveBeenCalled()
+
+    const warnings = mockEmit.mock.calls.filter((args) => args[0] === 'warning')
+    expect(warnings).toHaveLength(1)
+    expect(String(warnings[0][1])).toMatch(/without honouring the requested locales/)
+    expect(String(warnings[0][1])).toMatch(/Settings > Locales > Publishing options/)
+
+    expect(mockEmit.mock.calls.filter((args) => args[0] === 'error')).toHaveLength(0)
   })
 })

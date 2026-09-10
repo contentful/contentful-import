@@ -1,13 +1,11 @@
-import { find } from 'lodash/collection'
-import { assign, get, omitBy, omit } from 'lodash/object'
+import { find, assign, get, omitBy, omit } from 'lodash-es'
 
 import getEntityName from 'contentful-batch-libs/dist/get-entity-name'
 import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { ContentfulEntityError } from '../../utils/errors'
 import { TransformedSourceData, TransformedSourceDataUnion } from '../../types'
 import PQueue from 'p-queue'
-import { PushToSpaceContext } from './push-to-space'
-import { LocaleProps } from 'contentful-management'
+import { AssetProps, ContentTypeProps, EntryProps, LocaleProps, PlainClientAPI, WebhookProps } from 'contentful-management'
 
 type CreateEntitiesParams = {
   context: PushToSpaceContext,
@@ -17,12 +15,20 @@ type CreateEntitiesParams = {
   requestQueue: PQueue
 }
 
+export type PushToSpaceContext = {
+  type: string,
+  client: PlainClientAPI,
+  spaceId: string,
+  environmentId: string,
+  skipContentModel?: boolean,
+}
+
 /**
  * Creates a list of entities
  * Applies to all entities except Entries, as the CMA API for those is slightly different
  * See handleCreationErrors for details on what errors reject the promise or not.
  */
-export function createEntities ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }: CreateEntitiesParams) {
+export function createEntities({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }: CreateEntitiesParams) {
   return createEntitiesWithConcurrency({ context, entities, destinationEntitiesById, skipUpdates, requestQueue })
 }
 
@@ -35,11 +41,11 @@ type CreateLocalesParams = {
   requestQueue: PQueue
 }
 
-export function createLocales ({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
+export function createLocales({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
   return createEntitiesInSequence({ context, entities, destinationEntitiesById, requestQueue })
 }
 
-async function createEntitiesWithConcurrency ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
+async function createEntitiesWithConcurrency({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
   const pendingCreatedEntities = entities.map((entity) => {
     const destinationEntity = getDestinationEntityForSourceEntity(destinationEntitiesById, entity.transformed)
     const updateOperation = skipUpdates ? 'skip' : 'update'
@@ -53,7 +59,7 @@ async function createEntitiesWithConcurrency ({ context, entities, destinationEn
     return requestQueue.add(async () => {
       try {
         const createdEntity = await (destinationEntity
-          ? updateDestinationWithSourceData(destinationEntity, entity.transformed)
+          ? updateDestinationWithSourceData(context, destinationEntity, entity.transformed)
           : createInDestination(context, entity.transformed))
 
         creationSuccessNotifier(operation, createdEntity)
@@ -71,8 +77,8 @@ async function createEntitiesWithConcurrency ({ context, entities, destinationEn
   return createdEntities.filter((entity) => entity)
 }
 
-async function createEntitiesInSequence ({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
-  const createdEntities: LocaleProps[] = []
+async function createEntitiesInSequence({ context, entities, destinationEntitiesById, requestQueue }: CreateLocalesParams) {
+  const createdEntities: any[] = []
 
   for (const entity of entities) {
     const destinationEntity = getDestinationEntityForSourceEntity(destinationEntitiesById, entity.transformed)
@@ -83,7 +89,7 @@ async function createEntitiesInSequence ({ context, entities, destinationEntitie
       // we still want to go through the normal rate limiting queue
       const createdEntity = await requestQueue.add(async () => {
         const createdOrUpdatedEntity = await (destinationEntity
-          ? updateDestinationWithSourceData(destinationEntity, entity.transformed)
+          ? updateDestinationWithSourceData(context, destinationEntity, entity.transformed)
           : createInDestination(context, entity.transformed))
         return createdOrUpdatedEntity
       })
@@ -105,15 +111,15 @@ async function createEntitiesInSequence ({ context, entities, destinationEntitie
 /**
  * Creates a list of entries
  */
-export async function createEntries ({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
+export async function createEntries({ context, entities, destinationEntitiesById, skipUpdates, requestQueue }) {
   const createdEntries = await Promise.all(entities.map((entry) => {
-    return createEntry({ entry, target: context.target, skipContentModel: context.skipContentModel, destinationEntitiesById, skipUpdates, requestQueue })
+    return createEntry({ entry, context, destinationEntitiesById, skipUpdates, requestQueue })
   }))
 
   return createdEntries.filter((entry) => entry)
 }
 
-async function createEntry ({ entry, target, skipContentModel, destinationEntitiesById, skipUpdates, requestQueue }) {
+async function createEntry({ entry, context, destinationEntitiesById, skipUpdates, requestQueue }) {
   const contentTypeId = entry.original.sys.contentType.sys.id
   const destinationEntry = getDestinationEntityForSourceEntity(
     destinationEntitiesById, entry.transformed)
@@ -125,9 +131,9 @@ async function createEntry ({ entry, target, skipContentModel, destinationEntiti
   }
   try {
     const createdOrUpdatedEntry = await requestQueue.add(() => {
-      return destinationEntry 
-        ? updateDestinationWithSourceData(destinationEntry, entry.transformed) 
-        : createEntryInDestination(target, contentTypeId, entry.transformed)
+      return destinationEntry
+        ? updateDestinationWithSourceData(context, destinationEntry, entry.transformed)
+        : createEntryInDestination(context, contentTypeId, entry.transformed)
     })
 
     creationSuccessNotifier(operation, createdOrUpdatedEntry)
@@ -138,10 +144,10 @@ async function createEntry ({ entry, target, skipContentModel, destinationEntiti
      * In that case, the field is removed from the entry, and creation is attempted again.
     */
     if (err instanceof Error) {
-      if (skipContentModel && err.name === 'UnknownField') {
+      if (context.skipContentModel && err.name === 'UnknownField') {
         const errors = get(JSON.parse(err.message), 'details.errors')
         entry.transformed.fields = cleanupUnknownFields(entry.transformed.fields, errors)
-        return createEntry({ entry, target, skipContentModel, destinationEntitiesById, skipUpdates, requestQueue })
+        return createEntry({ entry, context, destinationEntitiesById, skipUpdates, requestQueue })
       }
     }
     if (err instanceof ContentfulEntityError) {
@@ -154,40 +160,92 @@ async function createEntry ({ entry, target, skipContentModel, destinationEntiti
   }
 }
 
-function updateDestinationWithSourceData (destinationEntity, sourceEntity) {
+function updateDestinationWithSourceData(context: PushToSpaceContext, destinationEntity, sourceEntity) {
+  const { client, spaceId, environmentId, type } = context
   const plainData = getPlainData(sourceEntity)
-  assign(destinationEntity, plainData)
-  return destinationEntity.update()
+  const updated = assign({}, plainData, { sys: destinationEntity.sys })
+
+  if (type === 'Entry') {
+    return client.entry.update(
+      { spaceId, environmentId, entryId: destinationEntity.sys.id },
+      updated as EntryProps
+    )
+  }
+  if (type === 'ContentType') {
+    return client.contentType.update(
+      { spaceId, environmentId, contentTypeId: destinationEntity.sys.id },
+      updated as ContentTypeProps
+    )
+  }
+  if (type === 'Asset') {
+    return client.asset.update(
+      { spaceId, environmentId, assetId: destinationEntity.sys.id },
+      updated as AssetProps
+    )
+  }
+  if (type === 'Locale') {
+    return client.locale.update(
+      { spaceId, environmentId, localeId: destinationEntity.sys.id },
+      updated as LocaleProps
+    )
+  }
+  if (type === 'Webhook') {
+    return client.webhook.update(
+      { spaceId, webhookDefinitionId: destinationEntity.sys.id },
+      updated as WebhookProps
+    )
+  }
+  throw new Error(`updateDestinationWithSourceData: unsupported type "${type}"`)
 }
 
-function createInDestination (context, sourceEntity) {
-  const { type, target } = context
+function createInDestination(context: PushToSpaceContext, sourceEntity) {
+  const { type, client, spaceId, environmentId } = context
   if (type === 'Tag') {
-    // tags are created with a different signature
     return createTagInDestination(context, sourceEntity)
   }
 
   const id = get(sourceEntity, 'sys.id')
   const plainData = getPlainData(sourceEntity)
 
-  return id
-    ? target[`create${type}WithId`](id, plainData)
-    : target[`create${type}`](plainData)
+  if (type === 'ContentType') {
+    return id
+      ? client.contentType.createWithId({ spaceId, environmentId, contentTypeId: id }, plainData as ContentTypeProps)
+      : client.contentType.create({ spaceId, environmentId }, plainData as ContentTypeProps)
+  }
+  if (type === 'Asset') {
+    return id
+      ? client.asset.createWithId({ spaceId, environmentId, assetId: id }, plainData as AssetProps)
+      : client.asset.create({ spaceId, environmentId }, plainData as AssetProps)
+  }
+  if (type === 'Locale') {
+    return client.locale.create({ spaceId, environmentId }, plainData as LocaleProps)
+  }
+  if (type === 'Webhook') {
+    return id
+      ? client.webhook.update({ spaceId, webhookDefinitionId: id }, { ...plainData, sys: { id } } as WebhookProps)
+      : client.webhook.create({ spaceId }, plainData as WebhookProps)
+  }
+  throw new Error(`createInDestination: unsupported type "${type}"`)
 }
 
-function createEntryInDestination (space, contentTypeId, sourceEntity) {
+function createEntryInDestination(context: PushToSpaceContext, contentTypeId: string, sourceEntity) {
+  const { client, spaceId, environmentId } = context
   const id = sourceEntity.sys.id
   const plainData = getPlainData(sourceEntity)
   return id
-    ? space.createEntryWithId(contentTypeId, id, plainData)
-    : space.createEntry(contentTypeId, plainData)
+    ? client.entry.createWithId({ spaceId, environmentId, contentTypeId, entryId: id }, plainData as EntryProps)
+    : client.entry.create({ spaceId, environmentId, contentTypeId }, plainData as EntryProps)
 }
 
-function createTagInDestination (context, sourceEntity) {
+function createTagInDestination(context: PushToSpaceContext, sourceEntity) {
+  const { client, spaceId, environmentId } = context
   const id = sourceEntity.sys.id
   const visibility = sourceEntity.sys.visibility || 'private'
   const name = sourceEntity.name
-  return context.target.createTag(id, name, visibility)
+  return client.tag.createWithId(
+    { spaceId, environmentId, tagId: id },
+    { name, sys: { visibility } }
+  )
 }
 
 /**
@@ -196,7 +254,7 @@ function createTagInDestination (context, sourceEntity) {
  * already exists at a different version — the update is skipped but import continues.
  * Other errors are logged as errors and the entity is excluded from further steps.
  */
-function handleCreationErrors (entity, err) {
+function handleCreationErrors(entity, err) {
   // Handle the case where a locale already exists and skip it
   if (get(err, 'error.sys.id') === 'ValidationFailed') {
     const errors = get(err, 'error.details.errors')
@@ -217,7 +275,7 @@ function handleCreationErrors (entity, err) {
   return null
 }
 
-function cleanupUnknownFields (fields, errors) {
+function cleanupUnknownFields(fields, errors) {
   return omitBy(fields, (field, fieldId) => {
     return find(errors, (error) => {
       const [, errorFieldId] = error.path
@@ -226,16 +284,15 @@ function cleanupUnknownFields (fields, errors) {
   })
 }
 
-function getDestinationEntityForSourceEntity (destinationEntitiesById, sourceEntity) {
+function getDestinationEntityForSourceEntity(destinationEntitiesById, sourceEntity) {
   return destinationEntitiesById.get(get(sourceEntity, 'sys.id')) || null
 }
 
-function creationSuccessNotifier (method, createdEntity) {
+function creationSuccessNotifier(method, createdEntity) {
   logEmitter.emit('info', `${method.toUpperCase()} ${createdEntity.sys.type} ${getEntityName(createdEntity)}`)
   return createdEntity
 }
 
-function getPlainData (entity) {
-  const data = entity.toPlainObject ? entity.toPlainObject() : entity
-  return omit(data, 'sys')
+function getPlainData(entity) {
+  return omit(entity, 'sys')
 }

@@ -10,3 +10,4 @@ This directory contains Architecture Decision Records (ADRs) for `contentful-imp
 | [002](./2025-09-01-migrate-to-github-actions.md) | 2025-09-01 | Accepted | Migrate CI from CircleCI to GitHub Actions |
 | [003](./2026-04-13-drop-node-lt22-upgrade-cma-v12.md) | 2026-04-13 | Accepted | Drop Node <22 Support and Upgrade to CMA.js v12 |
 | [004](./2026-05-04-semantic-release-breaking-change-rule.md) | 2026-05-04 | Accepted | Add Breaking Change Release Rule to semantic-release Config |
+| [005](./2026-08-19-complete-plain-client-migration.md) | 2026-08-19 | Accepted | Complete Migration to CMA.js Plain Client |
