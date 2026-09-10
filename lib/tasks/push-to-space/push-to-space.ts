@@ -15,7 +15,9 @@ import {
   UpsertExperienceProps,
   UpdateDataAssemblyProps,
   UpsertDesignTokenProps,
+  PlainClientAPI
 } from 'contentful-management'
+import PQueue from 'p-queue'
 
 import * as assets from './assets'
 import * as creation from './creation'
@@ -28,6 +30,9 @@ import sortExperienceFragments from '../../utils/sort-experience-fragments'
 import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity, filterVariantsToPublish, filterVariantsToArchive, publishVariant, archiveVariant } from '../../utils/publish-exo-entities'
 import { sortOrReport } from '../../utils/sort-or-report'
 import { importExoFolders } from '../../utils/import-exo-folders'
+import { buildLocalePublishPlan } from '../../utils/resolve-publish-locales'
+import { getDestinationLocaleCodes } from '../../utils/destination-locales'
+import { ensureLocalePublishingEntitlement, isLocaleScopingUnavailable } from '../../utils/locale-publishing'
 
 async function withGraphQLSchemaBackoff<T>(fn: () => Promise<T>): Promise<T> {
   let lastErr: unknown
@@ -74,6 +79,7 @@ type PushToSpaceParams = {
   skipContentUpdates?: boolean,
   skipLocales?: boolean,
   skipContentPublishing?: boolean,
+  unpublishDraftLocales?: boolean,
   timeout?: number,
   retryLimit?: number,
   listrOptions?: any,
@@ -102,6 +108,7 @@ type PushToSpaceParams = {
  * - skipContentModel: synchronizes only entries and assets
  * - skipContentPublishing: create content but don't publish it
  * - skipExoVariants: skips importing Optimization Variants
+ * - unpublishDraftLocales: unpublish locales the content file marks as draft but that are still published in the destination
  * - uploadAssets: upload exported files instead of pointing to an existing URL
  * - assetsDirectory: path to exported asset files to be uploaded instead of pointing to an existing URL
  */
@@ -124,6 +131,7 @@ export default function pushToSpace({
   skipContentUpdates,
   skipLocales,
   skipContentPublishing,
+  unpublishDraftLocales,
   timeout,
   retryLimit,
   listrOptions,
@@ -365,7 +373,8 @@ export default function pushToSpace({
           client,
           spaceId,
           environmentId,
-          requestQueue
+          requestQueue,
+          destinationEntitiesById: unpublishDraftLocales ? destinationDataById.assets : undefined
         })
         ctx.data.publishedAssets = publishedAssets
       }),
@@ -409,7 +418,8 @@ export default function pushToSpace({
           client,
           spaceId,
           environmentId,
-          requestQueue
+          requestQueue,
+          destinationEntitiesById: unpublishDraftLocales ? destinationDataById.entries : undefined
         })
         ctx.data.publishedEntries = publishedEntries
       }),
@@ -960,16 +970,69 @@ function archiveEntities({ entities, sourceEntities, client, spaceId, environmen
   return publishing.archiveEntities({ entities: entitiesToArchive, client, spaceId, environmentId, requestQueue })
 }
 
-// function publishEntities({ entities, sourceEntities, requestQueue }) {
-function publishEntities({ entities, sourceEntities, client, spaceId, environmentId, requestQueue }) {
+type PublishEntitiesParams = {
+  // Plain CMA entity props, not SDK-wrapped instances. Content types come through
+  // here too, not only entries and assets.
+  entities: any[]
+  sourceEntities: { original: any }[]
+  client: PlainClientAPI
+  spaceId: string
+  environmentId: string
+  requestQueue: PQueue
+  /** Destination entities, passed only when `unpublishDraftLocales` is enabled. */
+  destinationEntitiesById?: Map<string, any>
+}
+
+async function publishEntities({ entities, sourceEntities, client, spaceId, environmentId, requestQueue, destinationEntitiesById }: PublishEntitiesParams) {
   // Find all entities in source content which are published
   const entityIdsToPublish = sourceEntities
     .filter(({ original }) => original.sys.publishedVersion)
     .map(({ original }) => original.sys.id)
 
   // Filter imported entities and publish only these who got published in the source
-  const entitiesToPublish = entities
+  let entitiesToPublish = entities
     .filter((entity) => entityIdsToPublish.indexOf(entity.sys.id) !== -1)
 
-  return publishing.publishEntities({ entities: entitiesToPublish, client, spaceId, environmentId, requestQueue })
+  const publishAllLocales = () => publishing.publishEntities({ entities: entitiesToPublish, client, spaceId, environmentId, requestQueue })
+
+  // Only pay for the entitlement and locale lookups when the content file actually
+  // carries per-locale state. Content types never do.
+  const hasFieldStatus = sourceEntities.some(({ original }) => original.sys.fieldStatus)
+
+  if (!hasFieldStatus) {
+    return publishAllLocales()
+  }
+
+  await ensureLocalePublishingEntitlement(client, spaceId)
+
+  if (isLocaleScopingUnavailable(client)) {
+    return publishAllLocales()
+  }
+
+  const destinationLocaleCodes = await getDestinationLocaleCodes({ client, spaceId, environmentId, requestQueue })
+
+  const localePublishing = buildLocalePublishPlan(
+    sourceEntities,
+    destinationLocaleCodes,
+    { destinationEntitiesById }
+  )
+
+  if (localePublishing.skippedEntityIds.size) {
+    entitiesToPublish = entitiesToPublish.filter((entity) => {
+      if (!localePublishing.skippedEntityIds.has(entity.sys.id)) {
+        return true
+      }
+      logEmitter.emit('warning', `Not publishing ${entity.sys.type} ${entity.sys.id} because none of the locales it was published for exist in the destination environment`)
+      return false
+    })
+  }
+
+  return publishing.publishEntities({
+    entities: entitiesToPublish,
+    client,
+    spaceId,
+    environmentId,
+    requestQueue,
+    localePublishing
+  })
 }
