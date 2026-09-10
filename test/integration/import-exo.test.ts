@@ -89,6 +89,38 @@ describe('Importing an ExO export with all 6 entity types', () => {
     expect(referencedTemplate.sys.id).toBe(EXO_FIXTURE_IDS.experienceTemplateId)
   })
 
+  // Covers: creation + publish-state carry-through for Optimization Variants, nested on
+  // their parent. Variants have no upsert-by-known-ID (the upstream API always
+  // server-generates variantId on create - see push-to-space.ts's importVariantsForParents
+  // comment), so these read back by sys.variantType/name rather than a fixture-chosen ID.
+  test('creates and publishes the Experience Optimization Variant, with its ExperienceTemplate reference intact', async () => {
+    const variants = await plainClient.experienceVariant.getMany({ spaceId, environmentId, experienceId: EXO_FIXTURE_IDS.experienceId, query: {} })
+    const realVariants = variants.items.filter((v: any) => v.sys.variantType !== 'default')
+    expect(realVariants).toHaveLength(1)
+
+    const variant = realVariants[0]
+    expect(variant.name).toBe(EXO_FIXTURE_IDS.experienceVariantName)
+    expect(variant.sys.id).toBe(EXO_FIXTURE_IDS.experienceId)
+    expect(variant.sys.publishedVersion).toBeDefined()
+    expect(variant.sys.experienceTemplate.sys.urn).toBe(
+      `crn:contentful:::experience:spaces/$self/environments/$self/experienceTemplates/${EXO_FIXTURE_IDS.experienceTemplateId}`
+    )
+  })
+
+  test('creates the Experience Fragment Optimization Variant as draft, with its Component reference intact', async () => {
+    const variants = await plainClient.experienceFragmentVariant.getMany({ spaceId, environmentId, experienceFragmentId: EXO_FIXTURE_IDS.experienceFragmentId, query: {} })
+    const realVariants = variants.items.filter((v: any) => v.sys.variantType !== 'default')
+    expect(realVariants).toHaveLength(1)
+
+    const variant = realVariants[0]
+    expect(variant.name).toBe(EXO_FIXTURE_IDS.experienceFragmentVariantName)
+    expect(variant.sys.id).toBe(EXO_FIXTURE_IDS.experienceFragmentId)
+    expect(variant.sys.publishedVersion).toBeUndefined()
+    expect(variant.sys.component.sys.urn).toBe(
+      `crn:contentful:::experience:spaces/$self/environments/$self/components/${EXO_FIXTURE_IDS.componentId}`
+    )
+  })
+
   // Both tests below run after the six above and re-import into the same space, exercising
   // the UPDATE path (not covered elsewhere in this file) - guards against two real bugs
   // AIS-385 found that only surfaced against the live API, not mocks: sending an immutable
