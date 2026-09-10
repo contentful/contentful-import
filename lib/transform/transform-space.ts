@@ -6,10 +6,8 @@ import sortLocales from '../utils/sort-locales'
 import { upgradeExoResources } from './exo-rename'
 import { DestinationData, OriginalSourceData, TransformedSourceData } from '../types'
 
-// ExO entities bypass this loop and are transformed separately via upgradeExoResources()
-// (called below) - intentional split, see that call site. But the two paths aren't fully
-// equivalent: entries/assets strip metadata.tags here when the destination lacks Tags access;
-// ExO entities don't get that treatment. See AIS-552.
+// ExO entities bypass this loop (see upgradeExoResources() below) - intentional, but unlike
+// entries/assets it doesn't strip metadata.tags when the destination lacks Tags access. See AIS-552.
 const entities = [
   'contentTypes', 'entries', 'assets', 'locales', 'webhooks', 'tags', 'releases'
 ]
