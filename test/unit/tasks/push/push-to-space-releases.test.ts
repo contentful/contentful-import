@@ -5,7 +5,8 @@ import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import { makePlainClientMock } from '../../helpers/plain-client-mock'
 
 jest.mock('../../../../lib/utils/import-exo-folders.ts', () => {
-  return Promise.resolve()
+  const actual = jest.requireActual('../../../../lib/utils/import-exo-folders.ts')
+  return { ...actual, importExoFolders: jest.fn().mockResolvedValue(undefined) }
 })
 
 // logEmitter is a plain node:events EventEmitter. Node treats 'error' as a special

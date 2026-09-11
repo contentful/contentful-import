@@ -30,7 +30,12 @@ import sortComponents from '../../utils/sort-components'
 import sortExperienceFragments from '../../utils/sort-experience-fragments'
 import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity, filterVariantsToPublish, filterVariantsToArchive, publishVariant, archiveVariant } from '../../utils/publish-exo-entities'
 import { sortOrReport } from '../../utils/sort-or-report'
-import { importExoFolders } from '../../utils/import-exo-folders'
+import {
+  importExoFolders,
+  MissingExoFolderGroupSchemesError,
+  SourceExoFolderConceptReadError,
+  SourceOrganizationResolutionError,
+} from '../../utils/import-exo-folders'
 import { buildLocalePublishPlan } from '../../utils/resolve-publish-locales'
 import { getDestinationLocaleCodes } from '../../utils/destination-locales'
 import { ensureLocalePublishingEntitlement, isLocaleScopingUnavailable } from '../../utils/locale-publishing'
@@ -462,12 +467,11 @@ export default function pushToSpace({
     {
       title: 'Create ExO Folders',
       task: wrapTask(async () => {
-
         try {
           const space = await client.space.get({ spaceId })
           await importExoFolders({
             client,
-            organizationId: space.sys.organization.sys.id,
+            destinationOrganizationId: space.sys.organization.sys.id,
             destinationSpaceId: spaceId,
             sourceEntities: {
               designTokens: sourceData.designTokens,
@@ -478,6 +482,13 @@ export default function pushToSpace({
             },
           })
         } catch (error) {
+          if (
+            error instanceof MissingExoFolderGroupSchemesError ||
+            error instanceof SourceOrganizationResolutionError ||
+            error instanceof SourceExoFolderConceptReadError
+          ) {
+            throw error
+          }
           logEmitter.emit('warning', `Unable to create Experience Orchestration (ExO) folders, error: ${error}`)
         }
       }),
