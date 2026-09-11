@@ -124,3 +124,10 @@ test('removeMetadataTags defaults to stripping metadata when tagsEnabled is omit
   transformers.removeMetadataTags(entity)
   expect(entity.metadata).toBeUndefined()
 })
+
+test('removeMetadataTags preserves metadata.concepts (ExO folder placement) when stripping tags', () => {
+  const entity: any = { metadata: { tags: [{ sys: { id: 't1' } }], concepts: [{ sys: { id: 'contentful.folder-abc' } }] } }
+  transformers.removeMetadataTags(entity, false)
+  expect(entity.metadata.tags).toBeUndefined()
+  expect(entity.metadata.concepts).toEqual([{ sys: { id: 'contentful.folder-abc' } }])
+})

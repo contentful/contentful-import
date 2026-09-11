@@ -70,8 +70,13 @@ export function locales(locale, destinationLocales) {
 }
 
 export function removeMetadataTags(entity, tagsEnabled = false) {
-  if (!tagsEnabled) {
-    delete entity.metadata
+  if (!tagsEnabled && entity.metadata) {
+    // Only strip tags, not the whole metadata object - metadata.concepts (Taxonomy /
+    // ExO folder placement) is unrelated to Tags access and must survive the scrub.
+    delete entity.metadata.tags
+    if (Object.keys(entity.metadata).length === 0) {
+      delete entity.metadata
+    }
   }
   return entity
 }

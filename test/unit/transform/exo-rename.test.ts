@@ -265,4 +265,16 @@ describe('upgradeExoResources', () => {
     const result: any = upgradeExoResources(input)
     expect(result.components[0].metadata).toBeUndefined()
   })
+
+  test('preserves metadata.concepts (ExO folder placement) while stripping metadata.tags', () => {
+    const input = {
+      components: [{
+        sys: { id: 'c1', type: 'Component' },
+        metadata: { tags: [{ sys: { id: 't1' } }], concepts: [{ sys: { id: 'contentful.folder-abc' } }] }
+      }]
+    }
+    const result: any = upgradeExoResources(input, false)
+    expect(result.components[0].metadata.tags).toBeUndefined()
+    expect(result.components[0].metadata.concepts).toEqual([{ sys: { id: 'contentful.folder-abc' } }])
+  })
 })

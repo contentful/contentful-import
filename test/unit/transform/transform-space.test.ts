@@ -108,4 +108,24 @@ describe('ExO metadata.tags scrubbing (AIS-552)', () => {
     expect(result.designTokens[0].metadata).toEqual({ tags: [tagLink] })
     expect(result.dataAssemblies[0].metadata).toEqual({ tags: [tagLink] })
   })
+
+  test('preserves metadata.concepts (ExO folder placement) on all 5 non-DataAssembly types when stripping tags', () => {
+    const folderConcept = { sys: { id: 'contentful.folder-abc' } }
+    const spaceWithConcepts: ResourcesWithDoNotTouch = {
+      contentTypes: [contentTypeMock],
+      locales: [localeMock as LocaleProps],
+      components: [{ sys: { id: 'c1', type: 'Component' }, metadata: { tags: [tagLink], concepts: [folderConcept] } } as any],
+      experienceTemplates: [{ sys: { id: 'et1', type: 'ExperienceTemplate' }, metadata: { tags: [tagLink], concepts: [folderConcept] } } as any],
+      experienceFragments: [{ sys: { id: 'ef1', type: 'ExperienceFragment' }, metadata: { tags: [tagLink], concepts: [folderConcept] } } as any],
+      experiences: [{ sys: { id: 'e1', type: 'Experience' }, metadata: { tags: [tagLink], concepts: [folderConcept] } } as any],
+      designTokens: [{ sys: { id: 'dt1', type: 'DesignToken' }, metadata: { tags: [tagLink], concepts: [folderConcept] } } as any]
+    }
+    const destinationWithoutTags = { contentTypes: [], locales: [] }
+    const result = transformSpace(cloneDeep(spaceWithConcepts), destinationWithoutTags) as any
+
+    for (const type of ['components', 'experienceTemplates', 'experienceFragments', 'experiences', 'designTokens']) {
+      expect(result[type][0].metadata.tags).toBeUndefined()
+      expect(result[type][0].metadata.concepts).toEqual([folderConcept])
+    }
+  })
 })
