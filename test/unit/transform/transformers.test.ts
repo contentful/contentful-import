@@ -106,3 +106,43 @@ test('It should transform an entry with tags disabled, and return it', () => {
   const transformed = transformers.entries(entryMock, null, false)
   expect(transformed.metadata).toBeUndefined()
 })
+
+test('removeMetadataTags keeps metadata when tags are enabled', () => {
+  const entity = { metadata: { tags: [{ sys: { id: 't1' } }] } }
+  expect(transformers.removeMetadataTags(entity, true)).toBe(entity)
+  expect(entity.metadata).toEqual({ tags: [{ sys: { id: 't1' } }] })
+})
+
+test('removeMetadataTags strips metadata when tags are disabled', () => {
+  const entity: any = { metadata: { tags: [{ sys: { id: 't1' } }] } }
+  const result = transformers.removeMetadataTags(entity, false)
+  expect(result.metadata).toBeUndefined()
+})
+
+test('removeMetadataTags defaults to stripping metadata when tagsEnabled is omitted', () => {
+  const entity: any = { metadata: { tags: [] } }
+  const result = transformers.removeMetadataTags(entity)
+  expect(result.metadata).toBeUndefined()
+})
+
+test('removeMetadataTags preserves metadata.concepts (ExO folder placement) when stripping tags', () => {
+  const entity: any = { metadata: { tags: [{ sys: { id: 't1' } }], concepts: [{ sys: { id: 'contentful.folder-abc' } }] } }
+  const result = transformers.removeMetadataTags(entity, false)
+  expect(result.metadata.tags).toBeUndefined()
+  expect(result.metadata.concepts).toEqual([{ sys: { id: 'contentful.folder-abc' } }])
+})
+
+test('removeMetadataTags does not mutate the entity passed in', () => {
+  const original = { metadata: { tags: [{ sys: { id: 't1' } }], concepts: [{ sys: { id: 'contentful.folder-abc' } }] } }
+  const entity = { ...original, metadata: { ...original.metadata } }
+  const result = transformers.removeMetadataTags(entity, false)
+  expect(result).not.toBe(entity)
+  expect(entity.metadata).toEqual(original.metadata)
+})
+
+test('removeMetadataTags preserves metadata.name (e.g. Experience variant label) when stripping tags', () => {
+  const entity: any = { metadata: { tags: [{ sys: { id: 't1' } }], name: 'Variant A' } }
+  const result = transformers.removeMetadataTags(entity, false)
+  expect(result.metadata.tags).toBeUndefined()
+  expect(result.metadata.name).toBe('Variant A')
+})

@@ -235,4 +235,55 @@ describe('upgradeExoResources', () => {
     expect(result).not.toHaveProperty('components')
     expect(result).not.toHaveProperty('experiences')
   })
+
+  test('strips metadata.tags on all 4 mapped entity types when tagsEnabled is false', () => {
+    const input = {
+      components: [{ sys: { id: 'c1', type: 'Component' }, metadata: { tags: [{ sys: { id: 't1' } }] } }],
+      experienceTemplates: [{ sys: { id: 't1', type: 'ExperienceTemplate' }, metadata: { tags: [{ sys: { id: 't1' } }] } }],
+      experienceFragments: [{ sys: { id: 'f1', type: 'ExperienceFragment', component: newComponentLink('hero') }, metadata: { tags: [{ sys: { id: 't1' } }] } }],
+      experiences: [{ sys: { id: 'e1', type: 'Experience', experienceTemplate: newComponentLink('t1') }, metadata: { tags: [{ sys: { id: 't1' } }] } }]
+    }
+    const result: any = upgradeExoResources(input, false)
+    expect(result.components[0].metadata).toBeUndefined()
+    expect(result.experienceTemplates[0].metadata).toBeUndefined()
+    expect(result.experienceFragments[0].metadata).toBeUndefined()
+    expect(result.experiences[0].metadata).toBeUndefined()
+  })
+
+  test('keeps metadata.tags on all 4 mapped entity types when tagsEnabled is true', () => {
+    const input = {
+      components: [{ sys: { id: 'c1', type: 'Component' }, metadata: { tags: [{ sys: { id: 't1' } }] } }]
+    }
+    const result: any = upgradeExoResources(input, true)
+    expect(result.components[0].metadata).toEqual({ tags: [{ sys: { id: 't1' } }] })
+  })
+
+  test('defaults to stripping metadata.tags when tagsEnabled is omitted', () => {
+    const input = {
+      components: [{ sys: { id: 'c1', type: 'Component' }, metadata: { tags: [{ sys: { id: 't1' } }] } }]
+    }
+    const result: any = upgradeExoResources(input)
+    expect(result.components[0].metadata).toBeUndefined()
+  })
+
+  test('preserves metadata.concepts (ExO folder placement) while stripping metadata.tags', () => {
+    const input = {
+      components: [{
+        sys: { id: 'c1', type: 'Component' },
+        metadata: { tags: [{ sys: { id: 't1' } }], concepts: [{ sys: { id: 'contentful.folder-abc' } }] }
+      }]
+    }
+    const result: any = upgradeExoResources(input, false)
+    expect(result.components[0].metadata.tags).toBeUndefined()
+    expect(result.components[0].metadata.concepts).toEqual([{ sys: { id: 'contentful.folder-abc' } }])
+  })
+
+  test('does not mutate the source entity\'s metadata when stripping tags', () => {
+    const sourceMetadata = { tags: [{ sys: { id: 't1' } }], concepts: [{ sys: { id: 'contentful.folder-abc' } }] }
+    const input = {
+      components: [{ sys: { id: 'c1', type: 'Component' }, metadata: sourceMetadata }]
+    }
+    upgradeExoResources(input, false)
+    expect(sourceMetadata).toEqual({ tags: [{ sys: { id: 't1' } }], concepts: [{ sys: { id: 'contentful.folder-abc' } }] })
+  })
 })

@@ -69,11 +69,19 @@ export function locales(locale, destinationLocales) {
   return transformedLocale
 }
 
-function removeMetadataTags(entity, tagsEnabled = false) {
-  if (!tagsEnabled) {
-    delete entity.metadata
+export function removeMetadataTags(entity, tagsEnabled = false) {
+  if (tagsEnabled || !entity.metadata) {
+    return entity
   }
-  return entity
+  // Only strip tags, not the whole metadata object - metadata.concepts (Taxonomy /
+  // ExO folder placement) and other metadata fields are unrelated to Tags access and
+  // must survive the scrub. Returns a new object rather than mutating entity.metadata,
+  // since callers pass in source data they don't expect to be changed in place.
+  const restMetadata = omit(entity.metadata, 'tags')
+  return {
+    ...omit(entity, 'metadata'),
+    ...(Object.keys(restMetadata).length > 0 ? { metadata: restMetadata } : {})
+  }
 }
 
 export function releases(release) {
