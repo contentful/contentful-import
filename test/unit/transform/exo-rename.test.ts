@@ -277,4 +277,13 @@ describe('upgradeExoResources', () => {
     expect(result.components[0].metadata.tags).toBeUndefined()
     expect(result.components[0].metadata.concepts).toEqual([{ sys: { id: 'contentful.folder-abc' } }])
   })
+
+  test('does not mutate the source entity\'s metadata when stripping tags', () => {
+    const sourceMetadata = { tags: [{ sys: { id: 't1' } }], concepts: [{ sys: { id: 'contentful.folder-abc' } }] }
+    const input = {
+      components: [{ sys: { id: 'c1', type: 'Component' }, metadata: sourceMetadata }]
+    }
+    upgradeExoResources(input, false)
+    expect(sourceMetadata).toEqual({ tags: [{ sys: { id: 't1' } }], concepts: [{ sys: { id: 'contentful.folder-abc' } }] })
+  })
 })

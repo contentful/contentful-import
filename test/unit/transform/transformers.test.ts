@@ -115,19 +115,34 @@ test('removeMetadataTags keeps metadata when tags are enabled', () => {
 
 test('removeMetadataTags strips metadata when tags are disabled', () => {
   const entity: any = { metadata: { tags: [{ sys: { id: 't1' } }] } }
-  transformers.removeMetadataTags(entity, false)
-  expect(entity.metadata).toBeUndefined()
+  const result = transformers.removeMetadataTags(entity, false)
+  expect(result.metadata).toBeUndefined()
 })
 
 test('removeMetadataTags defaults to stripping metadata when tagsEnabled is omitted', () => {
   const entity: any = { metadata: { tags: [] } }
-  transformers.removeMetadataTags(entity)
-  expect(entity.metadata).toBeUndefined()
+  const result = transformers.removeMetadataTags(entity)
+  expect(result.metadata).toBeUndefined()
 })
 
 test('removeMetadataTags preserves metadata.concepts (ExO folder placement) when stripping tags', () => {
   const entity: any = { metadata: { tags: [{ sys: { id: 't1' } }], concepts: [{ sys: { id: 'contentful.folder-abc' } }] } }
-  transformers.removeMetadataTags(entity, false)
-  expect(entity.metadata.tags).toBeUndefined()
-  expect(entity.metadata.concepts).toEqual([{ sys: { id: 'contentful.folder-abc' } }])
+  const result = transformers.removeMetadataTags(entity, false)
+  expect(result.metadata.tags).toBeUndefined()
+  expect(result.metadata.concepts).toEqual([{ sys: { id: 'contentful.folder-abc' } }])
+})
+
+test('removeMetadataTags does not mutate the entity passed in', () => {
+  const original = { metadata: { tags: [{ sys: { id: 't1' } }], concepts: [{ sys: { id: 'contentful.folder-abc' } }] } }
+  const entity = { ...original, metadata: { ...original.metadata } }
+  const result = transformers.removeMetadataTags(entity, false)
+  expect(result).not.toBe(entity)
+  expect(entity.metadata).toEqual(original.metadata)
+})
+
+test('removeMetadataTags preserves metadata.name (e.g. Experience variant label) when stripping tags', () => {
+  const entity: any = { metadata: { tags: [{ sys: { id: 't1' } }], name: 'Variant A' } }
+  const result = transformers.removeMetadataTags(entity, false)
+  expect(result.metadata.tags).toBeUndefined()
+  expect(result.metadata.name).toBe('Variant A')
 })

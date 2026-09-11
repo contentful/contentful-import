@@ -32,7 +32,7 @@ export default function (
       }))
     }
     if (Array.isArray(baseSpaceData.designTokens)) {
-      baseSpaceData.designTokens = baseSpaceData.designTokens.map((entity) => transformers.removeMetadataTags({ ...entity }, false))
+      baseSpaceData.designTokens = baseSpaceData.designTokens.map((entity) => transformers.removeMetadataTags(entity, false))
     }
   }
 

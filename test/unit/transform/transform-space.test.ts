@@ -128,4 +128,17 @@ describe('ExO metadata.tags scrubbing (AIS-552)', () => {
       expect(result[type][0].metadata.concepts).toEqual([folderConcept])
     }
   })
+
+  test('does not mutate the source DesignToken\'s metadata when stripping tags', () => {
+    const sourceMetadata = { tags: [tagLink], concepts: [{ sys: { id: 'contentful.folder-abc' } }] }
+    const space: ResourcesWithDoNotTouch = {
+      contentTypes: [contentTypeMock],
+      locales: [localeMock as LocaleProps],
+      designTokens: [{ sys: { id: 'dt1', type: 'DesignToken' }, metadata: sourceMetadata } as any]
+    }
+    const destinationWithoutTags = { contentTypes: [], locales: [] }
+    transformSpace(space, destinationWithoutTags)
+
+    expect(sourceMetadata).toEqual({ tags: [tagLink], concepts: [{ sys: { id: 'contentful.folder-abc' } }] })
+  })
 })
