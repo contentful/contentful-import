@@ -1,5 +1,7 @@
 import { omit } from 'lodash-es'
 
+import { logEmitter } from 'contentful-batch-libs/dist/logging'
+
 import * as transformers from './transformers'
 import sortEntries from '../utils/sort-entries'
 import sortLocales from '../utils/sort-locales'
@@ -10,6 +12,20 @@ const entities = [
   'contentTypes', 'entries', 'assets', 'locales', 'webhooks', 'tags', 'releases'
 ]
 
+// Every entity type whose metadata.tags gets scrubbed when the destination lacks Tags
+// access - used to size the single warning below (AIS-552).
+const TAG_SCRUBBED_ENTITY_TYPES = [
+  'entries', 'assets', 'components', 'experienceTemplates', 'experienceFragments',
+  'experiences', 'dataAssemblies', 'designTokens'
+] as const
+
+function countEntitiesWithTags (sourceData: OriginalSourceData): number {
+  return TAG_SCRUBBED_ENTITY_TYPES.reduce((count, type) => {
+    const entitiesOfType = sourceData[type] ?? []
+    return count + entitiesOfType.filter((entity: any) => entity.metadata?.tags?.length).length
+  }, 0)
+}
+
 /**
  * Run transformer methods on each item for each kind of entity, in case there
  * is a need to transform data when copying it to the destination space
@@ -17,6 +33,13 @@ const entities = [
 export default function (
   sourceData: OriginalSourceData, destinationData: DestinationData): TransformedSourceData {
   const tagsEnabled = !!destinationData.tags
+
+  if (!tagsEnabled) {
+    const strippedCount = countEntitiesWithTags(sourceData)
+    if (strippedCount > 0) {
+      logEmitter.emit('warning', `The destination space/environment does not have access to the Tags feature. metadata.tags was removed from ${strippedCount} ${strippedCount === 1 ? 'entity' : 'entities'} during import.`)
+    }
+  }
 
   // ExO entities aren't handled by the per-entity transformers above; they just get
   // a rename upgrade (pre-rename exports) and a metadata.tags scrub (AIS-552).

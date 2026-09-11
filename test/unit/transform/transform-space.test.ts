@@ -1,5 +1,6 @@
 import { cloneDeep } from 'lodash-es'
 
+import { logEmitter } from 'contentful-batch-libs/dist/logging'
 import {
   contentTypeMock,
   entryMock,
@@ -12,6 +13,16 @@ import transformSpace from '../../../lib/transform/transform-space'
 import { Resources, TransformedSourceData } from '../../../lib/types'
 import { TagSysProps } from 'contentful-management'
 import type { AssetProps, LocaleProps, WebhookProps } from 'contentful-management'
+
+jest.mock('contentful-batch-libs/dist/logging', () => ({
+  logEmitter: { emit: jest.fn() }
+}))
+
+const mockEmit = jest.mocked(logEmitter.emit)
+
+afterEach(() => {
+  mockEmit.mockClear()
+})
 
 const tagMock = {
   sys: ({
@@ -140,5 +151,49 @@ describe('ExO metadata.tags scrubbing (AIS-552)', () => {
     transformSpace(space, destinationWithoutTags)
 
     expect(sourceMetadata).toEqual({ tags: [tagLink], concepts: [{ sys: { id: 'contentful.folder-abc' } }] })
+  })
+
+  test('warns once, counting every affected entity across entries/assets/ExO types, when tags are stripped', () => {
+    const destinationWithoutTags = { contentTypes: [], locales: [] }
+    transformSpace(cloneDeep(exoSpace), destinationWithoutTags)
+
+    const tagWarnings = mockEmit.mock.calls.filter(([event]) => event === 'warning')
+    expect(tagWarnings).toHaveLength(1)
+    expect(tagWarnings[0][1]).toMatch(/6 entities/)
+  })
+
+  test('does not warn when the destination has Tags access', () => {
+    const destinationWithTags = { contentTypes: [], locales: [], tags: [tagMock] }
+    transformSpace(cloneDeep(exoSpace), destinationWithTags)
+
+    expect(mockEmit).not.toHaveBeenCalled()
+  })
+
+  test('does not warn when no entity actually has metadata.tags set', () => {
+    const spaceWithoutTagData: ResourcesWithDoNotTouch = {
+      contentTypes: [contentTypeMock],
+      locales: [localeMock as LocaleProps],
+      components: [{ sys: { id: 'c1', type: 'Component' } } as any]
+    }
+    const destinationWithoutTags = { contentTypes: [], locales: [] }
+    transformSpace(spaceWithoutTagData, destinationWithoutTags)
+
+    expect(mockEmit).not.toHaveBeenCalled()
+  })
+
+  test('counts entries and assets alongside ExO types in the same warning', () => {
+    const mixedSpace: ResourcesWithDoNotTouch = {
+      contentTypes: [contentTypeMock],
+      locales: [localeMock as LocaleProps],
+      entries: [{ ...entryMock, metadata: { tags: [tagLink] } }] as any,
+      assets: [{ ...assetMock, metadata: { tags: [tagLink] } }] as any,
+      components: [{ sys: { id: 'c1', type: 'Component' }, metadata: { tags: [tagLink] } } as any]
+    }
+    const destinationWithoutTags = { contentTypes: [], locales: [] }
+    transformSpace(mixedSpace, destinationWithoutTags)
+
+    const tagWarnings = mockEmit.mock.calls.filter(([event]) => event === 'warning')
+    expect(tagWarnings).toHaveLength(1)
+    expect(tagWarnings[0][1]).toMatch(/3 entities/)
   })
 })
