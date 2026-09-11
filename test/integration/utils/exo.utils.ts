@@ -213,14 +213,17 @@ export type FolderConceptIds = {
  * caller derives them from its own throwaway space ID so concurrent CI runs never race
  * on the same org-level resource (see import-exo-folders.test.ts).
  *
- * No `sys.space` set, so getSourceSpaceId() returns undefined - this is treated as a
- * cross-space import (undefined !== destinationSpaceId), same as buildExoContent above.
+ * `sourceSpaceId` is included on the foldered entities so the importer can resolve the
+ * source organization before reading source folder concepts. Omitting it keeps this
+ * helper useful for tests that do not exercise source-concept reads.
  */
-export function buildExoFolderContent (ids: FolderExoFixtureIds, folderConceptIds: FolderConceptIds) {
+export function buildExoFolderContent (ids: FolderExoFixtureIds, folderConceptIds: FolderConceptIds, sourceSpaceId?: string) {
+  const sourceSpace = sourceSpaceId ? { space: { sys: { id: sourceSpaceId } } } : {}
+
   return {
     components: [
       {
-        sys: { id: ids.componentId, type: 'Component', version: 1 },
+        sys: { id: ids.componentId, type: 'Component', version: 1, ...sourceSpace },
         metadata: { tags: [], concepts: [makeFolderConceptLink(folderConceptIds.component)] },
         name: `${TEST_PREFIX} Foldered Component`,
         description: 'Created by an ExO folder import integration test',
@@ -245,6 +248,7 @@ export function buildExoFolderContent (ids: FolderExoFixtureIds, folderConceptId
           id: ids.experienceId,
           type: 'Experience',
           version: 1,
+          ...sourceSpace,
           experienceTemplate: makeResourceLink('Contentful:ExperienceTemplate', ids.experienceTemplateId)
         },
         metadata: { tags: [], concepts: [makeFolderConceptLink(folderConceptIds.experience)] },

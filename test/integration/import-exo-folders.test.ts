@@ -10,6 +10,7 @@ import {
 
 const managementToken = process.env.MANAGEMENT_TOKEN as string
 const orgId = process.env.ORG_ID as string
+const sourceOrganizationId = process.env.SOURCE_ORG_ID
 const environmentId = 'master'
 
 const DESIGN_TOKEN_SCHEME_ID = 'contentful.folder-group-designToken'
@@ -24,6 +25,11 @@ const ALL_PARENT_SCHEME_IDS = [
   FRAGMENT_SCHEME_ID,
   EXPERIENCE_SCHEME_ID
 ]
+
+// Cross-org coverage is opt-in because the standard integration-test environment
+// uses a single organization. Set SOURCE_ORG_ID to a different test organization
+// with the required ExO prerequisites configured to run this suite.
+const describeCrossOrg = sourceOrganizationId && sourceOrganizationId !== orgId ? describe : describe.skip
 
 jest.setTimeout(2 * 60 * 1000) // 2min timeout - covers space/concept create+delete + 2 import runs
 
@@ -56,14 +62,14 @@ async function withVersionConflictRetry<T> (operation: () => Promise<T>): Promis
   }
 }
 
-async function unlinkConceptFromSchemeIfPresent (plainClient: any, schemeId: string, conceptId: string) {
+async function unlinkConceptFromSchemeIfPresent (plainClient: any, organizationId: string, schemeId: string, conceptId: string) {
   try {
     await withVersionConflictRetry(async () => {
-      const scheme = await plainClient.conceptScheme.get({ organizationId: orgId, conceptSchemeId: schemeId })
+      const scheme = await plainClient.conceptScheme.get({ organizationId, conceptSchemeId: schemeId })
       const index = (scheme.concepts ?? []).findIndex((c: any) => c.sys.id === conceptId)
       if (index >= 0) {
         await plainClient.conceptScheme.patch(
-          { organizationId: orgId, conceptSchemeId: schemeId, version: scheme.sys.version },
+          { organizationId, conceptSchemeId: schemeId, version: scheme.sys.version },
           [{ op: 'remove', path: `/concepts/${index}` }]
         )
       }
@@ -73,22 +79,22 @@ async function unlinkConceptFromSchemeIfPresent (plainClient: any, schemeId: str
   }
 }
 
-async function linkConceptToSchemeIfAbsent (plainClient: any, schemeId: string, conceptId: string) {
+async function linkConceptToSchemeIfAbsent (plainClient: any, organizationId: string, schemeId: string, conceptId: string) {
   await withVersionConflictRetry(async () => {
-    const scheme = await plainClient.conceptScheme.get({ organizationId: orgId, conceptSchemeId: schemeId })
+    const scheme = await plainClient.conceptScheme.get({ organizationId, conceptSchemeId: schemeId })
     if (!(scheme.concepts ?? []).some((c: any) => c.sys.id === conceptId)) {
       await plainClient.conceptScheme.patch(
-        { organizationId: orgId, conceptSchemeId: schemeId, version: scheme.sys.version },
+        { organizationId, conceptSchemeId: schemeId, version: scheme.sys.version },
         [{ op: 'add', path: '/concepts/-', value: { sys: { type: 'Link', linkType: 'TaxonomyConcept', id: conceptId } } }]
       )
     }
   })
 }
 
-async function deleteConceptIfPresent (plainClient: any, conceptId: string) {
+async function deleteConceptIfPresent (plainClient: any, organizationId: string, conceptId: string) {
   try {
-    const concept = await plainClient.concept.get({ organizationId: orgId, conceptId })
-    await plainClient.concept.delete({ organizationId: orgId, conceptId, version: concept.sys.version })
+    const concept = await plainClient.concept.get({ organizationId, conceptId })
+    await plainClient.concept.delete({ organizationId, conceptId, version: concept.sys.version })
   } catch (err: any) {
     if (!isNotFoundError(err)) throw err
   }
@@ -103,7 +109,8 @@ async function deleteConceptIfPresent (plainClient: any, conceptId: string) {
 // afterAll, and derives its concept IDs from its own throwaway space ID so concurrent CI
 // runs (e.g. two PRs building at once) can never race on the same org-level resource.
 describe('Importing ExO entities organized into folders (cross-space)', () => {
-  let spaceId: string
+  let sourceSpaceId: string
+  let destinationSpaceId: string
   let plainClient: any
   let sourceComponentFolderConceptId: string
   let sourceComponentFolderLabel: string
@@ -114,36 +121,47 @@ describe('Importing ExO entities organized into folders (cross-space)', () => {
   beforeAll(async () => {
     plainClient = createClient({ accessToken: managementToken })
 
-    const space = await plainClient.space.create({ organizationId: orgId }, { name: 'IMPORT [AUTO] TOOL EXO FOLDER TMP' })
-    spaceId = space.sys.id
+    const sourceSpace = await plainClient.space.create({ organizationId: orgId }, { name: 'IMPORT [AUTO] TOOL EXO FOLDER SOURCE TMP' })
+    sourceSpaceId = sourceSpace.sys.id
+    const destinationSpace = await plainClient.space.create({ organizationId: orgId }, { name: 'IMPORT [AUTO] TOOL EXO FOLDER DESTINATION TMP' })
+    destinationSpaceId = destinationSpace.sys.id
 
     // Keep the source IDs short enough for the importer-derived destination IDs
     // (which append the destination space ID) to remain within the CMA limit.
-    sourceComponentFolderConceptId = `contentful.folder-component-${spaceId}`
-    sourceExperienceFolderConceptId = `contentful.folder-experience-${spaceId}`
-    destComponentFolderConceptId = `${sourceComponentFolderConceptId}-${spaceId}`
-    destExperienceFolderConceptId = `${sourceExperienceFolderConceptId}-${spaceId}`
+    sourceComponentFolderConceptId = `contentful.folder-component-${sourceSpaceId}`
+    sourceExperienceFolderConceptId = `contentful.folder-experience-${sourceSpaceId}`
+    destComponentFolderConceptId = `${sourceComponentFolderConceptId}-${destinationSpaceId}`
+    destExperienceFolderConceptId = `${sourceExperienceFolderConceptId}-${destinationSpaceId}`
     sourceComponentFolderLabel = `${TEST_PREFIX} Component Folder`
 
-    // Pre-create a real "source" concept for the Component folder, mirroring what a
-    // customer's actual source-space folder concept looks like - lets this suite verify
-    // Step 3's prefLabel-copy path against the live API, not just mocks (see
-    // test/unit/utils/import-exo-folders.test.ts for that same branch under mocks). No
-    // source concept is pre-created for the Experience folder, so that arm instead
-    // exercises the fallback-label branch when the source concept can't be found.
+    // Pre-create real source concepts, mirroring what a customer's actual source-space
+    // folder concepts look like. This verifies source-org reads and destination-org
+    // writes against the live API.
     await plainClient.concept.createWithId(
       { organizationId: orgId, conceptId: sourceComponentFolderConceptId },
-      { purpose: 'internal', prefLabel: { 'en-US': sourceComponentFolderLabel } }
+      {
+        purpose: 'internal',
+        prefLabel: { 'en-US': sourceComponentFolderLabel },
+        metadata: { spaces: [{ sys: { type: 'Link', linkType: 'Space', id: sourceSpaceId } }] }
+      }
+    )
+    await plainClient.concept.createWithId(
+      { organizationId: orgId, conceptId: sourceExperienceFolderConceptId },
+      {
+        purpose: 'internal',
+        prefLabel: { 'en-US': `${TEST_PREFIX} Experience Folder` },
+        metadata: { spaces: [{ sys: { type: 'Link', linkType: 'Space', id: sourceSpaceId } }] }
+      }
     )
 
     await runContentfulImport({
-      spaceId,
+      spaceId: destinationSpaceId,
       environmentId,
       managementToken,
       content: buildExoFolderContent(FOLDER_EXO_FIXTURE_IDS, {
         component: sourceComponentFolderConceptId,
         experience: sourceExperienceFolderConceptId
-      }),
+      }, sourceSpaceId),
       includeExperienceOrchestration: true,
       useVerboseRenderer: true
     })
@@ -158,29 +176,30 @@ describe('Importing ExO entities organized into folders (cross-space)', () => {
         { schemeId: COMPONENT_TYPE_SCHEME_ID, conceptId: destComponentFolderConceptId },
         { schemeId: EXPERIENCE_SCHEME_ID, conceptId: destExperienceFolderConceptId }
       ]) {
-        await unlinkConceptFromSchemeIfPresent(plainClient, schemeId, conceptId)
+        await unlinkConceptFromSchemeIfPresent(plainClient, orgId, schemeId, conceptId)
       }
 
-      for (const conceptId of [sourceComponentFolderConceptId, destComponentFolderConceptId, destExperienceFolderConceptId]) {
-        await deleteConceptIfPresent(plainClient, conceptId)
+      for (const conceptId of [sourceComponentFolderConceptId, sourceExperienceFolderConceptId, destComponentFolderConceptId, destExperienceFolderConceptId]) {
+        await deleteConceptIfPresent(plainClient, orgId, conceptId)
       }
     } finally {
-      // Always delete the throwaway space, even if org-level concept/scheme cleanup above
-      // failed - the two are independent resources and one failing shouldn't leak the other.
-      await plainClient.space.delete({ spaceId })
+      // Always delete both throwaway spaces, even if org-level concept/scheme cleanup
+      // above failed - the resources are independent and one failing should not leak the other.
+      await plainClient.space.delete({ spaceId: destinationSpaceId })
+      await plainClient.space.delete({ spaceId: sourceSpaceId })
     }
   })
 
   test('creates a destination-scoped concept for the Component folder, copying the source prefLabel', async () => {
     const concept = await plainClient.concept.get({ organizationId: orgId, conceptId: destComponentFolderConceptId })
     expect(concept.prefLabel['en-US']).toBe(sourceComponentFolderLabel)
-    expect(concept.metadata.spaces.some((s: any) => s.sys.id === spaceId)).toBe(true)
+    expect(concept.metadata.spaces.some((s: any) => s.sys.id === destinationSpaceId)).toBe(true)
   })
 
-  test('creates a destination-scoped concept for the Experience folder, falling back to the derived ID as its label since no source concept exists', async () => {
+  test('creates a destination-scoped concept for the Experience folder, copying the source prefLabel', async () => {
     const concept = await plainClient.concept.get({ organizationId: orgId, conceptId: destExperienceFolderConceptId })
-    expect(concept.prefLabel['en-US']).toBe(destExperienceFolderConceptId)
-    expect(concept.metadata.spaces.some((s: any) => s.sys.id === spaceId)).toBe(true)
+    expect(concept.prefLabel['en-US']).toBe(`${TEST_PREFIX} Experience Folder`)
+    expect(concept.metadata.spaces.some((s: any) => s.sys.id === destinationSpaceId)).toBe(true)
   })
 
   test('links each new concept into its parent folder-group scheme', async () => {
@@ -192,10 +211,10 @@ describe('Importing ExO entities organized into folders (cross-space)', () => {
   })
 
   test('rewrites each entity\'s metadata.concepts to point at the new destination concept, not the source', async () => {
-    const component = await plainClient.component.get({ spaceId, environmentId, componentId: FOLDER_EXO_FIXTURE_IDS.componentId })
+    const component = await plainClient.component.get({ spaceId: destinationSpaceId, environmentId, componentId: FOLDER_EXO_FIXTURE_IDS.componentId })
     expect(component.metadata.concepts[0].sys.id).toBe(destComponentFolderConceptId)
 
-    const experience = await plainClient.experience.get({ spaceId, environmentId, experienceId: FOLDER_EXO_FIXTURE_IDS.experienceId })
+    const experience = await plainClient.experience.get({ spaceId: destinationSpaceId, environmentId, experienceId: FOLDER_EXO_FIXTURE_IDS.experienceId })
     expect(experience.metadata.concepts[0].sys.id).toBe(destExperienceFolderConceptId)
   })
 
@@ -206,13 +225,13 @@ describe('Importing ExO entities organized into folders (cross-space)', () => {
     const experienceSchemeBefore = await plainClient.conceptScheme.get({ organizationId: orgId, conceptSchemeId: EXPERIENCE_SCHEME_ID })
 
     const result = await runContentfulImport({
-      spaceId,
+      spaceId: destinationSpaceId,
       environmentId,
       managementToken,
       content: buildExoFolderContent(FOLDER_EXO_FIXTURE_IDS, {
         component: sourceComponentFolderConceptId,
         experience: sourceExperienceFolderConceptId
-      }),
+      }, sourceSpaceId),
       includeExperienceOrchestration: true,
       useVerboseRenderer: true
     })
@@ -233,6 +252,143 @@ describe('Importing ExO entities organized into folders (cross-space)', () => {
     expect(componentSchemeAfter.sys.version).toBe(componentSchemeBefore.sys.version)
     expect(experienceSchemeAfter.concepts.filter((c: any) => c.sys.id === destExperienceFolderConceptId).length).toBe(1)
     expect(experienceSchemeAfter.sys.version).toBe(experienceSchemeBefore.sys.version)
+  })
+})
+
+describeCrossOrg('Importing ExO folders across organizations (opt-in)', () => {
+  let sourceSpaceId: string
+  let destinationSpaceId: string
+  let sourceClient: any
+  let destinationClient: any
+  let sourceComponentFolderConceptId: string
+  let sourceExperienceFolderConceptId: string
+  let destComponentFolderConceptId: string
+  let destExperienceFolderConceptId: string
+
+  beforeAll(async () => {
+    sourceClient = createClient({ accessToken: managementToken })
+    destinationClient = createClient({ accessToken: managementToken })
+
+    const sourceSpace = await sourceClient.space.create(
+      { organizationId: sourceOrganizationId },
+      { name: 'IMPORT [AUTO] TOOL EXO CROSS-ORG SOURCE TMP' }
+    )
+    sourceSpaceId = sourceSpace.sys.id
+    const destinationSpace = await destinationClient.space.create(
+      { organizationId: orgId },
+      { name: 'IMPORT [AUTO] TOOL EXO CROSS-ORG DESTINATION TMP' }
+    )
+    destinationSpaceId = destinationSpace.sys.id
+
+    sourceComponentFolderConceptId = `contentful.folder-cross-org-component-${sourceSpaceId}`
+    sourceExperienceFolderConceptId = `contentful.folder-cross-org-experience-${sourceSpaceId}`
+    destComponentFolderConceptId = `${sourceComponentFolderConceptId}-${destinationSpaceId}`
+    destExperienceFolderConceptId = `${sourceExperienceFolderConceptId}-${destinationSpaceId}`
+
+    // The destination schemes are intentionally not created here. This suite
+    // assumes the destination organization has already provisioned the required
+    // platform schemes, matching the importer contract.
+    await destinationClient.conceptScheme.get({
+      organizationId: orgId,
+      conceptSchemeId: COMPONENT_TYPE_SCHEME_ID
+    })
+    await destinationClient.conceptScheme.get({
+      organizationId: orgId,
+      conceptSchemeId: EXPERIENCE_SCHEME_ID
+    })
+
+    await sourceClient.concept.createWithId(
+      { organizationId: sourceOrganizationId, conceptId: sourceComponentFolderConceptId },
+      {
+        purpose: 'internal',
+        prefLabel: { 'en-US': `${TEST_PREFIX} Cross Org Component Folder` },
+        metadata: { spaces: [{ sys: { type: 'Link', linkType: 'Space', id: sourceSpaceId } }] }
+      }
+    )
+    await sourceClient.concept.createWithId(
+      { organizationId: sourceOrganizationId, conceptId: sourceExperienceFolderConceptId },
+      {
+        purpose: 'internal',
+        prefLabel: { 'en-US': `${TEST_PREFIX} Cross Org Experience Folder` },
+        metadata: { spaces: [{ sys: { type: 'Link', linkType: 'Space', id: sourceSpaceId } }] }
+      }
+    )
+
+    await runContentfulImport({
+      spaceId: destinationSpaceId,
+      environmentId,
+      managementToken,
+      content: buildExoFolderContent(FOLDER_EXO_FIXTURE_IDS, {
+        component: sourceComponentFolderConceptId,
+        experience: sourceExperienceFolderConceptId
+      }, sourceSpaceId),
+      includeExperienceOrchestration: true,
+      useVerboseRenderer: true
+    })
+  })
+
+  afterAll(async () => {
+    try {
+      if (destinationClient) {
+        await unlinkConceptFromSchemeIfPresent(destinationClient, orgId, COMPONENT_TYPE_SCHEME_ID, destComponentFolderConceptId)
+        await unlinkConceptFromSchemeIfPresent(destinationClient, orgId, EXPERIENCE_SCHEME_ID, destExperienceFolderConceptId)
+        await deleteConceptIfPresent(destinationClient, orgId, destComponentFolderConceptId)
+        await deleteConceptIfPresent(destinationClient, orgId, destExperienceFolderConceptId)
+      }
+      if (sourceClient) {
+        await deleteConceptIfPresent(sourceClient, sourceOrganizationId as string, sourceComponentFolderConceptId)
+        await deleteConceptIfPresent(sourceClient, sourceOrganizationId as string, sourceExperienceFolderConceptId)
+      }
+    } finally {
+      if (destinationClient && destinationSpaceId) await destinationClient.space.delete({ spaceId: destinationSpaceId })
+      if (sourceClient && sourceSpaceId) await sourceClient.space.delete({ spaceId: sourceSpaceId })
+    }
+  })
+
+  test('copies source labels into destination-scoped concepts', async () => {
+    const componentConcept = await destinationClient.concept.get({
+      organizationId: orgId,
+      conceptId: destComponentFolderConceptId
+    })
+    const experienceConcept = await destinationClient.concept.get({
+      organizationId: orgId,
+      conceptId: destExperienceFolderConceptId
+    })
+
+    expect(componentConcept.prefLabel['en-US']).toBe(`${TEST_PREFIX} Cross Org Component Folder`)
+    expect(experienceConcept.prefLabel['en-US']).toBe(`${TEST_PREFIX} Cross Org Experience Folder`)
+    expect(componentConcept.metadata.spaces.some((s: any) => s.sys.id === destinationSpaceId)).toBe(true)
+    expect(experienceConcept.metadata.spaces.some((s: any) => s.sys.id === destinationSpaceId)).toBe(true)
+  })
+
+  test('links destination concepts into destination parent schemes', async () => {
+    const componentScheme = await destinationClient.conceptScheme.get({
+      organizationId: orgId,
+      conceptSchemeId: COMPONENT_TYPE_SCHEME_ID
+    })
+    const experienceScheme = await destinationClient.conceptScheme.get({
+      organizationId: orgId,
+      conceptSchemeId: EXPERIENCE_SCHEME_ID
+    })
+
+    expect(componentScheme.concepts.some((c: any) => c.sys.id === destComponentFolderConceptId)).toBe(true)
+    expect(experienceScheme.concepts.some((c: any) => c.sys.id === destExperienceFolderConceptId)).toBe(true)
+  })
+
+  test('rewrites destination ExO entity metadata to destination concept IDs', async () => {
+    const component = await destinationClient.component.get({
+      spaceId: destinationSpaceId,
+      environmentId,
+      componentId: FOLDER_EXO_FIXTURE_IDS.componentId
+    })
+    const experience = await destinationClient.experience.get({
+      spaceId: destinationSpaceId,
+      environmentId,
+      experienceId: FOLDER_EXO_FIXTURE_IDS.experienceId
+    })
+
+    expect(component.metadata.concepts[0].sys.id).toBe(destComponentFolderConceptId)
+    expect(experience.metadata.concepts[0].sys.id).toBe(destExperienceFolderConceptId)
   })
 })
 
@@ -258,7 +414,7 @@ describe('Importing ExO entities organized into folders (same-space)', () => {
         metadata: { spaces: [{ sys: { type: 'Link', linkType: 'Space', id: spaceId } }] }
       }
     )
-    await linkConceptToSchemeIfAbsent(plainClient, COMPONENT_TYPE_SCHEME_ID, folderConceptId)
+    await linkConceptToSchemeIfAbsent(plainClient, orgId, COMPONENT_TYPE_SCHEME_ID, folderConceptId)
 
     await runContentfulImport({
       spaceId,
@@ -275,12 +431,12 @@ describe('Importing ExO entities organized into folders (same-space)', () => {
 
     try {
       for (const schemeId of ALL_PARENT_SCHEME_IDS) {
-        await unlinkConceptFromSchemeIfPresent(plainClient, schemeId, destConceptId)
+        await unlinkConceptFromSchemeIfPresent(plainClient, orgId, schemeId, destConceptId)
       }
 
-      await deleteConceptIfPresent(plainClient, destConceptId)
-      await unlinkConceptFromSchemeIfPresent(plainClient, COMPONENT_TYPE_SCHEME_ID, folderConceptId)
-      await deleteConceptIfPresent(plainClient, folderConceptId)
+      await deleteConceptIfPresent(plainClient, orgId, destConceptId)
+      await unlinkConceptFromSchemeIfPresent(plainClient, orgId, COMPONENT_TYPE_SCHEME_ID, folderConceptId)
+      await deleteConceptIfPresent(plainClient, orgId, folderConceptId)
     } finally {
       await plainClient.space.delete({ spaceId })
     }
