@@ -163,6 +163,14 @@ Skip updating existing content
 
 Skips content publishing. Creates content but does not publish it
 
+#### `unpublishDraftLocales` [boolean] [default: false]
+
+Unpublish locales that the content file marks as `draft` but that are still published in the destination.
+
+Per-locale publishing is additive, so importing can add published locales but cannot demote one on its own. This only matters when importing over content that is already published — for a fresh import into a clean environment it makes no difference. Enable it to make repeated imports converge on exactly the state in the content file.
+
+Note that this lets an import **unpublish** content in the destination, which is why it is opt-in.
+
 ### Assets
 
 #### `uploadAssets` [boolean] [default: false]
@@ -219,6 +227,10 @@ Path to a JSON file with the configuration options. This file will be merged wit
 
 Flag controlling whether Experience Orchestration (ExO) entities — Design Tokens, Components, Experience Templates, Experience Fragments, Data Assemblies, and Experiences — are imported when present in the source content. Requires the `exoM1` entitlement on the destination space's organization. Set to `false` to opt out. See the "Experience Orchestration (ExO) entities" section below for what happens when the destination isn't entitled.
 
+#### `skipExoVariants` [boolean] [default: false]
+
+Skip importing nested Experience and Experience Fragment Optimization Variants. This can be useful when re-importing the same export because the upstream API generates new variant IDs on every create and cannot upsert by the source variant ID.
+
 ## :rescue_worker_helmet: Troubleshooting
 
 ### Proxy
@@ -270,7 +282,8 @@ The data to import should be structured like this:
   "experienceTemplates": [],
   "dataAssemblies": [],
   "experienceFragments": [],
-  "experiences": []
+  "experiences": [],
+  "releases": []
 }
 ```
 
@@ -278,11 +291,15 @@ Note: `tags` are not available for all users. If you do not have access to this 
 
 The `designTokens`, `components`, `experienceTemplates`, `dataAssemblies`, `experienceFragments`, and `experiences` keys are Experience Orchestration (ExO) entities — see the "Experience Orchestration (ExO) entities" section below.
 
+The `releases` key is subject to the [Releases](https://www.contentful.com/help/releases/) feature — see the "Releases" section below.
+
 ## :test_tube: Experience Orchestration (ExO) entities
 
 > **Experimental:** ExO entities (`designTokens`, `components`, `experienceTemplates`, `dataAssemblies`, `experienceFragments`, `experiences`) are `@internal` and considered experimental. Their shape and import behavior are subject to change without notice.
 
 ExO import is on by default (`includeExperienceOrchestration: true`) — for the CLI and the module API alike. Pass `includeExperienceOrchestration: false` (`--include-experience-orchestration=false` on the CLI) to opt out.
+
+Optimization Variant import is on automatically when the source contains nested variants. Pass `skipExoVariants: true` (or `--skip-exo-variants`) to leave them out of the import. When variants are imported, a warning is logged because each run creates fresh destination variant IDs and re-importing can create duplicates.
 
 ```javascript
 import contentfulImport from 'contentful-import'
@@ -314,14 +331,37 @@ ExO entities are created and published in dependency order, then unpublished in 
 4. Experience Templates — create, then publish
 5. Experience Fragments — create, then publish
 6. Experiences — create, then publish
-7. Unpublish pass, in reverse: Experiences → Experience Fragments → Experience Templates → Components → Data Assemblies
+7. Experience Optimization Variants — create, then publish/archive (only if the source has any; see below)
+8. Experience Fragment Optimization Variants — create, then publish/archive (only if the source has any; see below)
+9. Unpublish pass, in reverse: Experiences → Experience Fragments → Experience Templates → Components → Data Assemblies
 
 An entity that's published in the source is published in the destination on import. An entity that's unpublished (or removed) in the source but still published in the destination is unpublished on re-import — this propagates in both directions, so reverting a published ExO entity back to draft in the source and re-running the import will unpublish it in the destination too.
+
+### Optimization Variants
+
+Experiences and Experience Fragments each support **Optimization Variants** — alternate personalization versions nested onto their parent (`experience.optimizationVariants` / `experienceFragment.optimizationVariants`), not a flat top-level array like the other six ExO entity types. A variant's `sys.id` is borrowed from its parent rather than being globally unique — see the export tool's own doc ([contentful-export's ExO doc](https://github.com/contentful/contentful-export/blob/main/docs/exo-export.md#optimization-variants)) for the full rationale.
+
+Two behaviors are worth calling out explicitly because they differ from every other ExO entity type:
+
+- **No ID preservation.** Every other ExO entity is created via upsert-with-known-ID. Variants can't be: the upstream API's create endpoint always server-generates a fresh ID, and its update endpoint 404s on an unknown ID instead of creating one. Every import run creates brand-new destination variants — re-running an import with variants in the source data creates additional variants rather than updating existing ones.
+- **The API's synthetic "default" entry is filtered out.** The upstream list endpoint always leads with an entry representing the parent's own base view (`sys.variantType: 'default'`) — not a real variant. `contentful-export` already excludes it; `contentful-import` filters it again defensively for older export files.
 
 ### URN rewriting / backward compatibility
 
 - Export files taken before the ExO entity rename (`ComponentType` → `Component`, `Fragment` → `ExperienceFragment`, `Template` → `ExperienceTemplate`) are upgraded automatically on import, including the corresponding resource-link `linkType`s and URN path segments. This upgrade is upgrade-only (there's no downgrade path) and idempotent, so it's safe to run against already-upgraded data.
 - Export files that predate ExO entirely (no ExO keys, or empty ExO arrays) import unchanged — no extra configuration is needed to import older export files.
+
+## :package: Releases
+
+> **Only `Release.v2` ("Releases") is supported. `Release.v1` ("Launch") is not supported.**
+>
+> **The destination space's organization must have the [Releases](https://www.contentful.com/help/releases/) entitlement enabled.** Releases is a premium/paid feature — if the destination isn't entitled, importing releases will fail.
+
+If your source content includes a `releases` key, each entry is checked for `sys.schemaVersion`. Only releases with `sys.schemaVersion: "Release.v2"` are imported; any `Release.v1` (Launch) release is skipped and logged as an error, since its payload shape isn't compatible with the `Release.v2` create/update API.
+
+A release that already exists in the destination space at the source's exact `sys.id` is updated; otherwise one is created. There is no separate publish/unpublish step for releases — a release's own `entities` collection already carries the per-entity `publish`/`unpublish` action to take when the release itself is applied.
+
+**Releases have no ID-preserving create, unlike every other importable entity.** The Releases API always server-generates a release's `sys.id` on create — there is no way to request a specific ID. So the update path above only fires if a release already exists in the destination at the source's exact ID (for example, an environment cloned from the source) — which an import run can never produce on its own. Practically: re-importing the same source data creates additional releases rather than updating the ones from a prior run. If you need to re-run an import that includes releases, delete or archive the previously-imported ones first to avoid duplicates.
 
 ## :bulb: Importing to a space with existing content
 
@@ -333,6 +373,7 @@ An entity that's published in the source is published in the destination on impo
 - Publishing strategy:
   - If an entity is in draft, it will be created as draft in the destination space.
   - If an entity is published and has pending changes (updated) in the source space, it will be published with the latest changes in the destination space.
+  - If an entry or asset was published for only some of its locales, only those locales are published in the destination space. This is read from `sys.fieldStatus` in the content file, which `contentful-export` writes automatically — existing export files already contain it, so no re-export is needed. Content files without `sys.fieldStatus` are published as a whole, as before.
 
 ## :warning: Limitations
 
@@ -342,6 +383,12 @@ An entity that's published in the source is published in the destination on impo
 - Imported webhooks with credentials will be imported as normal webhooks. Credentials should be added manually afterwards.
 - Imported webhooks with secret headers will be imported without these headers. Secret headers should be added manuall afterwards.
 - If you have custom UI extensions, you need to reinstall them manually in the new space.
+- `Release.v1` ("Launch") releases are not supported for import — only `Release.v2` ("Releases") releases are imported; see the "Releases" section above.
+- Per-locale publish state is restored, with three caveats:
+  - The destination has to support [locale-based publishing](https://www.contentful.com/help/localization/locale-based-publishing/), which means two things: the organization is entitled to it (it is not on every plan), and the destination environment has "Locale-based (un)publishing" selected under **Settings > Locales > Publishing options** — the default is "Publish all locales". The import checks the entitlement up front and detects an environment that publishes whole entities anyway, and in either case logs a warning and falls back to publishing every locale, exactly as it did before this feature. The import itself does not fail.
+  - A locale that was `changed` in the source space (published, with newer draft edits on top) is imported as `published`. Reconstructing `changed` needs two separate writes, which an import cannot express.
+  - Locale-scoped publishing only adds published locales. If an entry in the destination space is already published for a locale that should be draft, that locale stays published by default — importing into a clean environment is unaffected. Set [`unpublishDraftLocales`](#unpublishdraftlocales-boolean-default-false) to demote those locales as well.
+- Locales that are published in the source space but do not exist in the destination environment are skipped. If none of an entity's published locales exist in the destination, the entity is left unpublished and a warning is logged.
 
 ## :memo: Changelog
 

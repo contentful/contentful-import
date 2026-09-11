@@ -56,6 +56,51 @@ export async function unpublishExoEntity<T>(type: string, entity: { sys: { id: s
   }
 }
 
+// A variant's identity is sys.variant, not sys.id (sys.id is borrowed from the parent
+// Experience/ExperienceFragment). These mirror filterExoEntitiesToPublish/Unpublish and
+// publishExoEntity/unpublishExoEntity but are kept separate rather than generalizing those
+// helpers, since those assume sys.id uniquely identifies an entity - not true for variants.
+export function filterVariantsToPublish<T extends { sys: { variant?: string; publishedVersion?: number } }>(
+  variants: T[]
+): T[] {
+  return variants.filter((v) => v.sys.publishedVersion)
+}
+
+// Excludes anything also flagged for publish: the upstream API rejects archiving a
+// published variant ("Published experience optimization variants cannot be archived.
+// Please unpublish the variant first."), so source data should never have both flags set.
+// Filtering defensively here means malformed source data is skipped rather than failing
+// the archive call outright.
+export function filterVariantsToArchive<T extends { sys: { variant?: string; publishedVersion?: number; archivedVersion?: number } }>(
+  variants: T[]
+): T[] {
+  return variants.filter((v) => v.sys.archivedVersion && !v.sys.publishedVersion)
+}
+
+export async function publishVariant<T>(type: string, entity: { sys: { variant?: string } }, publish: () => Promise<T>): Promise<T | null> {
+  try {
+    const result = await publish()
+    logEmitter.emit('info', `PUBLISH ${type} ${entity.sys.variant}`)
+    return result
+  } catch (err: any) {
+    err.entity = entity
+    logEmitter.emit('error', err)
+    return null
+  }
+}
+
+export async function archiveVariant<T>(type: string, entity: { sys: { variant?: string } }, archive: () => Promise<T>): Promise<T | null> {
+  try {
+    const result = await archive()
+    logEmitter.emit('info', `ARCHIVE ${type} ${entity.sys.variant}`)
+    return result
+  } catch (err: any) {
+    err.entity = entity
+    logEmitter.emit('error', err)
+    return null
+  }
+}
+
 export function isExoEntitlementError (err: unknown): boolean {
   if (!(err instanceof Error)) {
     return false
@@ -63,6 +108,24 @@ export function isExoEntitlementError (err: unknown): boolean {
   try {
     const parsed = JSON.parse(err.message)
     return parsed?.status === 403 && parsed?.details?.reasons === 'exoM1 entitlement required'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Timeline (Releases) is gated by its own "timeline" feature entitlement, separate from
+ * exoM1 — a destination org without it 403s with a different `details.reasons` string
+ * (confirmed against content_api's release-v2 create-test.ts entitlement test), so
+ * isExoEntitlementError doesn't catch it.
+ */
+export function isTimelineEntitlementError (err: unknown): boolean {
+  if (!(err instanceof Error)) {
+    return false
+  }
+  try {
+    const parsed = JSON.parse(err.message)
+    return parsed?.status === 403 && parsed?.details?.reasons === 'Timeline is not enabled for this organization'
   } catch {
     return false
   }

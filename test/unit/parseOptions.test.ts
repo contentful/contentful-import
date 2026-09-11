@@ -110,6 +110,7 @@ test('parseOptions sets correct default options', async () => {
   expect(options.skipContentModel).toBe(false)
   expect(options.skipLocales).toBe(false)
   expect(options.skipContentPublishing).toBe(false)
+  expect(options.skipExoVariants).toBe(false)
   expect(options.uploadAssets).toBe(false)
   expect(options.content).toEqual({
     assets: [],
@@ -123,6 +124,7 @@ test('parseOptions sets correct default options', async () => {
     experienceTemplates: [],
     experiences: [],
     locales: [],
+    releases: [],
     tags: [],
     webhooks: [],
     ...require(contentFile)
@@ -210,7 +212,7 @@ test('parseOption cleans up content to only include supported entity types', asy
     }
   })
   const content = options.content
-  expect(Object.keys(content)).toHaveLength(13)
+  expect(Object.keys(content)).toHaveLength(14)
   expect(content.invalid).toBeUndefined()
 })
 

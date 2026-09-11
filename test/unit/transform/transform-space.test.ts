@@ -57,18 +57,3 @@ test('applies transformers to give space data', () => {
   expect(result.webhooks?.[0]).toHaveProperty('transformed')
   expect(result.doNotTouch).toBe(true)
 })
-
-test('applies custom transformers to give space data', () => {
-  const result = transformSpace(space, destinationSpace, {
-    entries: () => 'transformed'
-  })
-  expect(result.entries?.[0]?.transformed).toBe('transformed')
-})
-
-test('applies transformers to given entity types', () => {
-  const result = transformSpace(space, destinationSpace, {}, ['entries'])
-  expect(result.contentTypes[0]).not.toHaveProperty('original')
-  expect(result.contentTypes[0]).not.toHaveProperty('transformed')
-  expect(result.entries[0]).toHaveProperty('original')
-  expect(result.entries[0]).toHaveProperty('transformed')
-})

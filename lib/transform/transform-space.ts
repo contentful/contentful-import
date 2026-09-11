@@ -1,13 +1,15 @@
-import { omit, defaults } from 'lodash-es'
+import { omit } from 'lodash-es'
 
-import * as defaultTransformers from './transformers'
+import * as transformers from './transformers'
 import sortEntries from '../utils/sort-entries'
 import sortLocales from '../utils/sort-locales'
 import { upgradeExoResources } from './exo-rename'
 import { DestinationData, OriginalSourceData, TransformedSourceData } from '../types'
 
-const spaceEntities = [
-  'contentTypes', 'entries', 'assets', 'locales', 'webhooks', 'tags'
+// ExO entities bypass this loop (see upgradeExoResources() below) - intentional, but unlike
+// entries/assets it doesn't strip metadata.tags when the destination lacks Tags access. See AIS-552.
+const entities = [
+  'contentTypes', 'entries', 'assets', 'locales', 'webhooks', 'tags', 'releases'
 ]
 
 /**
@@ -15,9 +17,7 @@ const spaceEntities = [
  * is a need to transform data when copying it to the destination space
  */
 export default function (
-  sourceData: OriginalSourceData, destinationData: DestinationData, customTransformers?: any, entities = spaceEntities
-): TransformedSourceData {
-  const transformers = defaults(customTransformers, defaultTransformers)
+  sourceData: OriginalSourceData, destinationData: DestinationData): TransformedSourceData {
   // ExO entities (components, experienceTemplates, experienceFragments,
   // experiences) are not handled by the per-entity transformers above; they
   // pass through as-is except for a rename upgrade so exports taken before the
@@ -31,7 +31,7 @@ export default function (
 
   return entities.reduce((transformedSpaceData, type) => {
     // tags don't contain links to other entities, don't need to be sorted
-    const sortedEntities = (type === 'tags') ? (sourceData[type] ?? []) : sortEntries(sourceData[type] ?? [])
+    const sortedEntities = (type === 'tags' || type === 'releases') ? (sourceData[type] ?? []) : sortEntries(sourceData[type] ?? [])
 
     const transformedEntities = sortedEntities.map((entity) => ({
       original: entity,

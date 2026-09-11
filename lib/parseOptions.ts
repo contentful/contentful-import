@@ -22,14 +22,16 @@ const SUPPORTED_ENTITY_TYPES = [
   'experienceTemplates',
   'dataAssemblies',
   'experienceFragments',
-  'experiences'
+  'experiences',
+  'releases'
 ]
 
-export default async function parseOptions (params) {
+export default async function parseOptions(params) {
   const defaultOptions = {
     skipContentModel: false,
     skipLocales: false,
     skipContentPublishing: false,
+    unpublishDraftLocales: false,
     skipAssetUpdates: false,
     skipContentUpdates: false,
     useVerboseRenderer: false,
@@ -38,6 +40,7 @@ export default async function parseOptions (params) {
     uploadAssets: false,
     rateLimit: 7,
     includeExperienceOrchestration: true,
+    skipExoVariants: false,
     host: 'api.contentful.com'
   }
 

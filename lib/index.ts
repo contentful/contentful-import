@@ -6,7 +6,7 @@ import VerboseRenderer from 'listr-verbose-renderer'
 import { startCase } from 'lodash-es'
 import PQueue from 'p-queue'
 
-import { displayErrorLog, setupLogging, writeErrorLogFile } from 'contentful-batch-libs/dist/logging'
+import { setupLogging, writeErrorLogFile } from 'contentful-batch-libs/dist/logging'
 import { wrapTask } from 'contentful-batch-libs/dist/listr'
 
 import initClient from './tasks/init-client'
@@ -16,6 +16,7 @@ import transformSpace from './transform/transform-space'
 import { assertDefaultLocale, assertPayload } from './utils/validations'
 import parseOptions from './parseOptions'
 import { ContentfulMultiError, LogItem } from './utils/errors'
+import displayErrorLog from './utils/display-error-log'
 
 const ONE_SECOND = 1000
 
@@ -47,6 +48,7 @@ type RunContentfulImportParams = {
   skipContentModel?: boolean,
   skipLocales?: boolean,
   skipContentPublishing?: boolean,
+  unpublishDraftLocales?: boolean,
   skipAssetUpdates?: boolean,
   skipContentUpdates?: boolean,
   uploadAssets?: boolean,
@@ -59,7 +61,7 @@ type RunContentfulImportParams = {
   errorLogFile?: string,
   useVerboseRenderer?: boolean,
   includeExperienceOrchestration?: boolean,
-  // TODO These properties are not documented in the Readme
+  skipExoVariants?: boolean,
   timeout?: number,
   retryLimit?: number,
   config?: string,
@@ -97,6 +99,23 @@ async function runContentfulImport (params: RunContentfulImportParams) {
 
     infoTable.push([startCase(type), options.content[type].length])
   })
+
+  // Optimization Variants are nested onto their parent Experience/ExperienceFragment
+  // (options.content.experiences[].optimizationVariants) rather than a top-level key, so the
+  // loop above never surfaces a count for them - add computed rows instead, mirroring the
+  // same approach contentful-export's summary table takes.
+  const experienceVariantCount = (options.content.experiences || []).reduce(
+    (sum: number, e: any) => sum + (e.optimizationVariants?.length ?? 0), 0
+  )
+  if (!options.skipExoVariants && experienceVariantCount > 0) {
+    infoTable.push(['Experience Optimization Variants', experienceVariantCount])
+  }
+  const experienceFragmentVariantCount = (options.content.experienceFragments || []).reduce(
+    (sum: number, f: any) => sum + (f.optimizationVariants?.length ?? 0), 0
+  )
+  if (!options.skipExoVariants && experienceFragmentVariantCount > 0) {
+    infoTable.push(['Experience Fragment Optimization Variants', experienceFragmentVariantCount])
+  }
 
   console.log(infoTable.toString())
 
@@ -149,11 +168,13 @@ async function runContentfulImport (params: RunContentfulImportParams) {
           client: ctx.client,
           spaceId: options.spaceId,
           includeExperienceOrchestration: options.includeExperienceOrchestration,
+          skipExoVariants: options.skipExoVariants,
           environmentId: options.environmentId,
           contentModelOnly: options.contentModelOnly,
           skipLocales: options.skipLocales,
           skipContentModel: options.skipContentModel,
           skipContentPublishing: options.skipContentPublishing,
+          unpublishDraftLocales: options.unpublishDraftLocales,
           skipAssetUpdates: options.skipAssetUpdates,
           skipContentUpdates: options.skipContentUpdates,
           timeout: options.timeout,
