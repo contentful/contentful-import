@@ -1,3 +1,5 @@
+import { removeMetadataTags } from './transformers'
+
 /**
  * Upgrades legacy-shaped Experience Orchestration (ExO) entities to the renamed
  * form the current API expects, so exports taken before the rename can still be
@@ -199,19 +201,32 @@ function upgradeExperience (entity: any): any {
   }
 }
 
+/** Upgrades one entity array, if present, and scrubs metadata.tags per-entity. */
+function upgradeEntityArray (key: string, resources: Record<string, any>, upgrade: (entity: any) => any, tagsEnabled: boolean) {
+  const items = resources[key]
+  if (!Array.isArray(items)) return {}
+
+  const upgraded = items.map((entity: any) => removeMetadataTags(upgrade(entity), tagsEnabled))
+  return { [key]: upgraded }
+}
+
 /**
  * Upgrades the renameable ExO entity arrays on a resources object to the new
  * form, leaving all other keys (and entities that were not renamed, such as
  * dataAssemblies and designTokens) untouched. Idempotent.
+ *
+ * Also strips metadata.tags when the destination lacks Tags access
+ * (tagsEnabled = false) — otherwise the create/upsert call 400s server-side
+ * (see AIS-552).
  */
-export function upgradeExoResources<T extends Record<string, any>> (resources: T): T {
+export function upgradeExoResources<T extends Record<string, any>> (resources: T, tagsEnabled = false): T {
   if (!resources) return resources
   return {
     ...resources,
-    ...(Array.isArray(resources.components) ? { components: resources.components.map(upgradeComponent) } : {}),
-    ...(Array.isArray(resources.experienceTemplates) ? { experienceTemplates: resources.experienceTemplates.map(upgradeExperienceTemplate) } : {}),
-    ...(Array.isArray(resources.experienceFragments) ? { experienceFragments: resources.experienceFragments.map(upgradeExperienceFragment) } : {}),
-    ...(Array.isArray(resources.experiences) ? { experiences: resources.experiences.map(upgradeExperience) } : {})
+    ...upgradeEntityArray('components', resources, upgradeComponent, tagsEnabled),
+    ...upgradeEntityArray('experienceTemplates', resources, upgradeExperienceTemplate, tagsEnabled),
+    ...upgradeEntityArray('experienceFragments', resources, upgradeExperienceFragment, tagsEnabled),
+    ...upgradeEntityArray('experiences', resources, upgradeExperience, tagsEnabled)
   }
 }
 

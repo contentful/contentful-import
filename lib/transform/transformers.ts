@@ -69,7 +69,7 @@ export function locales(locale, destinationLocales) {
   return transformedLocale
 }
 
-function removeMetadataTags(entity, tagsEnabled = false) {
+export function removeMetadataTags(entity, tagsEnabled = false) {
   if (!tagsEnabled) {
     delete entity.metadata
   }

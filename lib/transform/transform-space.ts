@@ -6,8 +6,6 @@ import sortLocales from '../utils/sort-locales'
 import { upgradeExoResources } from './exo-rename'
 import { DestinationData, OriginalSourceData, TransformedSourceData } from '../types'
 
-// ExO entities bypass this loop (see upgradeExoResources() below) - intentional, but unlike
-// entries/assets it doesn't strip metadata.tags when the destination lacks Tags access. See AIS-552.
 const entities = [
   'contentTypes', 'entries', 'assets', 'locales', 'webhooks', 'tags', 'releases'
 ]
@@ -18,16 +16,27 @@ const entities = [
  */
 export default function (
   sourceData: OriginalSourceData, destinationData: DestinationData): TransformedSourceData {
-  // ExO entities (components, experienceTemplates, experienceFragments,
-  // experiences) are not handled by the per-entity transformers above; they
-  // pass through as-is except for a rename upgrade so exports taken before the
-  // ExO field rename can still be imported. Upgrading here — before
-  // sorting and push — means the rest of the pipeline only ever sees the new
-  // form. The upgrade is idempotent, so already-new-form data is untouched.
-  const baseSpaceData = upgradeExoResources(omit(sourceData, ...entities)) as TransformedSourceData
+  const tagsEnabled = !!destinationData.tags
+
+  // ExO entities aren't handled by the per-entity transformers above; they just get
+  // a rename upgrade (pre-rename exports) and a metadata.tags scrub (AIS-552).
+  const baseSpaceData = upgradeExoResources(omit(sourceData, ...entities), tagsEnabled) as TransformedSourceData
+
+  // dataAssemblies/designTokens skip upgradeExoResources() (no rename applies), so they
+  // need their own scrub. DataAssembly.metadata is required, so it's zeroed instead of deleted.
+  if (!tagsEnabled) {
+    if (Array.isArray(baseSpaceData.dataAssemblies)) {
+      baseSpaceData.dataAssemblies = baseSpaceData.dataAssemblies.map((entity) => ({
+        ...entity,
+        metadata: { ...entity.metadata, tags: [] }
+      }))
+    }
+    if (Array.isArray(baseSpaceData.designTokens)) {
+      baseSpaceData.designTokens = baseSpaceData.designTokens.map((entity) => transformers.removeMetadataTags({ ...entity }, false))
+    }
+  }
 
   sourceData.locales = sortLocales(sourceData.locales)
-  const tagsEnabled = !!destinationData.tags
 
   return entities.reduce((transformedSpaceData, type) => {
     // tags don't contain links to other entities, don't need to be sorted

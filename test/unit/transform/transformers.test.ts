@@ -106,3 +106,21 @@ test('It should transform an entry with tags disabled, and return it', () => {
   const transformed = transformers.entries(entryMock, null, false)
   expect(transformed.metadata).toBeUndefined()
 })
+
+test('removeMetadataTags keeps metadata when tags are enabled', () => {
+  const entity = { metadata: { tags: [{ sys: { id: 't1' } }] } }
+  expect(transformers.removeMetadataTags(entity, true)).toBe(entity)
+  expect(entity.metadata).toEqual({ tags: [{ sys: { id: 't1' } }] })
+})
+
+test('removeMetadataTags strips metadata when tags are disabled', () => {
+  const entity: any = { metadata: { tags: [{ sys: { id: 't1' } }] } }
+  transformers.removeMetadataTags(entity, false)
+  expect(entity.metadata).toBeUndefined()
+})
+
+test('removeMetadataTags defaults to stripping metadata when tagsEnabled is omitted', () => {
+  const entity: any = { metadata: { tags: [] } }
+  transformers.removeMetadataTags(entity)
+  expect(entity.metadata).toBeUndefined()
+})
