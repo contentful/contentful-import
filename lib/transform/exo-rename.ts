@@ -211,13 +211,13 @@ function upgradeEntityArray (key: string, resources: Record<string, any>, upgrad
 }
 
 /**
- * Upgrades the renameable ExO entity arrays on a resources object to the new
- * form, leaving all other keys (and entities that were not renamed, such as
- * dataAssemblies and designTokens) untouched. Idempotent.
+ * Upgrades components, experienceTemplates, experienceFragments, and experiences to the
+ * new (post-rename) shape. Everything else on the resources object - including
+ * dataAssemblies and designTokens, which were never renamed - passes through untouched.
+ * Safe to call more than once; already-upgraded data is left as-is.
  *
- * Also strips metadata.tags when the destination lacks Tags access
- * (tagsEnabled = false) — otherwise the create/upsert call 400s server-side
- * (see AIS-552).
+ * Also drops metadata.tags when the destination can't resolve tags (tagsEnabled = false),
+ * since sending them would 400 on create/upsert.
  */
 export function upgradeExoResources<T extends Record<string, any>> (resources: T, tagsEnabled = false): T {
   if (!resources) return resources

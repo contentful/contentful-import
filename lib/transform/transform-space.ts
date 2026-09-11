@@ -13,7 +13,7 @@ const entities = [
 ]
 
 // Every entity type whose metadata.tags gets scrubbed when the destination lacks Tags
-// access - used to size the single warning below (AIS-552).
+// access - used to size the warning in warnIfTagsWillBeStripped().
 const TAG_SCRUBBED_ENTITY_TYPES = [
   'entries', 'assets', 'components', 'experienceTemplates', 'experienceFragments',
   'experiences', 'dataAssemblies', 'designTokens'
@@ -26,6 +26,32 @@ function countEntitiesWithTags (sourceData: OriginalSourceData): number {
   }, 0)
 }
 
+function warnIfTagsWillBeStripped (sourceData: OriginalSourceData, tagsEnabled: boolean): void {
+  if (tagsEnabled) return
+
+  const strippedCount = countEntitiesWithTags(sourceData)
+  if (strippedCount === 0) return
+
+  logEmitter.emit('warning', `The destination space/environment does not have access to the Tags feature. metadata.tags was removed from ${strippedCount} ${strippedCount === 1 ? 'entity' : 'entities'} during import.`)
+}
+
+// dataAssemblies/designTokens skip upgradeExoResources() (no rename applies to them), so
+// they need their own metadata.tags scrub here. DataAssembly.metadata is a required field,
+// so it's zeroed out rather than deleted. Mutates spaceData in place.
+function stripTagsFromDataAssembliesAndDesignTokens (spaceData: TransformedSourceData, tagsEnabled: boolean): void {
+  if (tagsEnabled) return
+
+  if (Array.isArray(spaceData.dataAssemblies)) {
+    spaceData.dataAssemblies = spaceData.dataAssemblies.map((entity) => ({
+      ...entity,
+      metadata: { ...entity.metadata, tags: [] }
+    }))
+  }
+  if (Array.isArray(spaceData.designTokens)) {
+    spaceData.designTokens = spaceData.designTokens.map((entity) => transformers.removeMetadataTags(entity, false))
+  }
+}
+
 /**
  * Run transformer methods on each item for each kind of entity, in case there
  * is a need to transform data when copying it to the destination space
@@ -34,30 +60,12 @@ export default function (
   sourceData: OriginalSourceData, destinationData: DestinationData): TransformedSourceData {
   const tagsEnabled = !!destinationData.tags
 
-  if (!tagsEnabled) {
-    const strippedCount = countEntitiesWithTags(sourceData)
-    if (strippedCount > 0) {
-      logEmitter.emit('warning', `The destination space/environment does not have access to the Tags feature. metadata.tags was removed from ${strippedCount} ${strippedCount === 1 ? 'entity' : 'entities'} during import.`)
-    }
-  }
+  warnIfTagsWillBeStripped(sourceData, tagsEnabled)
 
-  // ExO entities aren't handled by the per-entity transformers above; they just get
-  // a rename upgrade (pre-rename exports) and a metadata.tags scrub (AIS-552).
+  // ExO entities aren't handled by the per-entity transformers above; they just get a
+  // rename upgrade (pre-rename exports) and a metadata.tags scrub.
   const baseSpaceData = upgradeExoResources(omit(sourceData, ...entities), tagsEnabled) as TransformedSourceData
-
-  // dataAssemblies/designTokens skip upgradeExoResources() (no rename applies), so they
-  // need their own scrub. DataAssembly.metadata is required, so it's zeroed instead of deleted.
-  if (!tagsEnabled) {
-    if (Array.isArray(baseSpaceData.dataAssemblies)) {
-      baseSpaceData.dataAssemblies = baseSpaceData.dataAssemblies.map((entity) => ({
-        ...entity,
-        metadata: { ...entity.metadata, tags: [] }
-      }))
-    }
-    if (Array.isArray(baseSpaceData.designTokens)) {
-      baseSpaceData.designTokens = baseSpaceData.designTokens.map((entity) => transformers.removeMetadataTags(entity, false))
-    }
-  }
+  stripTagsFromDataAssembliesAndDesignTokens(baseSpaceData, tagsEnabled)
 
   sourceData.locales = sortLocales(sourceData.locales)
 
