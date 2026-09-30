@@ -619,6 +619,29 @@ describe('Importing Data Assemblies', () => {
     expect(payload.name).toBe('My Assembly')
   })
 
+  test('preserves ordered parameter definitions when importing a Data Assembly', async () => {
+    const client = mockClient()
+    const parameters = [
+      { id: 'title', type: 'String', required: false },
+      { id: 'limit', type: 'Number', required: true }
+    ]
+    await pushToSpace({
+      sourceData: {
+        ...baseSourceData,
+        dataAssemblies: [{ ...entity, parameters }]
+      } as any,
+      destinationData: { ...baseDestinationData, dataAssemblies: [] },
+      client,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue
+    }).run({ data: {} })
+
+    const [, payload] = client.dataAssembly.update.mock.calls[0]
+    expect(payload.parameters).toEqual(parameters)
+  })
+
   test('UPDATE: calls dataAssembly.update (not create) with destination sys.version when entity exists', async () => {
     const client = mockClient();
     const destinationEntity: any = { sys: { id: 'da-1', type: 'DataAssembly', version: 9 } }
