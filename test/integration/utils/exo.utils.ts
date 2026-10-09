@@ -19,13 +19,6 @@ export function makeResourceLink (linkType: keyof typeof entityPaths, id: string
   }
 }
 
-export const testViewport = {
-  id: 'desktop',
-  query: '(min-width: 1024px)',
-  displayName: 'Desktop',
-  previewSize: '100%'
-}
-
 export type ExoFixtureIds = {
   designTokenId: string
   componentId: string
@@ -77,7 +70,6 @@ export function buildExoContent (ids: ExoFixtureIds) {
         sys: { id: ids.componentId, type: 'Component', version: 1, publishedVersion: 1 },
         name: `${TEST_PREFIX} Component`,
         description: 'Created by an ExO import integration test',
-        viewports: [testViewport],
         contentProperties: [{ id: 'title', name: 'Title', type: 'String', required: false }],
         designProperties: [{ id: 'color', name: 'Color', type: 'String' }]
       }
@@ -103,7 +95,6 @@ export function buildExoContent (ids: ExoFixtureIds) {
         sys: { id: ids.experienceTemplateId, type: 'ExperienceTemplate', version: 1, publishedVersion: 1 },
         name: `${TEST_PREFIX} Experience Template`,
         description: 'Created by an ExO import integration test',
-        viewports: [testViewport],
         contentProperties: [],
         designProperties: []
       }
@@ -118,7 +109,6 @@ export function buildExoContent (ids: ExoFixtureIds) {
         },
         name: `${TEST_PREFIX} Experience Fragment`,
         description: 'Created by an ExO import integration test',
-        viewports: [testViewport],
         designProperties: {},
         // Draft variant (no publishedVersion) - covers the "create but don't publish" path,
         // complementing the published Experience variant below. Nested on its parent since
@@ -135,7 +125,6 @@ export function buildExoContent (ids: ExoFixtureIds) {
             },
             name: ids.experienceFragmentVariantName,
             description: 'Created by an ExO import integration test',
-            viewports: [testViewport],
             designProperties: {}
           }
         ]
@@ -152,7 +141,6 @@ export function buildExoContent (ids: ExoFixtureIds) {
         },
         name: `${TEST_PREFIX} Experience`,
         description: 'Created by an ExO import integration test',
-        viewports: [testViewport],
         designProperties: {},
         // Published variant (publishedVersion set) - covers publish-state carried through
         // from source onto the freshly-created destination variant.
@@ -169,7 +157,6 @@ export function buildExoContent (ids: ExoFixtureIds) {
             },
             name: ids.experienceVariantName,
             description: 'Created by an ExO import integration test',
-            viewports: [testViewport],
             designProperties: {}
           }
         ]
@@ -227,7 +214,6 @@ export function buildExoFolderContent (ids: FolderExoFixtureIds, folderConceptId
         metadata: { tags: [], concepts: [makeFolderConceptLink(folderConceptIds.component)] },
         name: `${TEST_PREFIX} Foldered Component`,
         description: 'Created by an ExO folder import integration test',
-        viewports: [testViewport],
         contentProperties: [{ id: 'title', name: 'Title', type: 'String', required: false }],
         designProperties: [{ id: 'color', name: 'Color', type: 'String' }]
       }
@@ -237,7 +223,6 @@ export function buildExoFolderContent (ids: FolderExoFixtureIds, folderConceptId
         sys: { id: ids.experienceTemplateId, type: 'ExperienceTemplate', version: 1 },
         name: `${TEST_PREFIX} Foldered Experience Template`,
         description: 'Created by an ExO folder import integration test',
-        viewports: [testViewport],
         contentProperties: [],
         designProperties: []
       }
@@ -254,7 +239,6 @@ export function buildExoFolderContent (ids: FolderExoFixtureIds, folderConceptId
         metadata: { tags: [], concepts: [makeFolderConceptLink(folderConceptIds.experience)] },
         name: `${TEST_PREFIX} Foldered Experience`,
         description: 'Created by an ExO folder import integration test',
-        viewports: [testViewport],
         designProperties: {}
       }
     ]
@@ -276,7 +260,6 @@ export function buildSameSpaceExoFolderContent (ids: FolderExoFixtureIds, folder
         metadata: { tags: [], concepts: [makeFolderConceptLink(folderConceptId)] },
         name: `${TEST_PREFIX} Foldered Component`,
         description: 'Created by an ExO folder import integration test',
-        viewports: [testViewport],
         contentProperties: [{ id: 'title', name: 'Title', type: 'String', required: false }],
         designProperties: [{ id: 'color', name: 'Color', type: 'String' }]
       }
@@ -299,7 +282,6 @@ export function buildUnpublishedComponentContent (ids: ExoFixtureIds) {
         sys: { id: ids.componentId, type: 'Component', version: 1 },
         name: `${TEST_PREFIX} Component`,
         description: 'Created by an ExO import integration test',
-        viewports: [testViewport],
         contentProperties: [{ id: 'title', name: 'Title', type: 'String', required: false }],
         designProperties: [{ id: 'color', name: 'Color', type: 'String' }]
       }
