@@ -71,6 +71,7 @@ export function buildExoContent (ids: ExoFixtureIds) {
         name: `${TEST_PREFIX} Component`,
         description: 'Created by an ExO import integration test',
         contentProperties: [{ id: 'title', name: 'Title', type: 'String', required: false }],
+        componentTree: [],
         designProperties: [{ id: 'color', name: 'Color', type: 'String' }]
       }
     ],
@@ -96,6 +97,7 @@ export function buildExoContent (ids: ExoFixtureIds) {
         name: `${TEST_PREFIX} Experience Template`,
         description: 'Created by an ExO import integration test',
         contentProperties: [],
+        componentTree: [],
         designProperties: []
       }
     ],
@@ -215,6 +217,7 @@ export function buildExoFolderContent (ids: FolderExoFixtureIds, folderConceptId
         name: `${TEST_PREFIX} Foldered Component`,
         description: 'Created by an ExO folder import integration test',
         contentProperties: [{ id: 'title', name: 'Title', type: 'String', required: false }],
+        componentTree: [],
         designProperties: [{ id: 'color', name: 'Color', type: 'String' }]
       }
     ],
@@ -224,6 +227,7 @@ export function buildExoFolderContent (ids: FolderExoFixtureIds, folderConceptId
         name: `${TEST_PREFIX} Foldered Experience Template`,
         description: 'Created by an ExO folder import integration test',
         contentProperties: [],
+        componentTree: [],
         designProperties: []
       }
     ],
@@ -261,6 +265,7 @@ export function buildSameSpaceExoFolderContent (ids: FolderExoFixtureIds, folder
         name: `${TEST_PREFIX} Foldered Component`,
         description: 'Created by an ExO folder import integration test',
         contentProperties: [{ id: 'title', name: 'Title', type: 'String', required: false }],
+        componentTree: [],
         designProperties: [{ id: 'color', name: 'Color', type: 'String' }]
       }
     ]
@@ -283,6 +288,7 @@ export function buildUnpublishedComponentContent (ids: ExoFixtureIds) {
         name: `${TEST_PREFIX} Component`,
         description: 'Created by an ExO import integration test',
         contentProperties: [{ id: 'title', name: 'Title', type: 'String', required: false }],
+        componentTree: [],
         designProperties: [{ id: 'color', name: 'Color', type: 'String' }]
       }
     ]
