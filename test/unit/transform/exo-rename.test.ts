@@ -4,7 +4,8 @@ import {
   upgradeExperienceTemplate,
   upgradeExperienceFragment,
   upgradeExperience,
-  upgradeNode
+  upgradeNode,
+  upgradeContentBindings
 } from '../../../lib/transform/exo-rename'
 
 const legacyComponentLink = (id: string) => ({
@@ -285,5 +286,146 @@ describe('upgradeExoResources', () => {
     }
     upgradeExoResources(input, false)
     expect(sourceMetadata).toEqual({ tags: [{ sys: { id: 't1' } }], concepts: [{ sys: { id: 'contentful.folder-abc' } }] })
+  })
+})
+
+// ─── Content bindings (bare ResourceLink -> $literal) ───────────────────────
+
+describe('upgradeContentBindings', () => {
+  const entryLink = (id: string) => ({
+    sys: {
+      type: 'ResourceLink',
+      linkType: 'Contentful:Entry',
+      urn: `crn:contentful:::content:spaces/$self/environments/$self/entries/${id}`
+    }
+  })
+  const assemblyLink = {
+    sys: {
+      type: 'ResourceLink',
+      linkType: 'Contentful:DataAssembly',
+      urn: 'crn:contentful:::experience:spaces/$self/environments/$self/dataAssemblies/da1'
+    }
+  }
+
+  test('wraps a bare ResourceLink parameter as { $literal: <link> }', () => {
+    const result = upgradeContentBindings({ sys: assemblyLink.sys, parameters: { hero: entryLink('e1') } })
+    expect(result.parameters.hero).toEqual({ $literal: entryLink('e1') })
+    expect(result.sys).toEqual(assemblyLink.sys)
+  })
+
+  test('leaves $literal, pointer and unrecognized parameter values unchanged', () => {
+    const parameters = {
+      literalLink: { $literal: entryLink('e1') },
+      literalString: { $literal: 'hello' },
+      literalNumber: { $literal: 3 },
+      literalQuery: { $literal: { limit: 5, order: '-sys.createdAt' } },
+      pointer: '$parameters/hero',
+      linkWithExtraKey: { ...entryLink('e2'), extra: true },
+      nonResourceLink: { sys: { type: 'Link', linkType: 'Entry', id: 'e3' } },
+      nullValue: null
+    }
+    const result = upgradeContentBindings({ sys: assemblyLink.sys, parameters })
+    expect(result.parameters).toEqual(parameters)
+  })
+
+  test('is idempotent', () => {
+    const once = upgradeContentBindings({ sys: assemblyLink.sys, parameters: { hero: entryLink('e1') } })
+    expect(upgradeContentBindings(once)).toEqual(once)
+  })
+
+  test('does not mutate the input', () => {
+    const input = { sys: assemblyLink.sys, parameters: { hero: entryLink('e1') } }
+    upgradeContentBindings(input)
+    expect(input.parameters.hero).toEqual(entryLink('e1'))
+  })
+
+  test('passes through contentBindings without parameters', () => {
+    expect(upgradeContentBindings(undefined)).toBeUndefined()
+    expect(upgradeContentBindings({ sys: assemblyLink.sys })).toEqual({ sys: assemblyLink.sys })
+  })
+
+  test('upgrades root contentBindings on an Experience', () => {
+    const result = upgradeExperience({
+      sys: { id: 'x1', type: 'Experience' },
+      contentBindings: { sys: assemblyLink.sys, parameters: { hero: entryLink('e1'), title: '$parameters/title' } }
+    })
+    expect(result.contentBindings.parameters).toEqual({ hero: { $literal: entryLink('e1') }, title: '$parameters/title' })
+  })
+
+  test('upgrades root contentBindings on an ExperienceFragment', () => {
+    const result = upgradeExperienceFragment({
+      sys: { id: 'f1', type: 'ExperienceFragment' },
+      contentBindings: { sys: assemblyLink.sys, parameters: { hero: entryLink('e1') } }
+    })
+    expect(result.contentBindings.parameters.hero).toEqual({ $literal: entryLink('e1') })
+  })
+
+  test('upgrades contentBindings on nested inline fragment nodes in slots, including legacy InlineFragment', () => {
+    const result = upgradeExperience({
+      sys: { id: 'x1', type: 'Experience' },
+      slots: {
+        main: [{
+          id: 'n1',
+          nodeType: 'InlineFragment',
+          componentType: legacyComponentLink('hero'),
+          contentBindings: { sys: assemblyLink.sys, parameters: { a: entryLink('e1') } },
+          slots: {
+            inner: [{
+              id: 'n2',
+              nodeType: 'InlineExperienceFragment',
+              component: newComponentLink('card'),
+              contentBindings: { sys: assemblyLink.sys, parameters: { b: entryLink('e2'), c: { $literal: entryLink('e3') } } }
+            }]
+          }
+        }]
+      }
+    })
+    const outer = result.slots.main[0]
+    expect(outer.nodeType).toBe('InlineExperienceFragment')
+    expect(outer.contentBindings.parameters.a).toEqual({ $literal: entryLink('e1') })
+    const inner = outer.slots.inner[0]
+    expect(inner.contentBindings.parameters).toEqual({ b: { $literal: entryLink('e2') }, c: { $literal: entryLink('e3') } })
+  })
+
+  test('upgrades contentBindings and slots on nested optimizationVariants', () => {
+    const result = upgradeExperience({
+      sys: { id: 'x1', type: 'Experience' },
+      optimizationVariants: [{
+        sys: { id: 'x1', variant: 'v1', variantType: 'audience' },
+        contentBindings: { sys: assemblyLink.sys, parameters: { hero: entryLink('e1') } },
+        slots: {
+          main: [{
+            id: 'n1',
+            nodeType: 'InlineExperienceFragment',
+            component: newComponentLink('hero'),
+            contentBindings: { sys: assemblyLink.sys, parameters: { a: entryLink('e2') } }
+          }]
+        }
+      }]
+    })
+    const variant = result.optimizationVariants[0]
+    expect(variant.sys.variant).toBe('v1')
+    expect(variant.contentBindings.parameters.hero).toEqual({ $literal: entryLink('e1') })
+    expect(variant.slots.main[0].contentBindings.parameters.a).toEqual({ $literal: entryLink('e2') })
+  })
+
+  test('upgradeExoResources output is idempotent for content bindings', () => {
+    const input = {
+      experiences: [{
+        sys: { id: 'x1', type: 'Experience' },
+        contentBindings: { sys: assemblyLink.sys, parameters: { hero: entryLink('e1') } },
+        optimizationVariants: [{ sys: { id: 'x1', variant: 'v1' }, contentBindings: { sys: assemblyLink.sys, parameters: { hero: entryLink('e1') } } }]
+      }],
+      experienceFragments: [{
+        sys: { id: 'f1', type: 'ExperienceFragment' },
+        contentBindings: { sys: assemblyLink.sys, parameters: { hero: entryLink('e1') } }
+      }]
+    }
+    const once: any = upgradeExoResources(input, true)
+    expect(once.experiences[0].contentBindings.parameters.hero).toEqual({ $literal: entryLink('e1') })
+    expect(once.experiences[0].optimizationVariants[0].contentBindings.parameters.hero).toEqual({ $literal: entryLink('e1') })
+    expect(once.experienceFragments[0].contentBindings.parameters.hero).toEqual({ $literal: entryLink('e1') })
+    expect(upgradeExoResources(once, true)).toEqual(once)
+    expect(input.experiences[0].contentBindings.parameters.hero).toEqual(entryLink('e1'))
   })
 })

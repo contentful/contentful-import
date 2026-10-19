@@ -13,6 +13,11 @@ import { removeMetadataTags } from './transformers'
  * component-tree / slot node shapes, slot-definition `allowedResources`, and
  * content-property `TypeRef`s.
  *
+ * It also upgrades legacy content-binding parameters: Experience / ExperienceFragment
+ * `contentBindings.parameters` historically allowed a bare ResourceLink
+ * (`{ sys: { type: 'ResourceLink', ... } }`), which the API no longer accepts. Those are
+ * wrapped as `{ $literal: <link> }`, the canonical form current exports already use.
+ *
  * This is intentionally UPGRADE-ONLY: import always writes the new form, so
  * there is no downgrade path. Every function is idempotent — data already in the
  * new form passes through unchanged — so it is safe to run on mixed input.
@@ -48,6 +53,32 @@ const upgradeComponentLink = (link: any) =>
 
 const upgradeTemplateLink = (link: any) =>
   upgradeLink(link, 'Contentful:ExperienceTemplate', 'templates', 'experienceTemplates')
+
+/**
+ * A bare ResourceLink binding parameter is an object whose ONLY key is `sys`, with
+ * `sys.type === 'ResourceLink'`. Anything else (`$literal` wrappers, `$parameters/...`
+ * pointer strings, unrecognized shapes) is not treated as bare.
+ */
+function isBareResourceLink (value: any): boolean {
+  return !!value && typeof value === 'object' && !Array.isArray(value) &&
+    Object.keys(value).length === 1 && value.sys?.type === 'ResourceLink'
+}
+
+/**
+ * Wraps bare ResourceLink `contentBindings.parameters` values as `{ $literal: <link> }`.
+ * All other parameter values, and every other `contentBindings` key, pass through unchanged.
+ */
+function upgradeContentBindings (contentBindings: any): any {
+  if (!contentBindings || typeof contentBindings !== 'object') return contentBindings
+  const { parameters } = contentBindings
+  if (!parameters || typeof parameters !== 'object' || Array.isArray(parameters)) return contentBindings
+  return {
+    ...contentBindings,
+    parameters: Object.fromEntries(
+      Object.entries(parameters).map(([key, value]) => [key, isBareResourceLink(value) ? { $literal: value } : value])
+    )
+  }
+}
 
 /**
  * Upgrades a single component-tree / slot node. Handles both container nodes
@@ -94,12 +125,14 @@ function upgradeNode (node: any): any {
         ...rest,
         nodeType: 'InlineExperienceFragment',
         ...(component ? { component } : {}),
+        ...(node.contentBindings !== undefined ? { contentBindings: upgradeContentBindings(node.contentBindings) } : {}),
         ...(node.slots !== undefined ? { slots: upgradeNodeMap(node.slots) } : {})
       }
     }
     case 'InlineExperienceFragment':
       return {
         ...node,
+        ...(node.contentBindings !== undefined ? { contentBindings: upgradeContentBindings(node.contentBindings) } : {}),
         ...(node.slots !== undefined ? { slots: upgradeNodeMap(node.slots) } : {})
       }
 
@@ -156,6 +189,23 @@ function upgradeContentPropertyTypeRefs (props: any): any {
   return Array.isArray(props) ? props.map(upgradeContentProperty) : props
 }
 
+/**
+ * Upgrades the Optimization Variants nested on an Experience / ExperienceFragment
+ * (`optimizationVariants`). Variants are sent to the API with their own `contentBindings`
+ * and `slots`, so they get the same content-binding and slot-node upgrade as their parent.
+ */
+function upgradeOptimizationVariants (variants: any): any {
+  if (!Array.isArray(variants)) return variants
+  return variants.map((variant) => {
+    if (!variant || typeof variant !== 'object') return variant
+    return {
+      ...variant,
+      ...(variant.contentBindings !== undefined ? { contentBindings: upgradeContentBindings(variant.contentBindings) } : {}),
+      ...(variant.slots !== undefined ? { slots: upgradeNodeMap(variant.slots) } : {})
+    }
+  })
+}
+
 // ─── Per-entity upgraders ─────────────────────────────────────────────────────
 
 function upgradeComponent (entity: any): any {
@@ -186,7 +236,9 @@ function upgradeExperienceFragment (entity: any): any {
   return {
     ...entity,
     sys: { ...restSys, type: 'ExperienceFragment', ...(component ? { component } : {}) },
-    ...(entity.slots !== undefined ? { slots: upgradeNodeMap(entity.slots) } : {})
+    ...(entity.contentBindings !== undefined ? { contentBindings: upgradeContentBindings(entity.contentBindings) } : {}),
+    ...(entity.slots !== undefined ? { slots: upgradeNodeMap(entity.slots) } : {}),
+    ...(entity.optimizationVariants !== undefined ? { optimizationVariants: upgradeOptimizationVariants(entity.optimizationVariants) } : {})
   }
 }
 
@@ -197,7 +249,9 @@ function upgradeExperience (entity: any): any {
   return {
     ...entity,
     sys: { ...restSys, type: 'Experience', ...(experienceTemplate ? { experienceTemplate } : {}) },
-    ...(entity.slots !== undefined ? { slots: upgradeNodeMap(entity.slots) } : {})
+    ...(entity.contentBindings !== undefined ? { contentBindings: upgradeContentBindings(entity.contentBindings) } : {}),
+    ...(entity.slots !== undefined ? { slots: upgradeNodeMap(entity.slots) } : {}),
+    ...(entity.optimizationVariants !== undefined ? { optimizationVariants: upgradeOptimizationVariants(entity.optimizationVariants) } : {})
   }
 }
 
@@ -237,6 +291,7 @@ export {
   upgradeExperienceFragment,
   upgradeExperience,
   upgradeNode,
+  upgradeContentBindings,
   upgradeSlotDefinitions,
   upgradeContentPropertyTypeRefs
 }
