@@ -1,4 +1,4 @@
-type ComponentLike = { sys: { id: string }; componentTree?: any[] }
+type ComponentLike = { sys: { id: string }; componentTree?: any[] | null }
 
 /**
  * Topologically sorts components so that any component referenced

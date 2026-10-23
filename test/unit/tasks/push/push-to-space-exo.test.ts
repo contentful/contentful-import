@@ -34,10 +34,10 @@ const baseSourceData = {
 
 const baseDestinationData = {}
 
-// Upsert/update mocks echo back the version from the payload (as the real API does on
-// both create and update) so downstream Publishing tasks see a realistic sys.version.
+// Upsert/update mocks echo back the input version so downstream Publishing tasks
+// receive a sys.version. Data Assembly passes its version in params, not the body.
 function echoVersion(id: string) {
-  return jest.fn((_params: any, payload: any) => Promise.resolve({ sys: { id, version: payload.sys.version ?? 1 } }))
+  return jest.fn((params: any, payload: any) => Promise.resolve({ sys: { id, version: params.version ?? payload.sys?.version ?? 1 } }))
 }
 
 const ALL_PARENT_GROUP_IDS = [
@@ -595,7 +595,7 @@ describe('Publishing Experience Fragments', () => {
 describe('Importing Data Assemblies', () => {
   const entity: any = { sys: { id: 'da-1', type: 'DataAssembly', version: 2, dataType: [{ id: 'headline', name: 'Headline', type: 'Symbol' }] }, name: 'My Assembly' }
 
-  test('CREATE: calls dataAssembly.update with version 0 to preserve id when entity does not exist in destination', async () => {
+  test('CREATE: calls dataAssembly.update without a version to preserve id when entity does not exist in destination', async () => {
     const client = mockClient();
     await pushToSpace({
       sourceData: { ...baseSourceData, dataAssemblies: [entity] } as any,
@@ -612,10 +612,7 @@ describe('Importing Data Assemblies', () => {
 
     const [params, payload] = client.dataAssembly.update.mock.calls[0]
     expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', dataAssemblyId: 'da-1' })
-    expect(payload.sys.id).toBe('da-1')
-    expect(payload.sys.type).toBe('DataAssembly')
-    expect(payload.sys.version).toBe(0)
-    expect(payload.sys.dataType).toEqual(entity.sys.dataType)
+    expect(payload).not.toHaveProperty('sys')
     expect(payload.name).toBe('My Assembly')
   })
 
@@ -636,8 +633,8 @@ describe('Importing Data Assemblies', () => {
     expect(client.dataAssembly.create).not.toHaveBeenCalled()
 
     const [params, payload] = client.dataAssembly.update.mock.calls[0]
-    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', dataAssemblyId: 'da-1' })
-    expect(payload.sys.version).toBe(9)
+    expect(params).toEqual({ spaceId: 'space-1', environmentId: 'master', dataAssemblyId: 'da-1', version: 9 })
+    expect(payload).not.toHaveProperty('sys')
     expect(payload.name).toBe('My Assembly')
   })
 
@@ -669,7 +666,7 @@ describe('Importing Data Assemblies', () => {
     }).run({ data: {} })
 
     const [, payload] = client.dataAssembly.update.mock.calls[0]
-    expect(payload.sys).toEqual({ id: 'da-1', type: 'DataAssembly', dataType: publishedEntity.sys.dataType, version: 9 })
+    expect(payload).toEqual({ name: 'My Assembly' })
   })
 
   test('attaches the entity to the error before emitting, and continues on failure', async () => {

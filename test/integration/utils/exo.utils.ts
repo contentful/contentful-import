@@ -88,7 +88,7 @@ export function buildExoContent (ids: ExoFixtureIds) {
         description: 'Created by an ExO import integration test',
         parameters: {},
         resolvers: {},
-        return: {}
+        return: { $object: { title: { $literal: 'static value' } } }
       }
     ],
     experienceTemplates: [
