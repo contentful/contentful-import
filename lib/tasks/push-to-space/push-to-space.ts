@@ -25,7 +25,6 @@ import * as publishing from './publishing'
 import * as releases from './releases'
 import type { DestinationData, TransformedSourceData, Resources, TransformedAsset } from '../../types'
 import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../../utils/graphql-schema-backoff'
-import { buildDataAssemblySys } from '../../utils/exo-entity-payloads'
 import sortComponents from '../../utils/sort-components'
 import sortExperienceFragments from '../../utils/sort-experience-fragments'
 import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity, filterVariantsToPublish, filterVariantsToArchive, publishVariant, archiveVariant } from '../../utils/publish-exo-entities'
@@ -500,16 +499,15 @@ export default function pushToSpace({
         const results = await Promise.all((sourceData.dataAssemblies || []).map(async (entity) => {
           try {
             const existing = destinationDataById.dataAssemblies?.get(entity.sys.id)
+            const payload: UpdateDataAssemblyProps = omitSys(entity)
             let result
             if (existing) {
-              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: buildDataAssemblySys(entity, existing.sys.version) }
               result = await withGraphQLSchemaBackoff(() => client.dataAssembly.update(
-                { spaceId, environmentId, dataAssemblyId: entity.sys.id },
+                { spaceId, environmentId, dataAssemblyId: entity.sys.id, version: existing.sys.version },
                 payload
               ))
               logEmitter.emit('info', `UPDATE DataAssembly ${entity.sys.id}`)
             } else {
-              const payload: UpdateDataAssemblyProps = { ...omitSys(entity), sys: buildDataAssemblySys(entity, 0) }
               result = await withGraphQLSchemaBackoff(() => client.dataAssembly.update(
                 { spaceId, environmentId, dataAssemblyId: entity.sys.id },
                 payload

@@ -42,7 +42,7 @@ ExO entities reference each other via URN pointers that embed the entity's `sys.
 For this reason, all ExO entity creates must use a PUT-with-ID call (upsert semantics), not a bare POST:
 
 - **ComponentTypes, Templates, Fragments, Experiences, DesignTokens** — use `plainClient.<type>.upsert(...)` with `sys: { id, type }` and no `version` field (omitting version signals create intent).
-- **DataAssemblies** — the SDK has no `upsert`; use `plainClient.dataAssembly.update(...)` with `sys.version: 0`, which maps to `PUT /data_assemblies/{id}` and creates the entity with the specified ID.
+- **DataAssemblies** — the SDK has no `upsert`; use `plainClient.dataAssembly.update(...)` with a body without top-level `sys` and no `version` param. This maps to `PUT /data_assemblies/{id}` and creates the entity with the specified ID. For an existing assembly, pass its current version in the `version` param so the SDK sends `X-Contentful-Version`.
 
 ## Why Load Order Matters
 
