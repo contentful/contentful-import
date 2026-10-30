@@ -13,20 +13,15 @@ jest.mock('../../../../lib/utils/import-exo-folders.ts', () => {
   const actual = jest.requireActual('../../../../lib/utils/import-exo-folders.ts')
   return { ...actual, importExoFolders: jest.fn().mockResolvedValue(undefined) }
 })
-jest.mock('../../../../lib/utils/sort-components', () => ({
+jest.mock('../../../../lib/utils/sort-components-and-fragments', () => ({
   __esModule: true,
+  ...jest.requireActual('../../../../lib/utils/sort-components-and-fragments'),
   default: jest.fn(() => {
     throw new Error('malformed componentTree')
   })
 }))
-jest.mock('../../../../lib/utils/sort-experience-fragments', () => ({
-  __esModule: true,
-  default: jest.fn(() => {
-    throw new Error('malformed slots')
-  })
-}))
 
-// Imported after the mocks above so push-to-space picks up the mocked sort modules.
+// Imported after the mock above so push-to-space picks up the mocked sort module.
 import pushToSpace from '../../../../lib/tasks/push-to-space/push-to-space'
 import { makePlainClientMock } from '../../helpers/plain-client-mock'
 
@@ -77,7 +72,7 @@ beforeEach(() => {
   requestQueue = new PQueue({ interval: 1000, intervalCap: 1000 })
 })
 
-describe('Importing Components: setup-code failures', () => {
+describe('Importing Components and Experience Fragments: setup-code failures', () => {
   const entity: any = { sys: { id: 'ct-1', type: 'Component', version: 1 }, name: 'Hero' }
 
   test('logs the sort failure via logEmitter and still aborts the run', async () => {
@@ -102,7 +97,7 @@ describe('Importing Components: setup-code failures', () => {
   })
 })
 
-describe('Importing Experience Fragments: setup-code failures', () => {
+describe('Importing Components and Experience Fragments (fragment only): setup-code failures', () => {
   const entity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 1 }, name: 'Hero Fragment' }
 
   test('logs the sort failure via logEmitter and still aborts the run', async () => {
@@ -121,7 +116,7 @@ describe('Importing Experience Fragments: setup-code failures', () => {
 
     const errorCall = emitSpy.mock.calls.find((args) => args[0] === 'error')
     expect(errorCall?.[1]).toBeInstanceOf(Error)
-    expect((errorCall?.[1] as Error).message).toBe('malformed slots')
+    expect((errorCall?.[1] as Error).message).toBe('malformed componentTree')
     expect(plainClient.experienceFragment.upsert).not.toHaveBeenCalled()
     emitSpy.mockRestore()
   })
