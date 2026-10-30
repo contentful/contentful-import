@@ -61,12 +61,13 @@ describe('sortComponentsAndFragments', () => {
     expect(keys(rev.sorted).indexOf('ExperienceFragment:f')).toBeGreaterThan(keys(rev.sorted).indexOf('Component:button'))
   })
 
-  it('adds edges for slot-definition allowedResources', () => {
+  it('does not add edges for slot-definition allowedResources', () => {
     const layout = component('layout', {
       slots: [{ id: 's', allowedResources: [{ type: 'Contentful:Component', allowedTypes: [compLink('card').sys.urn] }] }]
     })
-    const { sorted } = sortComponentsAndFragments([layout, component('card')], [])
-    expect(keys(sorted)).toEqual(['Component:card', 'Component:layout'])
+    const { sorted, cyclic } = sortComponentsAndFragments([layout, component('card')], [])
+    expect(keys(sorted)).toEqual(['Component:layout', 'Component:card'])
+    expect(cyclic).toEqual([])
   })
 
   it('finds references nested in Looper nodes', () => {

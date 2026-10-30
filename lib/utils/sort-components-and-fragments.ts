@@ -31,7 +31,7 @@ function referencedKeys (json: string): string[] {
  *
  * - A component depends on the components and fragments embedded anywhere in
  *   its `componentTree` (including inside Looper and InlineExperienceFragment
- *   nodes) and on the components allowed by its slot definitions.
+ *   nodes).
  * - A fragment depends on its base component and on the components and
  *   fragments embedded anywhere in its `slots`.
  *
@@ -55,8 +55,8 @@ export default function sortComponentsAndFragments<
     (n) => nodeKey(n.type, n.entity.sys.id),
     (n) => {
       if (n.type === 'Component') {
-        const { componentTree, slots } = n.entity as any
-        return referencedKeys(JSON.stringify({ componentTree, slots }))
+        const { componentTree } = n.entity as any
+        return referencedKeys(JSON.stringify({ componentTree }))
       }
       const entity = n.entity as any
       return referencedKeys(JSON.stringify({ component: entity.sys.component, slots: entity.slots }))
