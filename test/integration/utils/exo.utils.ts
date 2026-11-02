@@ -86,7 +86,7 @@ export function buildExoContent (ids: ExoFixtureIds) {
         metadata: { tags: [] },
         name: `${TEST_PREFIX} Data Assembly`,
         description: 'Created by an ExO import integration test',
-        parameters: {},
+        parameters: [],
         resolvers: {},
         return: { $object: { title: { $literal: 'static value' } } }
       }
