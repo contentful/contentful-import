@@ -327,13 +327,14 @@ ExO entities are created and published in dependency order, then unpublished in 
 
 1. Data Assemblies — create, then publish
 2. Design Tokens — create only (no publish/unpublish step; a Design Token is live as soon as it's created or updated)
-3. Components — create, then publish
+3. Components and Experience Fragments — create everything, then publish everything, in a single dependency-sorted order (a Component can embed a Fragment and a Fragment can be based on a Component, so the two types are ordered against each other; circular references are appended last with a warning)
 4. Experience Templates — create, then publish
-5. Experience Fragments — create, then publish
-6. Experiences — create, then publish
-7. Experience Optimization Variants — create, then publish/archive (only if the source has any; see below)
-8. Experience Fragment Optimization Variants — create, then publish/archive (only if the source has any; see below)
-9. Unpublish pass, in reverse: Experiences → Experience Fragments → Experience Templates → Components → Data Assemblies
+5. Experiences — create, then publish
+6. Experience Optimization Variants — create, then publish/archive (only if the source has any; see below)
+7. Experience Fragment Optimization Variants — create, then publish/archive (only if the source has any; see below)
+8. Unpublish pass, in reverse dependency order: Experiences → Experience Templates → Components and Experience Fragments → Data Assemblies
+
+See [docs/exo-import.md](docs/exo-import.md) for why this order is required.
 
 An entity that's published in the source is published in the destination on import. An entity that's unpublished (or removed) in the source but still published in the destination is unpublished on re-import — this propagates in both directions, so reverting a published ExO entity back to draft in the source and re-running the import will unpublish it in the destination too.
 

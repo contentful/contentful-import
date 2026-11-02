@@ -6,33 +6,37 @@ Experience Orchestration (ExO) is Contentful's system for composing and renderin
 
 ## Entity Dependency Model
 
-ExO entities form a strict dependency graph. An entity can only reference types that appear earlier in the hierarchy — there are no circular dependencies across types, though intra-type dependencies are possible for ComponentTypes and Fragments.
+ExO entities form a dependency graph. DataAssemblies and DesignTokens sit at the bottom, and Experiences at the top. ComponentTypes and Fragments are different: they depend on each other, in both directions, so they form a single graph rather than two ordered tiers.
+
+- A ComponentType can embed other ComponentTypes **and Fragments** in its `componentTree`.
+- A Fragment is based on a ComponentType (`sys.component`) and can embed ComponentTypes and other Fragments in its `slots`.
 
 ```
 DataAssemblies      DesignTokens
       │                   │
       ▼                   ▼
-ComponentTypes ──────────────────┐
-      │                          │ (a CT can reference other CTs
-      ▼                          │  in its componentTree)
-  Templates                      │
-      │               Fragments ─┤
-      │                   │      │ (a Fragment can reference other
-      │                   │      │  Fragments in its slots)
-      └──────┬────────────┘
-             ▼
-        Experiences
+┌────────────────────────────────────────┐
+│ ComponentTypes  ◄────────►  Fragments  │  one graph: edges run both
+└────────────────────────────────────────┘  ways between the two types
+                    │                       and within each type
+                    ▼
+                Templates
+                    │
+                    ▼
+               Experiences
 ```
 
-DesignTokens feed into ComponentType/Template/Fragment/Experience via design property references (`designProperties.defaultValue`/`fallbackValue`/`allowedResources`), not via the `componentTree`/`slots` mechanism used for CT-to-CT or Fragment-to-Fragment references.
+Experiences reference Fragments as well as Templates; that edge is omitted from the diagram for clarity (see the table below).
+
+DesignTokens feed into ComponentType/Template/Fragment/Experience via design property references (`designProperties.defaultValue`/`fallbackValue`/`allowedResources`), not via the `componentTree`/`slots` mechanism used for CT-to-CT or Fragment references.
 
 | Entity         | References                                                      | Referenced by                                              |
 |----------------|-----------------------------------------------------------------|------------------------------------------------------------|
 | DesignToken    | nothing                                                         | ComponentTypes, Templates, Fragments, Experiences          |
 | DataAssembly   | nothing                                                         | ComponentTypes, Fragments, Experiences                     |
-| ComponentType  | DataAssemblies, DesignTokens, other ComponentTypes              | Templates, Fragments, Experiences                          |
-| Template       | ComponentTypes, DesignTokens                                    | Experiences                                                |
-| Fragment       | ComponentTypes, DataAssemblies, DesignTokens, other Fragments   | Experiences                                                |
+| ComponentType  | DataAssemblies, DesignTokens, other ComponentTypes, Fragments   | ComponentTypes, Templates, Fragments, Experiences          |
+| Template       | ComponentTypes, Fragments, DesignTokens                         | Experiences                                                |
+| Fragment       | ComponentTypes, DataAssemblies, DesignTokens, other Fragments   | ComponentTypes, Templates, Fragments, Experiences          |
 | Experience     | Templates, Fragments, DataAssemblies, DesignTokens              | nothing                                                    |
 
 ## ID Preservation Is Required
@@ -48,15 +52,16 @@ For this reason, all ExO entity creates must use a PUT-with-ID call (upsert sema
 
 Standard content entries do not have this problem: the CMA treats entry link fields as opaque references at write time, storing the `sys.id` pointer without checking whether the target entry or asset exists. Entries can be created in parallel regardless of their link graph, and broken links simply resolve as null until the targets are created. Ordering only becomes relevant for entries at **publish time**, which `contentful-import` handles via a multi-pass retry queue.
 
-ExO entities have a stricter contract: the CMA validates references **at create time**. If you attempt to create a ComponentType that lists a DataAssembly in its `dataAssemblies` allow-list before that DataAssembly exists, the API returns a `422 InvalidDataAssemblyReference`. Creating a ComponentType whose `componentTree` references another ComponentType that hasn't been created yet returns a `404 Not Found`. The retry-queue approach used for entries wouldn't help here — a failed create is not automatically retried, it's just an error.
+ExO entities have a stricter contract: the CMA validates references **at create time**. If you attempt to create a ComponentType that lists a DataAssembly in its `dataAssemblies` allow-list before that DataAssembly exists, the API returns a `422 InvalidDataAssemblyReference`. Creating a ComponentType whose `componentTree` references another ComponentType that hasn't been created yet returns a `404 Not Found`. Creating a Template that embeds a Fragment that doesn't exist yet fails with `Some of the referenced entities do not exist.`, and the Experiences built on that Template then fail with `Draft entity ExperienceTemplate … was not found`. The retry-queue approach used for entries wouldn't help here — a failed create is not automatically retried, it's just an error.
 
 This means the import order must respect the dependency graph above:
 
 1. **DataAssemblies** and **DesignTokens** — no dependencies on each other or on any other ExO type; either can be imported before the other with no ordering risk
-2. **ComponentTypes** — depend on DataAssemblies and DesignTokens (must already exist); may depend on other ComponentTypes
-3. **Templates** — depend on ComponentTypes and DesignTokens
-4. **Fragments** — depend on ComponentTypes, DataAssemblies, and DesignTokens; may depend on other Fragments
-5. **Experiences** — depend on Templates, Fragments, DataAssemblies, and DesignTokens
+2. **ComponentTypes and Fragments** — imported together in one dependency-sorted pass. They depend on DataAssemblies and DesignTokens (must already exist), and on each other (see "Why Cross-Type Sorting Is Required")
+3. **Templates** — depend on ComponentTypes, Fragments, and DesignTokens
+4. **Experiences** — depend on Templates, Fragments, DataAssemblies, and DesignTokens
+
+Unpublishing runs in the reverse order: Experiences → Templates → ComponentTypes and Fragments → DataAssemblies. A Fragment must not be unpublished before the Templates that embed it.
 
 ## How ExO Folders Work
 Reference ExO Entity Folders RFC: https://contentful.atlassian.net/wiki/x/3BOCgAE
@@ -137,11 +142,26 @@ Before the ExO entities are upserted, every source entity's `metadata.concepts[]
 
 **Same-space imports are skipped entirely** — if source and destination space IDs match, the existing folder concepts are already valid and no taxonomy work is needed.
 
-## Why Intra-Type Sorting Is Required
+## Why Cross-Type Sorting Is Required
 
-DataAssemblies, DesignTokens, Templates, and Experiences have no dependencies within their own type and can be imported in parallel. ComponentTypes and Fragments are different: a ComponentType can embed other ComponentTypes in its `componentTree` (e.g. a "Page" CT that slots in a "Hero" CT), and a Fragment can reference other Fragments in its `slots`. If these are imported in arbitrary order — or all at once via `Promise.all` — the CMA can receive a create request for the composite entity before its dependency exists, causing a `404`.
+DataAssemblies, DesignTokens, Templates, and Experiences have no dependencies within their own type and can be imported in parallel. ComponentTypes and Fragments are different, because their dependencies cross types:
 
-To prevent this, `contentful-import` applies a topological sort (Kahn's algorithm) to both ComponentTypes and Fragments before importing them, and then imports each sorted list sequentially. The sort parses URN references from `componentTree` and `slots` to build a dependency graph, resolves the safe creation order, and falls back to appending any cyclic nodes at the end so the import can still proceed rather than failing outright.
+- A "Page" ComponentType can slot in a "Hero" ComponentType (CT → CT).
+- A composed ComponentType can embed a Fragment in its `componentTree`, and that Fragment can itself be based on another ComponentType (CT → Fragment → CT).
+- A Fragment can reference other Fragments in its `slots`.
+- A Template can embed Fragments, so Fragments must exist before Templates are imported.
+
+No fixed per-type order satisfies the second case, so sorting ComponentTypes among themselves and Fragments among themselves isn't enough. `contentful-import` instead builds **one dependency graph over ComponentTypes and Fragments** and imports them in a single sorted order.
+
+- **Sort.** `lib/utils/topological-sort.ts` is a generic, stable, iterative Kahn's algorithm (O(V+E)) that returns `{ sorted, cyclic }`.
+- **Graph.** `lib/utils/sort-components-and-fragments.ts` keys nodes by type and ID (`Component:<id>`, `ExperienceFragment:<id>`), so a ComponentType and a Fragment that share an ID stay distinct. Edges come from URN references found in the fields that hold embedded references:
+  - ComponentTypes: `componentTree` (including Looper and inline-fragment nodes).
+  - Fragments: the base `sys.component`, plus `slots`.
+  - References to entities outside the import set create no edge.
+- **Two passes.** Everything is imported in sorted order, then everything is published in the same order. Each list is processed sequentially rather than via `Promise.all`.
+- **Cycles.** Entities in a cycle (or that depend on one) are appended last and a warning names their keys. They are still attempted so the import can proceed, but the API rejects true cycles.
+
+Templates, Experiences, and Optimization Variants are imported after this step.
 
 ## Optimization Variants
 
