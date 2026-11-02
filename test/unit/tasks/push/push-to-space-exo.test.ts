@@ -116,7 +116,7 @@ beforeEach(() => {
 
 // ─── Component ────────────────────────────────────────────────────────────
 
-describe('Importing Components', () => {
+describe('Importing Components and Experience Fragments: Component payloads', () => {
   const entity: any = { sys: { id: 'ct-1', type: 'Component', version: 3 }, name: 'Hero' }
 
   test('CREATE: calls upsert with id in sys when entity does not exist in destination', async () => {
@@ -252,7 +252,7 @@ describe('Importing Components', () => {
   })
 })
 
-describe('Publishing Components', () => {
+describe('Publishing Components and Experience Fragments: Component publish', () => {
   const publishedEntity: any = { sys: { id: 'ct-1', type: 'Component', version: 2, publishedVersion: 2 }, name: 'Hero' }
   const draftEntity: any = { sys: { id: 'ct-1', type: 'Component', version: 3 }, name: 'Hero' }
   const destinationEntity: any = { sys: { id: 'ct-1', type: 'Component', version: 7 } }
@@ -460,7 +460,7 @@ describe('Publishing Experience Templates', () => {
 
 // ─── ExperienceFragment ─────────────────────────────────────────────────────────────────
 
-describe('Importing Experience Fragments', () => {
+describe('Importing Components and Experience Fragments: Experience Fragment payloads', () => {
   const component = { sys: { type: 'ResourceLink', linkType: 'Contentful:Component', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/components/hero' } }
   const entity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 1, component }, name: 'Hero Fragment' }
 
@@ -530,7 +530,7 @@ describe('Importing Experience Fragments', () => {
   })
 })
 
-describe('Publishing Experience Fragments', () => {
+describe('Publishing Components and Experience Fragments: Experience Fragment publish', () => {
   const publishedEntity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 1, publishedVersion: 1 }, name: 'Hero Fragment' }
   const draftEntity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 1 }, name: 'Hero Fragment' }
   const destinationEntity: any = { sys: { id: 'frag-1', type: 'ExperienceFragment', version: 4 } }
@@ -992,7 +992,7 @@ describe('Publishing Experiences', () => {
 // Covers the fix for the bug where a source-side unpublish never propagated on re-import:
 // no unpublish task existed at all for any ExO entity type before this change.
 
-describe('Unpublishing Components', () => {
+describe('Unpublishing Components and Experience Fragments: Component unpublish', () => {
   const draftInSource: any = { sys: { id: 'ct-1', type: 'Component', version: 3 }, name: 'Hero' }
   const publishedInSource: any = { sys: { id: 'ct-1', type: 'Component', version: 3, publishedVersion: 3 }, name: 'Hero' }
 
@@ -1117,7 +1117,7 @@ describe('Unpublishing Experience Templates', () => {
   })
 })
 
-describe('Unpublishing Experience Fragments', () => {
+describe('Unpublishing Components and Experience Fragments: Experience Fragment unpublish', () => {
   const component = { sys: { type: 'ResourceLink', linkType: 'Contentful:Component', urn: 'crn:contentful:::experience:spaces/$self/environments/$self/components/hero' } }
 
   test('unpublishes an entity that is published at the destination but draft in the source', async () => {
@@ -1164,5 +1164,169 @@ describe('Unpublishing Experiences', () => {
     expect(client.experience.unpublish).toHaveBeenCalledWith(
       { spaceId: 'space-1', environmentId: 'master', experienceId: 'exp-1', version: 8 }
     )
+  })
+})
+
+// ─── Components and Experience Fragments (combined ordering) ──────────────
+
+describe('Importing Components and Experience Fragments', () => {
+  const BASE = 'crn:contentful:::experience:spaces/$self/environments/$self'
+  const compLink = (id: string) => ({ sys: { type: 'ResourceLink', linkType: 'Contentful:Component', urn: `${BASE}/components/${id}` } })
+  const fragLink = (id: string) => ({ sys: { type: 'ResourceLink', linkType: 'Contentful:ExperienceFragment', urn: `${BASE}/experienceFragments/${id}` } })
+  const fragNode = (id: string) => ({ id: `node-${id}`, nodeType: 'ExperienceFragment', experienceFragment: fragLink(id) })
+
+  function component(id: string, extra: Record<string, any> = {}, published = false): any {
+    return {
+      sys: { id, type: 'Component', version: 1, ...(published ? { publishedVersion: 1 } : {}) },
+      name: id,
+      componentTree: [],
+      slots: [],
+      ...extra
+    }
+  }
+  function fragment(id: string, base: string, extra: Record<string, any> = {}, published = false): any {
+    return {
+      sys: { id, type: 'ExperienceFragment', version: 1, component: compLink(base), ...(published ? { publishedVersion: 1 } : {}) },
+      name: id,
+      slots: {},
+      ...extra
+    }
+  }
+
+  // Upserts echo the real id; publishedVersion is carried when the id is in `publishedIds`.
+  function upsertFor(publishedIds: string[]) {
+    return jest.fn((params: any, payload: any) => {
+      const id = params.componentId ?? params.experienceFragmentId ?? params.experienceTemplateId
+      return Promise.resolve({
+        sys: { id, version: params.version ?? payload.sys?.version ?? 1, ...(publishedIds.includes(id) ? { publishedVersion: 1 } : {}) }
+      })
+    })
+  }
+
+  function clientWith(publishedIds: string[] = []) {
+    const client = mockClient()
+    client.component.upsert = upsertFor(publishedIds)
+    client.experienceFragment.upsert = upsertFor(publishedIds)
+    client.experienceTemplate.upsert = upsertFor(publishedIds)
+    return client
+  }
+
+  const callOrderOf = (mock: jest.Mock, id: string) => {
+    const idx = mock.mock.calls.findIndex(([params]: any[]) => (params.componentId ?? params.experienceFragmentId ?? params.experienceTemplateId) === id)
+    return idx === -1 ? undefined : mock.mock.invocationCallOrder[idx]
+  }
+
+  const button = (published = false) => component('button', {}, published)
+  const f1 = (published = false) => fragment('f1', 'button', {}, published)
+  const c1 = (published = false) => component('c1', { componentTree: [fragNode('f1')] }, published)
+
+  async function run(client: any, sourceData: any, destinationData: any = {}, extra: any = {}) {
+    await pushToSpace({
+      sourceData: { ...baseSourceData, ...sourceData } as any,
+      destinationData: { ...baseDestinationData, ...destinationData },
+      client,
+      spaceId: 'space-1',
+      environmentId: 'master',
+      includeExperienceOrchestration: true,
+      requestQueue,
+      ...extra
+    }).run({ data: {} })
+  }
+
+  test('imports a composed component after the fragment it embeds, and the fragment after its base component', async () => {
+    const client = clientWith()
+    await run(client, { components: [c1(), button()], experienceFragments: [f1()] })
+
+    const b = callOrderOf(client.component.upsert, 'button')!
+    const f = callOrderOf(client.experienceFragment.upsert, 'f1')!
+    const c = callOrderOf(client.component.upsert, 'c1')!
+    expect(b).toBeLessThan(f)
+    expect(f).toBeLessThan(c)
+  })
+
+  test('publishes in the same dependency order', async () => {
+    const ids = ['button', 'f1', 'c1']
+    const client = clientWith(ids)
+    await run(client, { components: [c1(true), button(true)], experienceFragments: [f1(true)] })
+
+    const b = callOrderOf(client.component.publish, 'button')!
+    const f = callOrderOf(client.experienceFragment.publish, 'f1')!
+    const c = callOrderOf(client.component.publish, 'c1')!
+    expect(b).toBeLessThan(f)
+    expect(f).toBeLessThan(c)
+  })
+
+  test('publishes fragments before importing templates that embed them', async () => {
+    const client = clientWith(['button', 'f1'])
+    const template: any = { sys: { id: 'tmpl-1', type: 'ExperienceTemplate', version: 1 }, name: 'T', componentTree: [fragNode('f1')] }
+    await run(client, { components: [button(true)], experienceFragments: [f1(true)], experienceTemplates: [template] })
+
+    expect(client.experienceFragment.publish).toHaveBeenCalledTimes(1)
+    expect(client.experienceTemplate.upsert).toHaveBeenCalledTimes(1)
+    expect(client.experienceFragment.publish.mock.invocationCallOrder[0])
+      .toBeLessThan(client.experienceTemplate.upsert.mock.invocationCallOrder[0])
+  })
+
+  test('unpublishes templates before fragments, and composed components before the fragments they embed', async () => {
+    const ids = ['button', 'f1', 'c1', 'tmpl-1']
+    const client = clientWith(ids)
+    const template: any = { sys: { id: 'tmpl-1', type: 'ExperienceTemplate', version: 1 }, name: 'T', componentTree: [fragNode('f1')] }
+    const dest = (type: string, id: string): any => ({ sys: { id, type, version: 1, publishedVersion: 1 } })
+    await run(
+      client,
+      { components: [c1(), button()], experienceFragments: [f1()], experienceTemplates: [template] },
+      {
+        components: [dest('Component', 'button'), dest('Component', 'c1')],
+        experienceFragments: [dest('ExperienceFragment', 'f1')],
+        experienceTemplates: [dest('ExperienceTemplate', 'tmpl-1')]
+      }
+    )
+
+    const t = callOrderOf(client.experienceTemplate.unpublish, 'tmpl-1')!
+    const c = callOrderOf(client.component.unpublish, 'c1')!
+    const f = callOrderOf(client.experienceFragment.unpublish, 'f1')!
+    const b = callOrderOf(client.component.unpublish, 'button')!
+    expect(t).toBeLessThan(c)
+    expect(c).toBeLessThan(f)
+    expect(f).toBeLessThan(b)
+  })
+
+  test('warns and still imports circular references', async () => {
+    const client = clientWith()
+    const emitSpy = jest.spyOn(logEmitter, 'emit')
+    const cyclicComponent = component('c1', { componentTree: [fragNode('f1')] })
+    const cyclicFragment = fragment('f1', 'c1')
+    await run(client, { components: [cyclicComponent], experienceFragments: [cyclicFragment] })
+
+    expect(client.component.upsert).toHaveBeenCalledTimes(1)
+    expect(client.experienceFragment.upsert).toHaveBeenCalledTimes(1)
+    const warning = emitSpy.mock.calls.find(([level, message]) =>
+      level === 'warning' && String(message).includes('Component:c1') && String(message).includes('ExperienceFragment:f1'))
+    expect(warning).toBeDefined()
+    emitSpy.mockRestore()
+  })
+
+  test('imports in dependency order but skips publish and unpublish when skipContentPublishing is set', async () => {
+    const client = clientWith(['button', 'f1', 'c1'])
+    const dest = (type: string, id: string): any => ({ sys: { id, type, version: 1, publishedVersion: 1 } })
+    await run(
+      client,
+      { components: [c1(), button()], experienceFragments: [f1()] },
+      {
+        components: [dest('Component', 'button'), dest('Component', 'c1')],
+        experienceFragments: [dest('ExperienceFragment', 'f1')]
+      },
+      { skipContentPublishing: true }
+    )
+
+    const b = callOrderOf(client.component.upsert, 'button')!
+    const f = callOrderOf(client.experienceFragment.upsert, 'f1')!
+    const c = callOrderOf(client.component.upsert, 'c1')!
+    expect(b).toBeLessThan(f)
+    expect(f).toBeLessThan(c)
+    expect(client.component.publish).not.toHaveBeenCalled()
+    expect(client.experienceFragment.publish).not.toHaveBeenCalled()
+    expect(client.component.unpublish).not.toHaveBeenCalled()
+    expect(client.experienceFragment.unpublish).not.toHaveBeenCalled()
   })
 })

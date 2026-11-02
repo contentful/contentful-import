@@ -25,8 +25,7 @@ import * as publishing from './publishing'
 import * as releases from './releases'
 import type { DestinationData, TransformedSourceData, Resources, TransformedAsset } from '../../types'
 import { GRAPHQL_SCHEMA_STALE_DELAYS_MS, isGraphQLSchemaStaleError } from '../../utils/graphql-schema-backoff'
-import sortComponents from '../../utils/sort-components'
-import sortExperienceFragments from '../../utils/sort-experience-fragments'
+import sortComponentsAndFragments, { nodeKey } from '../../utils/sort-components-and-fragments'
 import { filterExoEntitiesToPublish, filterExoEntitiesToUnpublish, publishExoEntity, unpublishExoEntity, filterVariantsToPublish, filterVariantsToArchive, publishVariant, archiveVariant } from '../../utils/publish-exo-entities'
 import { sortOrReport } from '../../utils/sort-or-report'
 import {
@@ -178,6 +177,55 @@ export default function pushToSpace({
 
     destinationDataById[entityType] = entitiesById
   }
+
+  const importComponent = async (entity: any): Promise<ComponentProps> => {
+    const existing = destinationDataById.components?.get(entity.sys.id)
+    if (existing) {
+      const payload: UpsertComponentProps = { ...entity, sys: { id: entity.sys.id, type: 'Component', version: existing.sys.version } }
+      const result = await client.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
+      logEmitter.emit('info', `UPDATE Component ${entity.sys.id}`)
+      return result
+    }
+    const payload: UpsertComponentProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'Component' } }
+    const result = await client.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
+    logEmitter.emit('info', `CREATE Component ${entity.sys.id}`)
+    return result
+  }
+
+  const importExperienceFragment = async (entity: any): Promise<ExperienceFragmentProps> => {
+    const existing = destinationDataById.experienceFragments?.get(entity.sys.id)
+    if (existing) {
+      // once an ExperienceFragment is created, its component cannot be changed to a different component -
+      // the API rejects `component` on UPDATE even when the value is unchanged, so omit it entirely
+      const payload: UpsertExperienceFragmentProps = { ...omitSysAndOptimizationVariants(entity), sys: { id: entity.sys.id, type: 'ExperienceFragment', version: existing.sys.version } }
+      const result = await client.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
+      logEmitter.emit('info', `UPDATE ExperienceFragment ${entity.sys.id}`)
+      return result
+    }
+    const payload: UpsertExperienceFragmentProps = { ...omitSysAndOptimizationVariants(entity), component: entity.sys.component, sys: { id: entity.sys.id, type: 'ExperienceFragment' } }
+    const result = await client.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
+    logEmitter.emit('info', `CREATE ExperienceFragment ${entity.sys.id}`)
+    return result
+  }
+
+  const publishComponent = (entity: ComponentProps) => publishExoEntity<ComponentProps>('Component', entity, () => client.component.publish(
+    { spaceId, environmentId, componentId: entity.sys.id, version: entity.sys.version }
+  ))
+
+  const publishExperienceFragment = (entity: ExperienceFragmentProps) => publishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => client.experienceFragment.publish(
+    { spaceId, environmentId, experienceFragmentId: entity.sys.id, version: entity.sys.version }
+  ))
+
+  const unpublishComponent = (entity: ComponentProps) => unpublishExoEntity<ComponentProps>('Component', entity, () => client.component.unpublish(
+    { spaceId, environmentId, componentId: entity.sys.id, version: entity.sys.version }
+  ))
+
+  const unpublishExperienceFragment = (entity: ExperienceFragmentProps) => unpublishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => client.experienceFragment.unpublish(
+    { spaceId, environmentId, experienceFragmentId: entity.sys.id, version: entity.sys.version }
+  ))
+
+  const hasComponentsOrFragments = () =>
+    !!((sourceData.components || []).length || (sourceData.experienceFragments || []).length)
 
   return new Listr([
     {
@@ -566,51 +614,69 @@ export default function pushToSpace({
       skip: () => !includeExperienceOrchestration || !(sourceData.designTokens || []).length
     },
     {
-      title: 'Importing Components',
+      title: 'Importing Components and Experience Fragments',
       task: wrapTask(async (ctx) => {
-        const sorted = sortOrReport(() => sortComponents(sourceData.components || []))
-        const results: any[] = []
-        for (const entity of sorted) {
+        // Sequential and dependency-ordered: a Component can embed Fragments and a Fragment is
+        // based on a Component, so neither type can be imported wholesale before the other.
+        const { sorted, cyclic } = sortOrReport(() => sortComponentsAndFragments(
+          sourceData.components || [],
+          sourceData.experienceFragments || []
+        ))
+        const order = [...sorted, ...cyclic]
+        if (cyclic.length) {
+          const keys = cyclic.map((node) => nodeKey(node.type, node.entity.sys.id))
+          logEmitter.emit('warning', `Circular references between Components and Experience Fragments: ${keys.join(', ')}. Importing them last; publishing may fail.`)
+        }
+        const components: any[] = []
+        const experienceFragments: any[] = []
+        for (const node of order) {
           try {
-            const existing = destinationDataById.components?.get(entity.sys.id)
-            if (existing) {
-              const payload: UpsertComponentProps = { ...entity, sys: { id: entity.sys.id, type: 'Component', version: existing.sys.version } }
-              const result = await client.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
-              logEmitter.emit('info', `UPDATE Component ${entity.sys.id}`)
-              results.push(result)
+            if (node.type === 'Component') {
+              components.push(await importComponent(node.entity))
             } else {
-              const payload: UpsertComponentProps = { ...omitSys(entity), sys: { id: entity.sys.id, type: 'Component' } }
-              const result = await client.component.upsert({ spaceId, environmentId, componentId: entity.sys.id }, payload)
-              logEmitter.emit('info', `CREATE Component ${entity.sys.id}`)
-              results.push(result)
+              experienceFragments.push(await importExperienceFragment(node.entity))
             }
           } catch (err: any) {
-            err.entity = entity
+            err.entity = node.entity
             logEmitter.emit('error', err)
           }
         }
-        ctx.data.components = results
+        ctx.data.components = components
+        ctx.data.experienceFragments = experienceFragments
+        ctx.data.componentAndFragmentOrder = order.map((node) => nodeKey(node.type, node.entity.sys.id))
       }),
-      skip: () => !includeExperienceOrchestration || !(sourceData.components || []).length
+      skip: () => !includeExperienceOrchestration || !hasComponentsOrFragments()
     },
     {
-      title: 'Publishing Components',
+      title: 'Publishing Components and Experience Fragments',
       task: wrapTask(async (ctx) => {
-        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.components, sourceData.components || [])
-        // Sorted and sequential: a Component's publish validation resolves nested
-        // Component/DataAssembly references against their *published* state, so a
-        // parent can't publish before the Components it embeds are published.
-        const sorted = sortOrReport(() => sortComponents(entitiesToPublish))
-        const results: ComponentProps[] = []
-        for (const entity of sorted) {
-          const published = await publishExoEntity<ComponentProps>('Component', entity, () => client.component.publish(
-            { spaceId, environmentId, componentId: entity.sys.id, version: entity.sys.version }
-          ))
-          if (published) results.push(published)
+        // Sequential in import order: publish validation resolves nested references against
+        // *published* state, so an entity can't publish before the entities it depends on.
+        const components = new Map<string, ComponentProps>(
+          filterExoEntitiesToPublish((ctx.data.components || []) as ComponentProps[], sourceData.components || []).map((e: ComponentProps) => [nodeKey('Component', e.sys.id), e])
+        )
+        const fragments = new Map<string, ExperienceFragmentProps>(
+          filterExoEntitiesToPublish((ctx.data.experienceFragments || []) as ExperienceFragmentProps[], sourceData.experienceFragments || []).map((e: ExperienceFragmentProps) => [nodeKey('ExperienceFragment', e.sys.id), e])
+        )
+        const publishedComponents: ComponentProps[] = []
+        const publishedFragments: ExperienceFragmentProps[] = []
+        for (const key of ctx.data.componentAndFragmentOrder || []) {
+          const component = components.get(key)
+          if (component) {
+            const published = await publishComponent(component)
+            if (published) publishedComponents.push(published)
+            continue
+          }
+          const fragment = fragments.get(key)
+          if (fragment) {
+            const published = await publishExperienceFragment(fragment)
+            if (published) publishedFragments.push(published)
+          }
         }
-        ctx.data.publishedComponents = results
+        ctx.data.publishedComponents = publishedComponents
+        ctx.data.publishedExperienceFragments = publishedFragments
       }),
-      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.components || []).length
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !hasComponentsOrFragments()
     },
     {
       title: 'Importing Experience Templates',
@@ -651,54 +717,6 @@ export default function pushToSpace({
         ctx.data.publishedExperienceTemplates = results.filter((entity): entity is ExperienceTemplateProps => entity !== null)
       }),
       skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experienceTemplates || []).length
-    },
-    {
-      title: 'Importing Experience Fragments',
-      task: wrapTask(async (ctx) => {
-        const sorted = sortOrReport(() => sortExperienceFragments(sourceData.experienceFragments || []))
-        const results: any[] = []
-        for (const entity of sorted) {
-          try {
-            const existing = destinationDataById.experienceFragments?.get(entity.sys.id)
-            if (existing) {
-              // once an ExperienceFragment is created, its component cannot be changed to a different component -
-              // the API rejects `component` on UPDATE even when the value is unchanged, so omit it entirely
-              const payload: UpsertExperienceFragmentProps = { ...omitSysAndOptimizationVariants(entity), sys: { id: entity.sys.id, type: 'ExperienceFragment', version: existing.sys.version } }
-              const result = await client.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
-              logEmitter.emit('info', `UPDATE ExperienceFragment ${entity.sys.id}`)
-              results.push(result)
-            } else {
-              const payload: UpsertExperienceFragmentProps = { ...omitSysAndOptimizationVariants(entity), component: entity.sys.component, sys: { id: entity.sys.id, type: 'ExperienceFragment' } }
-              const result = await client.experienceFragment.upsert({ spaceId, environmentId, experienceFragmentId: entity.sys.id }, payload)
-              logEmitter.emit('info', `CREATE ExperienceFragment ${entity.sys.id}`)
-              results.push(result)
-            }
-          } catch (err: any) {
-            err.entity = entity
-            logEmitter.emit('error', err)
-          }
-        }
-        ctx.data.experienceFragments = results
-      }),
-      skip: () => !includeExperienceOrchestration || !(sourceData.experienceFragments || []).length
-    },
-    {
-      title: 'Publishing Experience Fragments',
-      task: wrapTask(async (ctx) => {
-        const entitiesToPublish = filterExoEntitiesToPublish(ctx.data.experienceFragments, sourceData.experienceFragments || [])
-        // Sorted and sequential, same reasoning as Publishing Components: an ExperienceFragment
-        // can reference other ExperienceFragments in its slots, resolved against published state.
-        const sorted = sortOrReport(() => sortExperienceFragments(entitiesToPublish))
-        const results: ExperienceFragmentProps[] = []
-        for (const entity of sorted) {
-          const published = await publishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => client.experienceFragment.publish(
-            { spaceId, environmentId, experienceFragmentId: entity.sys.id, version: entity.sys.version }
-          ))
-          if (published) results.push(published)
-        }
-        ctx.data.publishedExperienceFragments = results
-      }),
-      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experienceFragments || []).length
     },
     {
       title: 'Importing Experiences',
@@ -839,22 +857,6 @@ export default function pushToSpace({
       skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experiences || []).length
     },
     {
-      title: 'Unpublishing Experience Fragments',
-      task: wrapTask(async (ctx) => {
-        const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.experienceFragments, sourceData.experienceFragments || [])
-        // Sorted and sequential, reverse of Publishing Experience Fragments: the API rejects
-        // unpublishing a fragment that a still-published parent references, so ancestors must
-        // unpublish first.
-        const sorted = sortExperienceFragments(entitiesToUnpublish).reverse()
-        for (const entity of sorted) {
-          await unpublishExoEntity<ExperienceFragmentProps>('ExperienceFragment', entity, () => client.experienceFragment.unpublish(
-            { spaceId, environmentId, experienceFragmentId: entity.sys.id, version: entity.sys.version }
-          ))
-        }
-      }),
-      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experienceFragments || []).length
-    },
-    {
       title: 'Unpublishing Experience Templates',
       task: wrapTask(async (ctx: { data: { experienceTemplates: ExperienceTemplateProps[] } }) => {
         const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.experienceTemplates, sourceData.experienceTemplates || [])
@@ -867,19 +869,27 @@ export default function pushToSpace({
       skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.experienceTemplates || []).length
     },
     {
-      title: 'Unpublishing Components',
+      title: 'Unpublishing Components and Experience Fragments',
       task: wrapTask(async (ctx) => {
-        const entitiesToUnpublish = filterExoEntitiesToUnpublish(ctx.data.components, sourceData.components || [])
-        // Sorted and sequential, reverse of Publishing Components: the API rejects unpublishing
-        // a Component that a still-published parent references, so ancestors must unpublish first.
-        const sorted = sortComponents(entitiesToUnpublish).reverse()
-        for (const entity of sorted) {
-          await unpublishExoEntity<ComponentProps>('Component', entity, () => client.component.unpublish(
-            { spaceId, environmentId, componentId: entity.sys.id, version: entity.sys.version }
-          ))
+        // Sequential in reverse import order: the API rejects unpublishing an entity that a
+        // still-published parent references, so dependents must unpublish before their dependencies.
+        const components = new Map<string, ComponentProps>(
+          filterExoEntitiesToUnpublish((ctx.data.components || []) as ComponentProps[], sourceData.components || []).map((e: ComponentProps) => [nodeKey('Component', e.sys.id), e])
+        )
+        const fragments = new Map<string, ExperienceFragmentProps>(
+          filterExoEntitiesToUnpublish((ctx.data.experienceFragments || []) as ExperienceFragmentProps[], sourceData.experienceFragments || []).map((e: ExperienceFragmentProps) => [nodeKey('ExperienceFragment', e.sys.id), e])
+        )
+        for (const key of [...(ctx.data.componentAndFragmentOrder || [])].reverse()) {
+          const component = components.get(key)
+          if (component) {
+            await unpublishComponent(component)
+            continue
+          }
+          const fragment = fragments.get(key)
+          if (fragment) await unpublishExperienceFragment(fragment)
         }
       }),
-      skip: () => !includeExperienceOrchestration || skipContentPublishing || !(sourceData.components || []).length
+      skip: () => !includeExperienceOrchestration || skipContentPublishing || !hasComponentsOrFragments()
     },
     {
       title: 'Unpublishing Data Assemblies',
