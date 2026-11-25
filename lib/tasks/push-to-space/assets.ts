@@ -24,9 +24,43 @@ export async function getAssetStreamForURL(url, assetsDirectory) {
   }
 }
 
-async function processAssetForLocale(client: PlainClientAPI, spaceId: string, environmentId: string, locale: string, asset, processingOptions) {
+const ASSET_PROCESSING_CHECK_WAIT = 3000
+const ASSET_PROCESSING_CHECK_RETRIES = 10
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// Mirrors the SDK's processForLocale, but only the HTTP calls go through the
+// queue so an asset waiting on processing doesn't hold a rate-limit slot.
+async function processAndWaitForUrl(client: PlainClientAPI, spaceId: string, environmentId: string, locale: string, asset, processingOptions, requestQueue) {
+  const {
+    processingCheckWait = ASSET_PROCESSING_CHECK_WAIT,
+    processingCheckRetries = ASSET_PROCESSING_CHECK_RETRIES
+  } = processingOptions
+  const assetId = asset.sys.id
+
+  await requestQueue.add(() => client.raw.put(
+    `/spaces/${spaceId}/environments/${environmentId}/assets/${assetId}/files/${locale}/process`,
+    null,
+    { headers: { 'X-Contentful-Version': asset.sys.version } }
+  ))
+
+  for (let checkCount = 0; ; checkCount++) {
+    const latest = await requestQueue.add(() => client.asset.get({ spaceId, environmentId, assetId }))
+    if (latest.fields.file?.[locale]?.url) {
+      return latest
+    }
+    if (checkCount >= processingCheckRetries) {
+      const error = new Error('Asset is taking longer then expected to process.')
+      error.name = 'AssetProcessingTimeout'
+      throw error
+    }
+    await wait(processingCheckWait)
+  }
+}
+
+async function processAssetForLocale(client: PlainClientAPI, spaceId: string, environmentId: string, locale: string, asset, processingOptions, requestQueue) {
   try {
-    return await client.asset.processForLocale({ spaceId, environmentId }, asset, locale, processingOptions)
+    return await processAndWaitForUrl(client, spaceId, environmentId, locale, asset, processingOptions, requestQueue)
   } catch (err: any) {
     if (err instanceof ContentfulEntityError) {
       err.entity = asset
@@ -80,9 +114,8 @@ export async function processAssets({
     logEmitter.emit('info', `Processing Asset ${getEntityName(asset)}`)
 
     // We want to do what processForAllLocale does, but as the rate
-    // limit is only enforced if we have a dedicated requestQueue item
-    // for every processForLocale call, we need to duplicate the logic
-    // here
+    // limit is only enforced if every request goes through the
+    // requestQueue, we need to duplicate the logic here
     const locales = Object.keys(asset.fields.file || {})
 
     let latestAssetVersion = asset
@@ -91,11 +124,9 @@ export async function processAssets({
       // The last resolved promise will return the most up to date asset
       // version which we need for next import steps (e.g. publishing)
       latestAssetVersion = await lastResult(
-        locales.map((locale) => {
-          return requestQueue.add(() =>
-            processAssetForLocale(client, spaceId, environmentId, locale, asset, processingOptions)
-          )
-        })
+        locales.map((locale) =>
+          processAssetForLocale(client, spaceId, environmentId, locale, asset, processingOptions, requestQueue)
+        )
       )
     } catch (err) {
       logEmitter.emit('warning', `Asset ${getEntityName(asset)} processing failed and will be skipped`)
